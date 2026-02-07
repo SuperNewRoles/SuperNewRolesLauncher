@@ -24,6 +24,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": "all",
     "windows": {
       "nsis": {
@@ -39,5 +40,15 @@
       "icons/128x128.png",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": ["https://example.com/latest.json"],
+      "pubkey": "REPLACE_WITH_TAURI_UPDATER_PUBLIC_KEY",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }
