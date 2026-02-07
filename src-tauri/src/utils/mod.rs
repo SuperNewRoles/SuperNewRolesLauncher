@@ -1,6 +1,8 @@
 pub mod download;
 pub mod epic_api;
 pub mod finder;
+pub mod migration;
+pub mod reporting_api;
 pub mod settings;
 pub mod storage;
 pub mod zip;

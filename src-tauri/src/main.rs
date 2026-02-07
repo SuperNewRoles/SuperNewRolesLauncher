@@ -7,15 +7,25 @@ mod utils;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::settings::get_launcher_settings,
             commands::settings::save_launcher_settings,
             commands::settings::check_profile_ready,
+            commands::migration::export_migration_data,
+            commands::migration::import_migration_data,
             commands::finder::detect_among_us,
             commands::finder::get_game_platform,
             commands::snr::list_snr_releases,
             commands::snr::install_snr_release,
+            commands::reporting::reporting_prepare_account,
+            commands::reporting::reporting_list_threads,
+            commands::reporting::reporting_get_messages,
+            commands::reporting::reporting_send_message,
+            commands::reporting::reporting_send_report,
+            commands::reporting::reporting_get_notification_flag,
+            commands::reporting::reporting_get_log_source_info,
             commands::launch::launch_modded,
             commands::launch::launch_vanilla,
             commands::epic_commands::get_epic_auth_url,

@@ -22,6 +22,11 @@ base64 = "0.22"
 keyring = "3.6.3"
 tauri-plugin-opener = "2"
 regex = "1"
+aes = "0.8"
+cbc = "0.1"
+brotli = "7"
+rand = "0.8"
+tauri-plugin-notification = "2"
 
 [profile.release]
 panic = "abort"

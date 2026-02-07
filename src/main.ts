@@ -1,11 +1,18 @@
+import "./styles.css";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { join } from "@tauri-apps/api/path";
+import {
+  isPermissionGranted,
+  requestPermission,
+  sendNotification,
+} from "@tauri-apps/plugin-notification";
 import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import { check } from "@tauri-apps/plugin-updater";
 
 type GamePlatform = "steam" | "epic";
+type ReportType = "Bug" | "Question" | "Request" | "Thanks" | "Other";
 
 interface LauncherSettings {
   among_us_path: string;
@@ -32,6 +39,19 @@ interface InstallResult {
   platform: string;
   asset_name: string;
   profile_path: string;
+}
+
+interface MigrationExportResult {
+  archive_path: string;
+  included_files: number;
+  profile_files: number;
+  locallow_files: number;
+}
+
+interface MigrationImportResult {
+  imported_files: number;
+  profile_files: number;
+  locallow_files: number;
 }
 
 interface InstallProgressPayload {
@@ -62,13 +82,64 @@ interface OfficialLink {
   iconSvg: string;
 }
 
+interface ReportingPrepareResult {
+  ready: boolean;
+  token_source: string;
+  created_account: boolean;
+}
+
+interface ReportingSendResult {
+  success: boolean;
+}
+
+interface ReportStatus {
+  status: string;
+  color: string;
+  mark: string;
+}
+
+interface ReportThread {
+  thread_id: string;
+  title: string;
+  first_message: string;
+  created_at: string;
+  unread: boolean;
+  current_status: ReportStatus;
+}
+
+interface ReportMessage {
+  message_type: string;
+  message_id: string;
+  created_at: string;
+  content: string;
+  sender?: string;
+  color?: string;
+  mark?: string;
+}
+
+interface ReportingLogSourceInfo {
+  profile_candidate: string;
+  game_candidate: string;
+  selected_path: string | null;
+  exists: boolean;
+}
+
+interface SendReportInput {
+  report_type: ReportType;
+  title: string;
+  description: string;
+  map?: string;
+  role?: string;
+  timing?: string;
+}
+
 const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) {
   throw new Error("#app not found");
 }
 
 app.innerHTML = `
-  <main style="font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; padding: 16px; display: grid; gap: 20px; max-width: 980px;">
+  <main class="app-shell">
     <h1 style="margin: 0;">SuperNewRolesLauncher</h1>
 
     <section style="display: grid; gap: 8px; padding: 12px; border: 1px solid #d0d7de; border-radius: 8px;">
@@ -82,7 +153,7 @@ app.innerHTML = `
       <div style="font-size: 12px; color: #57606a; display: grid; gap: 4px;">
         <div>Wiki: https://wiki.supernewroles.com</div>
       </div>
-      <div id="official-link-buttons" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+      <div id="official-link-buttons" class="pill-links"></div>
     </section>
 
     <section style="display: grid; gap: 8px; padding: 12px; border: 1px solid #d0d7de; border-radius: 8px;">
@@ -122,6 +193,91 @@ app.innerHTML = `
         <span id="launch-status" aria-live="polite"></span>
       </div>
       <div id="profile-ready-status" style="font-size: 12px; color: #57606a;"></div>
+    </section>
+
+    <section style="display: grid; gap: 8px; padding: 12px; border: 1px solid #d0d7de; border-radius: 8px; max-width: 780px;">
+      <strong>データお引越し (.snrdata)</strong>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button id="migration-export" type="button" style="padding: 8px 12px;">書き出し</button>
+        <span style="font-size: 12px; color: #57606a;">プロファイルの対象SaveData + LocalLow/Innersloth/SuperNewRoles を保存</span>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <input id="migration-import-path" type="text" placeholder="C:\\\\path\\\\to\\\\migration.snrdata" style="padding: 8px; min-width: 420px; flex: 1;" />
+        <button id="migration-import" type="button" style="padding: 8px 12px;">読み込み</button>
+      </div>
+      <div id="migration-status" style="font-size: 12px; color: #57606a;" aria-live="polite"></div>
+    </section>
+
+    <section class="card">
+      <div class="report-header">
+        <strong>報告センター</strong>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <span id="report-account-state" class="badge">未準備</span>
+          <span id="report-remote-flag" class="badge">API通知: 不明</span>
+          <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #57606a;">
+            <input id="report-notification-toggle" type="checkbox" />
+            Windows通知
+          </label>
+          <button id="report-refresh" type="button" class="ghost">手動再読込</button>
+        </div>
+      </div>
+      <div id="report-notification-state" class="status-line" aria-live="polite"></div>
+      <div class="report-grid">
+        <div class="report-pane">
+          <strong>新規報告</strong>
+          <div class="field-grid two">
+            <div class="stack">
+              <label for="report-type">種別</label>
+              <select id="report-type">
+                <option value="Bug">Bug</option>
+                <option value="Question">Question</option>
+                <option value="Request">Request</option>
+                <option value="Thanks">Thanks</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="stack">
+              <label for="report-title">タイトル</label>
+              <input id="report-title" type="text" maxlength="80" />
+            </div>
+          </div>
+          <div id="report-bug-fields" class="field-grid two">
+            <div class="stack">
+              <label for="report-map">マップ</label>
+              <input id="report-map" type="text" maxlength="40" />
+            </div>
+            <div class="stack">
+              <label for="report-role">役職/機能</label>
+              <input id="report-role" type="text" maxlength="60" />
+            </div>
+            <div class="stack" style="grid-column: 1 / -1;">
+              <label for="report-timing">発生タイミング</label>
+              <input id="report-timing" type="text" maxlength="100" />
+            </div>
+          </div>
+          <div class="stack">
+            <label for="report-description">本文</label>
+            <textarea id="report-description" placeholder="再現手順や状況を記入"></textarea>
+          </div>
+          <div id="report-log-source" class="muted"></div>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <button id="report-send" type="button">報告を送信</button>
+            <span id="report-status" class="status-line" aria-live="polite"></span>
+          </div>
+        </div>
+
+        <div class="report-pane">
+          <strong>スレッド / メッセージ</strong>
+          <div id="report-thread-list" class="report-thread-list"></div>
+          <div id="report-thread-status" class="status-line" aria-live="polite"></div>
+          <div id="report-selected-thread" class="muted">選択中: なし</div>
+          <div id="report-message-list" class="report-message-list"></div>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <input id="report-reply-input" type="text" placeholder="返信メッセージ" style="padding: 8px; min-width: 220px; flex: 1;" />
+            <button id="report-send-message" type="button">返信</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section style="display: grid; gap: 8px; padding: 12px; border: 1px solid #d0d7de; border-radius: 8px;">
@@ -180,6 +336,31 @@ const launchModdedButton = mustElement<HTMLButtonElement>("#launch-modded");
 const launchVanillaButton = mustElement<HTMLButtonElement>("#launch-vanilla");
 const launchStatus = mustElement<HTMLSpanElement>("#launch-status");
 const profileReadyStatus = mustElement<HTMLDivElement>("#profile-ready-status");
+const migrationExportButton = mustElement<HTMLButtonElement>("#migration-export");
+const migrationImportPathInput = mustElement<HTMLInputElement>("#migration-import-path");
+const migrationImportButton = mustElement<HTMLButtonElement>("#migration-import");
+const migrationStatus = mustElement<HTMLDivElement>("#migration-status");
+const reportAccountState = mustElement<HTMLSpanElement>("#report-account-state");
+const reportRemoteFlag = mustElement<HTMLSpanElement>("#report-remote-flag");
+const reportRefreshButton = mustElement<HTMLButtonElement>("#report-refresh");
+const reportNotificationToggle = mustElement<HTMLInputElement>("#report-notification-toggle");
+const reportNotificationState = mustElement<HTMLDivElement>("#report-notification-state");
+const reportTypeSelect = mustElement<HTMLSelectElement>("#report-type");
+const reportTitleInput = mustElement<HTMLInputElement>("#report-title");
+const reportDescriptionInput = mustElement<HTMLTextAreaElement>("#report-description");
+const reportMapInput = mustElement<HTMLInputElement>("#report-map");
+const reportRoleInput = mustElement<HTMLInputElement>("#report-role");
+const reportTimingInput = mustElement<HTMLInputElement>("#report-timing");
+const reportBugFields = mustElement<HTMLDivElement>("#report-bug-fields");
+const reportLogSource = mustElement<HTMLDivElement>("#report-log-source");
+const reportSendButton = mustElement<HTMLButtonElement>("#report-send");
+const reportStatus = mustElement<HTMLSpanElement>("#report-status");
+const reportThreadList = mustElement<HTMLDivElement>("#report-thread-list");
+const reportThreadStatus = mustElement<HTMLDivElement>("#report-thread-status");
+const reportSelectedThread = mustElement<HTMLDivElement>("#report-selected-thread");
+const reportMessageList = mustElement<HTMLDivElement>("#report-message-list");
+const reportReplyInput = mustElement<HTMLInputElement>("#report-reply-input");
+const reportSendMessageButton = mustElement<HTMLButtonElement>("#report-send-message");
 const epicLoginWebviewButton = mustElement<HTMLButtonElement>("#epic-login-webview");
 const epicLogoutButton = mustElement<HTMLButtonElement>("#epic-logout");
 const epicAuthStatus = mustElement<HTMLSpanElement>("#epic-auth-status");
@@ -193,6 +374,7 @@ const clearTokenButton = mustElement<HTMLButtonElement>("#clear-token");
 const officialLinkButtons = mustElement<HTMLDivElement>("#official-link-buttons");
 
 const UPDATER_TOKEN_STORAGE_KEY = "updater.githubToken";
+const REPORTING_NOTIFICATION_STORAGE_KEY = "reporting.notification.enabled";
 
 const OFFICIAL_LINKS: OfficialLink[] = [
   {
@@ -234,6 +416,23 @@ let launchInProgress = false;
 let releasesLoading = false;
 let checkingUpdate = false;
 let epicLoggedIn = false;
+let migrationExporting = false;
+let migrationImporting = false;
+let reportingReady = false;
+let reportPreparing = false;
+let reportingLoading = false;
+let reportMessagesLoading = false;
+let reportSending = false;
+let reportMessageSending = false;
+let reportThreads: ReportThread[] = [];
+let reportMessages: ReportMessage[] = [];
+let selectedReportThreadId: string | null = null;
+let reportMessageLoadTicket = 0;
+let reportingPollTimer: number | null = null;
+let reportingUnreadBaselineCaptured = false;
+let knownUnreadThreadIds = new Set<string>();
+let reportingNotificationEnabled =
+  localStorage.getItem(REPORTING_NOTIFICATION_STORAGE_KEY) === "1";
 
 function normalizeGithubToken(value: string): string {
   return value.trim();
@@ -263,25 +462,124 @@ function formatDate(value: string): string {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
 }
 
+function setStatusLine(
+  element: HTMLElement,
+  message: string,
+  tone: "info" | "error" | "success" | "warn" = "info"
+): void {
+  element.textContent = message;
+  element.className = tone === "info" ? "status-line" : `status-line ${tone}`;
+}
+
+function renderReportBugFields(): void {
+  reportBugFields.style.display = reportTypeSelect.value === "Bug" ? "grid" : "none";
+}
+
+function updateReportingNotificationLabel(): void {
+  if (reportingNotificationEnabled) {
+    setStatusLine(reportNotificationState, "Windows通知: ON", "success");
+  } else {
+    setStatusLine(reportNotificationState, "Windows通知: OFF", "warn");
+  }
+}
+
+function persistReportingNotificationEnabled(): void {
+  localStorage.setItem(
+    REPORTING_NOTIFICATION_STORAGE_KEY,
+    reportingNotificationEnabled ? "1" : "0"
+  );
+  reportNotificationToggle.checked = reportingNotificationEnabled;
+  updateReportingNotificationLabel();
+}
+
+async function ensureNotificationPermission(): Promise<boolean> {
+  try {
+    if (await isPermissionGranted()) {
+      return true;
+    }
+    const permission = await requestPermission();
+    return permission === "granted";
+  } catch {
+    return false;
+  }
+}
+
+async function sendUnreadWindowsNotification(newUnreadThreads: ReportThread[]): Promise<void> {
+  if (!reportingNotificationEnabled || newUnreadThreads.length === 0) {
+    return;
+  }
+
+  const granted = await ensureNotificationPermission();
+  if (!granted) {
+    reportingNotificationEnabled = false;
+    persistReportingNotificationEnabled();
+    setStatusLine(reportNotificationState, "通知許可がないためOFFにしました", "warn");
+    return;
+  }
+
+  const title =
+    newUnreadThreads.length === 1
+      ? `新着メッセージ: ${newUnreadThreads[0].title || "無題"}`
+      : `新着メッセージ ${newUnreadThreads.length}件`;
+  const sample = newUnreadThreads
+    .slice(0, 2)
+    .map((thread) => thread.title || "(no title)")
+    .join(" / ");
+
+  try {
+    await sendNotification({ title, body: sample || "報告センターに新着があります" });
+  } catch {
+    // ignore notification errors
+  }
+}
+
+function extractUnreadIds(threads: ReportThread[]): Set<string> {
+  return new Set(threads.filter((thread) => thread.unread).map((thread) => thread.thread_id));
+}
+
+async function updateUnreadDiff(threads: ReportThread[], allowNotify: boolean): Promise<void> {
+  const currentUnread = extractUnreadIds(threads);
+  if (!reportingUnreadBaselineCaptured) {
+    knownUnreadThreadIds = currentUnread;
+    reportingUnreadBaselineCaptured = true;
+    return;
+  }
+
+  const newUnreadIds = [...currentUnread].filter((id) => !knownUnreadThreadIds.has(id));
+  if (allowNotify && newUnreadIds.length > 0) {
+    await sendUnreadWindowsNotification(
+      threads.filter((thread) => newUnreadIds.includes(thread.thread_id))
+    );
+  }
+
+  knownUnreadThreadIds = currentUnread;
+}
+
+function stopReportingPolling(): void {
+  if (reportingPollTimer !== null) {
+    window.clearInterval(reportingPollTimer);
+    reportingPollTimer = null;
+  }
+}
+
+function startReportingPolling(): void {
+  stopReportingPolling();
+  reportingPollTimer = window.setInterval(() => {
+    if (!reportingReady || reportPreparing || reportingLoading) {
+      return;
+    }
+    void refreshReportingCenter(false, true);
+  }, 60_000);
+}
+
 function renderOfficialLinks(): void {
   officialLinkButtons.replaceChildren();
 
   for (const link of OFFICIAL_LINKS) {
     const button = document.createElement("button");
     button.type = "button";
-    button.style.cssText = [
-      "display: inline-flex",
-      "align-items: center",
-      "gap: 6px",
-      "padding: 8px 12px",
-      "border: none",
-      "border-radius: 999px",
-      "color: #fff",
-      `background: ${link.backgroundColor}`,
-      "font-size: 13px",
-      "font-weight: 600",
-      "cursor: pointer",
-    ].join(";");
+    button.className = "pill-link";
+    button.style.background = link.backgroundColor;
     button.setAttribute("aria-label", `${link.label} をブラウザで開く`);
     button.innerHTML = `${link.iconSvg}<span>${link.label}</span>`;
 
@@ -317,21 +615,39 @@ function updateButtons(): void {
   const hasGamePath = Boolean(settings?.among_us_path.trim());
   const hasProfilePath = Boolean(settings?.profile_path.trim());
   const hasTag = Boolean(settings?.selected_release_tag.trim());
-  const launchAvailable = hasSettings && hasGamePath && !launchInProgress && !gameRunning;
+  const migrationBusy = migrationExporting || migrationImporting;
+  const launchAvailable =
+    hasSettings && hasGamePath && !launchInProgress && !gameRunning && !installInProgress && !migrationBusy;
 
-  installButton.disabled = !hasSettings || !hasTag || installInProgress || releasesLoading;
+  installButton.disabled = !hasSettings || !hasTag || installInProgress || releasesLoading || migrationBusy;
   launchModdedButton.disabled = !launchAvailable || !profileIsReady;
   launchVanillaButton.disabled = !launchAvailable;
-  epicLoginWebviewButton.disabled = launchInProgress || installInProgress;
-  epicLoginCodeButton.disabled = launchInProgress || installInProgress;
-  epicLogoutButton.disabled = !epicLoggedIn || launchInProgress || installInProgress;
-  detectAmongUsPathButton.disabled = launchInProgress || installInProgress;
-  saveAmongUsPathButton.disabled = launchInProgress || installInProgress;
-  refreshReleasesButton.disabled = releasesLoading || installInProgress;
-  releaseSelect.disabled = releasesLoading || installInProgress;
-  platformSelect.disabled = installInProgress;
-  openAmongUsFolderButton.disabled = !hasGamePath || launchInProgress || installInProgress;
-  openProfileFolderButton.disabled = !hasProfilePath || launchInProgress || installInProgress;
+  epicLoginWebviewButton.disabled = launchInProgress || installInProgress || migrationBusy;
+  epicLoginCodeButton.disabled = launchInProgress || installInProgress || migrationBusy;
+  epicLogoutButton.disabled = !epicLoggedIn || launchInProgress || installInProgress || migrationBusy;
+  detectAmongUsPathButton.disabled = launchInProgress || installInProgress || migrationBusy;
+  saveAmongUsPathButton.disabled = launchInProgress || installInProgress || migrationBusy;
+  refreshReleasesButton.disabled = releasesLoading || installInProgress || migrationBusy;
+  releaseSelect.disabled = releasesLoading || installInProgress || migrationBusy;
+  platformSelect.disabled = installInProgress || migrationBusy;
+  openAmongUsFolderButton.disabled = !hasGamePath || launchInProgress || installInProgress || migrationBusy;
+  openProfileFolderButton.disabled = !hasProfilePath || launchInProgress || installInProgress || migrationBusy;
+  migrationExportButton.disabled =
+    !hasSettings || migrationBusy || installInProgress || launchInProgress || gameRunning;
+  migrationImportButton.disabled = migrationBusy || installInProgress || launchInProgress || gameRunning;
+  migrationImportPathInput.disabled = migrationBusy || installInProgress || launchInProgress || gameRunning;
+
+  reportRefreshButton.disabled = reportPreparing || reportingLoading || reportMessagesLoading;
+  reportNotificationToggle.disabled = reportPreparing || reportSending;
+  reportTypeSelect.disabled = !reportingReady || reportPreparing || reportSending;
+  reportTitleInput.disabled = !reportingReady || reportPreparing || reportSending;
+  reportDescriptionInput.disabled = !reportingReady || reportPreparing || reportSending;
+  reportMapInput.disabled = !reportingReady || reportPreparing || reportSending;
+  reportRoleInput.disabled = !reportingReady || reportPreparing || reportSending;
+  reportTimingInput.disabled = !reportingReady || reportPreparing || reportSending;
+  reportSendButton.disabled = !reportingReady || reportPreparing || reportSending;
+  reportReplyInput.disabled = !reportingReady || !selectedReportThreadId || reportMessageSending;
+  reportSendMessageButton.disabled = !reportingReady || !selectedReportThreadId || reportMessageSending;
 }
 
 function renderSettings(): void {
@@ -365,6 +681,95 @@ function renderReleaseOptions(): void {
   } else if (releases.length > 0) {
     releaseSelect.value = releases[0].tag;
   }
+}
+
+function renderReportThreads(): void {
+  reportThreadList.replaceChildren();
+
+  if (reportThreads.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "muted";
+    empty.style.padding = "8px";
+    empty.textContent = "スレッドがありません";
+    reportThreadList.append(empty);
+    reportSelectedThread.textContent = "選択中: なし";
+    return;
+  }
+
+  for (const thread of reportThreads) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className =
+      selectedReportThreadId === thread.thread_id
+        ? "report-thread-item active"
+        : "report-thread-item";
+    button.textContent = `${thread.current_status.mark || "●"} ${thread.title || "(no title)"}${
+      thread.unread ? " [新着]" : ""
+    }`;
+
+    button.addEventListener("click", async () => {
+      selectedReportThreadId = thread.thread_id;
+      renderReportThreads();
+      await loadReportMessages(thread.thread_id, true);
+      updateButtons();
+    });
+
+    reportThreadList.append(button);
+  }
+
+  const selected = reportThreads.find((thread) => thread.thread_id === selectedReportThreadId);
+  reportSelectedThread.textContent = selected
+    ? `選択中: ${selected.title || selected.thread_id}`
+    : "選択中: なし";
+}
+
+function createMessageElement(message: ReportMessage): HTMLDivElement {
+  const wrapper = document.createElement("div");
+  const isStatus = message.message_type === "status";
+  wrapper.className = isStatus ? "report-message status" : "report-message";
+
+  const head = document.createElement("div");
+  head.className = "report-message-head";
+
+  const author = document.createElement("span");
+  const date = document.createElement("span");
+
+  if (isStatus) {
+    author.textContent = `${message.mark?.trim() || "●"} ステータス更新`;
+    if (message.color) {
+      author.style.color = message.color;
+    }
+  } else {
+    author.textContent = (message.sender || "unknown").replace("github:", "");
+  }
+
+  date.textContent = formatDate(message.created_at);
+  head.append(author, date);
+
+  const body = document.createElement("div");
+  body.className = "report-message-body";
+  body.textContent = message.content || "";
+
+  wrapper.append(head, body);
+  return wrapper;
+}
+
+function renderReportMessages(): void {
+  reportMessageList.replaceChildren();
+
+  if (reportMessages.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "muted";
+    empty.textContent = "メッセージがありません";
+    reportMessageList.append(empty);
+    return;
+  }
+
+  for (const message of reportMessages) {
+    reportMessageList.append(createMessageElement(message));
+  }
+
+  reportMessageList.scrollTop = reportMessageList.scrollHeight;
 }
 
 async function reloadSettings(): Promise<void> {
@@ -441,6 +846,144 @@ async function refreshEpicLoginState(): Promise<void> {
   }
 }
 
+async function refreshReportingLogSource(): Promise<void> {
+  try {
+    const info = await invoke<ReportingLogSourceInfo>("reporting_get_log_source_info");
+    if (info.exists && info.selected_path) {
+      reportLogSource.textContent = `Bugログ: ${info.selected_path}`;
+    } else {
+      reportLogSource.textContent = `Bugログ未検出。候補: ${info.profile_candidate} / ${info.game_candidate}`;
+    }
+  } catch (error) {
+    reportLogSource.textContent = `ログ候補取得失敗: ${String(error)}`;
+  }
+}
+
+async function loadReportMessages(threadId: string, withStatus: boolean): Promise<void> {
+  const normalized = threadId.trim();
+  if (!normalized || !reportingReady) {
+    return;
+  }
+
+  const ticket = ++reportMessageLoadTicket;
+  reportMessagesLoading = true;
+  if (withStatus) {
+    setStatusLine(reportThreadStatus, "メッセージ取得中...");
+  }
+  updateButtons();
+
+  try {
+    const messages = await invoke<ReportMessage[]>("reporting_get_messages", {
+      threadId: normalized,
+    });
+
+    if (ticket !== reportMessageLoadTicket) {
+      return;
+    }
+
+    reportMessages = messages;
+    renderReportMessages();
+
+    if (withStatus) {
+      setStatusLine(reportThreadStatus, `メッセージ ${messages.length}件`, "success");
+    }
+  } catch (error) {
+    if (ticket !== reportMessageLoadTicket) {
+      return;
+    }
+    setStatusLine(reportThreadStatus, `メッセージ取得失敗: ${String(error)}`, "error");
+  } finally {
+    if (ticket === reportMessageLoadTicket) {
+      reportMessagesLoading = false;
+      updateButtons();
+    }
+  }
+}
+
+async function refreshReportingCenter(manual: boolean, allowNotify: boolean): Promise<void> {
+  if (!reportingReady || reportingLoading) {
+    return;
+  }
+
+  reportingLoading = true;
+  if (manual) {
+    setStatusLine(reportStatus, "スレッド更新中...");
+  }
+  updateButtons();
+
+  try {
+    const [threads, hasNotification] = await Promise.all([
+      invoke<ReportThread[]>("reporting_list_threads"),
+      invoke<boolean>("reporting_get_notification_flag").catch(() => false),
+    ]);
+
+    reportThreads = threads;
+    reportRemoteFlag.textContent = hasNotification ? "API通知: 新着あり" : "API通知: 新着なし";
+
+    if (
+      selectedReportThreadId &&
+      !reportThreads.some((thread) => thread.thread_id === selectedReportThreadId)
+    ) {
+      selectedReportThreadId = null;
+      reportMessages = [];
+    }
+
+    if (!selectedReportThreadId && reportThreads.length > 0) {
+      selectedReportThreadId = reportThreads[0].thread_id;
+    }
+
+    renderReportThreads();
+    await updateUnreadDiff(reportThreads, allowNotify);
+
+    if (selectedReportThreadId) {
+      await loadReportMessages(selectedReportThreadId, false);
+    } else {
+      renderReportMessages();
+    }
+
+    if (manual) {
+      setStatusLine(reportStatus, `スレッド更新完了 (${reportThreads.length}件)`, "success");
+    }
+  } catch (error) {
+    setStatusLine(reportStatus, `報告センター更新失敗: ${String(error)}`, "error");
+  } finally {
+    reportingLoading = false;
+    updateButtons();
+  }
+}
+
+async function initializeReporting(): Promise<void> {
+  reportPreparing = true;
+  reportingReady = false;
+  updateButtons();
+  setStatusLine(reportStatus, "アカウント準備中...");
+
+  try {
+    const result = await invoke<ReportingPrepareResult>("reporting_prepare_account");
+    reportingReady = result.ready;
+    if (result.created_account) {
+      reportAccountState.textContent = "トークン準備完了 (新規作成)";
+    } else {
+      reportAccountState.textContent = `トークン準備完了 (${result.token_source})`;
+    }
+    reportAccountState.className = "badge success";
+
+    await refreshReportingLogSource();
+    await refreshReportingCenter(true, false);
+    startReportingPolling();
+    setStatusLine(reportStatus, "報告センター準備完了", "success");
+  } catch (error) {
+    reportingReady = false;
+    stopReportingPolling();
+    reportAccountState.textContent = "準備失敗";
+    reportAccountState.className = "badge warn";
+    setStatusLine(reportStatus, `報告センター準備失敗: ${String(error)}`, "error");
+  } finally {
+    reportPreparing = false;
+    updateButtons();
+  }
+}
+
 async function gameExePathFromSettings(): Promise<string> {
   if (!settings || !settings.among_us_path.trim()) {
     throw new Error("Among Us path is not configured");
@@ -452,6 +995,7 @@ saveAmongUsPathButton.addEventListener("click", async () => {
   const value = amongUsPathInput.value.trim();
   await saveSettings({ among_us_path: value });
   await refreshProfileReady();
+  await refreshReportingLogSource();
   installStatus.textContent = "Among Usパスを保存しました。";
   updateButtons();
 });
@@ -464,6 +1008,7 @@ detectAmongUsPathButton.addEventListener("click", async () => {
     const platform = await invoke<GamePlatform>("get_game_platform", { path: detected });
     await saveSettings({ among_us_path: detected, game_platform: platform });
     await refreshProfileReady();
+    await refreshReportingLogSource();
     installStatus.textContent = `検出成功: ${detected} (${platform})`;
   } catch (error) {
     installStatus.textContent = `検出失敗: ${String(error)}`;
@@ -479,6 +1024,55 @@ openAmongUsFolderButton.addEventListener("click", async () => {
 
 openProfileFolderButton.addEventListener("click", async () => {
   await openFolder(settings?.profile_path, "プロファイルフォルダ");
+});
+
+migrationExportButton.addEventListener("click", async () => {
+  migrationExporting = true;
+  updateButtons();
+  setStatusLine(migrationStatus, "お引越しデータを書き出し中...");
+
+  try {
+    const result = await invoke<MigrationExportResult>("export_migration_data");
+    migrationImportPathInput.value = result.archive_path;
+    setStatusLine(
+      migrationStatus,
+      `書き出し完了: ${result.archive_path} (${result.included_files}件: profile ${result.profile_files} / locallow ${result.locallow_files})`,
+      "success"
+    );
+  } catch (error) {
+    setStatusLine(migrationStatus, `書き出し失敗: ${String(error)}`, "error");
+  } finally {
+    migrationExporting = false;
+    updateButtons();
+  }
+});
+
+migrationImportButton.addEventListener("click", async () => {
+  const archivePath = migrationImportPathInput.value.trim();
+  if (!archivePath) {
+    setStatusLine(migrationStatus, ".snrdata のパスを入力してください。", "warn");
+    return;
+  }
+
+  migrationImporting = true;
+  updateButtons();
+  setStatusLine(migrationStatus, "お引越しデータを読み込み中...");
+
+  try {
+    const result = await invoke<MigrationImportResult>("import_migration_data", { archivePath });
+    setStatusLine(
+      migrationStatus,
+      `読み込み完了: ${result.imported_files}件 (profile ${result.profile_files} / locallow ${result.locallow_files})`,
+      "success"
+    );
+    await refreshProfileReady();
+    await refreshReportingLogSource();
+  } catch (error) {
+    setStatusLine(migrationStatus, `読み込み失敗: ${String(error)}`, "error");
+  } finally {
+    migrationImporting = false;
+    updateButtons();
+  }
 });
 
 platformSelect.addEventListener("change", async () => {
@@ -522,6 +1116,7 @@ installButton.addEventListener("click", async () => {
     installStatus.textContent = `インストール完了: ${result.asset_name}`;
     await reloadSettings();
     await refreshProfileReady();
+    await refreshReportingLogSource();
   } catch (error) {
     installStatus.textContent = `インストール失敗: ${String(error)}`;
   } finally {
@@ -577,6 +1172,132 @@ launchVanillaButton.addEventListener("click", async () => {
   }
 });
 
+reportTypeSelect.addEventListener("change", () => {
+  renderReportBugFields();
+});
+
+reportNotificationToggle.addEventListener("change", async () => {
+  if (reportNotificationToggle.checked) {
+    const granted = await ensureNotificationPermission();
+    if (!granted) {
+      reportingNotificationEnabled = false;
+      persistReportingNotificationEnabled();
+      setStatusLine(reportNotificationState, "通知許可が必要です", "warn");
+      return;
+    }
+
+    reportingNotificationEnabled = true;
+    persistReportingNotificationEnabled();
+    setStatusLine(reportNotificationState, "Windows通知を有効化しました", "success");
+    return;
+  }
+
+  reportingNotificationEnabled = false;
+  persistReportingNotificationEnabled();
+});
+
+reportRefreshButton.addEventListener("click", async () => {
+  if (!reportingReady) {
+    await initializeReporting();
+    return;
+  }
+
+  await refreshReportingLogSource();
+  await refreshReportingCenter(true, false);
+});
+
+reportSendButton.addEventListener("click", async () => {
+  if (!reportingReady) {
+    setStatusLine(reportStatus, "報告センター未準備です", "warn");
+    return;
+  }
+
+  const reportType = reportTypeSelect.value as ReportType;
+  const title = reportTitleInput.value.trim();
+  const description = reportDescriptionInput.value.trim();
+
+  if (!title) {
+    setStatusLine(reportStatus, "タイトルを入力してください", "warn");
+    return;
+  }
+  if (!description) {
+    setStatusLine(reportStatus, "本文を入力してください", "warn");
+    return;
+  }
+
+  const input: SendReportInput = {
+    report_type: reportType,
+    title,
+    description,
+  };
+
+  if (reportType === "Bug") {
+    const map = reportMapInput.value.trim();
+    const role = reportRoleInput.value.trim();
+    const timing = reportTimingInput.value.trim();
+    if (map) {
+      input.map = map;
+    }
+    if (role) {
+      input.role = role;
+    }
+    if (timing) {
+      input.timing = timing;
+    }
+  }
+
+  reportSending = true;
+  updateButtons();
+  setStatusLine(reportStatus, "報告送信中...");
+
+  try {
+    await invoke<ReportingSendResult>("reporting_send_report", { input });
+    setStatusLine(reportStatus, "報告を送信しました", "success");
+    reportTitleInput.value = "";
+    reportDescriptionInput.value = "";
+    reportMapInput.value = "";
+    reportRoleInput.value = "";
+    reportTimingInput.value = "";
+    await refreshReportingCenter(true, false);
+  } catch (error) {
+    setStatusLine(reportStatus, `報告送信失敗: ${String(error)}`, "error");
+  } finally {
+    reportSending = false;
+    updateButtons();
+  }
+});
+
+reportSendMessageButton.addEventListener("click", async () => {
+  const threadId = selectedReportThreadId;
+  if (!threadId) {
+    setStatusLine(reportThreadStatus, "先にスレッドを選択してください", "warn");
+    return;
+  }
+
+  const content = reportReplyInput.value.trim();
+  if (!content) {
+    setStatusLine(reportThreadStatus, "返信メッセージを入力してください", "warn");
+    return;
+  }
+
+  reportMessageSending = true;
+  updateButtons();
+  setStatusLine(reportThreadStatus, "返信送信中...");
+
+  try {
+    await invoke<ReportingSendResult>("reporting_send_message", { threadId, content });
+    reportReplyInput.value = "";
+    setStatusLine(reportThreadStatus, "返信を送信しました", "success");
+    await loadReportMessages(threadId, false);
+    await refreshReportingCenter(false, false);
+  } catch (error) {
+    setStatusLine(reportThreadStatus, `返信送信失敗: ${String(error)}`, "error");
+  } finally {
+    reportMessageSending = false;
+    updateButtons();
+  }
+});
+
 epicLoginWebviewButton.addEventListener("click", async () => {
   epicAuthStatus.textContent = "Epic WebViewログインを開始...";
   try {
@@ -619,6 +1340,8 @@ if (savedToken) {
 }
 
 renderOfficialLinks();
+renderReportBugFields();
+persistReportingNotificationEnabled();
 
 saveTokenButton.addEventListener("click", () => {
   const token = normalizeGithubToken(githubTokenInput.value);
@@ -761,6 +1484,7 @@ void (async () => {
   await reloadSettings();
   await refreshProfileReady();
   await refreshReleases();
+  await refreshReportingLogSource();
 
   try {
     await invoke<boolean>("epic_try_restore_session");
@@ -768,5 +1492,7 @@ void (async () => {
     // ignore restore errors; status is refreshed next.
   }
   await refreshEpicLoginState();
+  await initializeReporting();
   updateButtons();
 })();
+

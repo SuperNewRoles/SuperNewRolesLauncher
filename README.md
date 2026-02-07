@@ -92,6 +92,18 @@ npm run tauri:build
 `launch_modded` は Among Us 実行時に doorstop 引数を付与して、展開先プロファイルを参照して起動します。  
 `launch_vanilla` は通常起動です。
 
+## データお引越し (.snrdata)
+
+ランチャーの「データお引越し」機能で、移行用アーカイブ (`.snrdata`) を書き出し/読み込みできます。
+
+- 書き出し対象（プロファイル内、正規表現マッチ）
+  - `SuperNewRolesNext/SaveData/Options.data`
+  - `SuperNewRolesNext/SaveData/PresetOptions_(0|[1-9]\d*).data`
+  - `SuperNewRolesNext/SaveData/SuperTrophyData.dat`
+  - `SuperNewRolesNext/SaveData/CustomCosmetics.data`
+- 追加で `LocalLow/Innersloth/SuperNewRoles` 配下も含めます（ゲーム内報告アカウント等）
+- 読み込み時は zip 内の構造を保ったまま適切な配置先に上書き復元します
+
 ### Epic認証
 
 Epic は以下の両方に対応しています。
