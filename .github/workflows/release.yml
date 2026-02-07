@@ -50,7 +50,7 @@ jobs:
         with:
           tagName: ${{ github.event.inputs.tag_name || github.ref_name }}
           releaseName: "SuperNewRolesLauncher ${{ github.event.inputs.tag_name || github.ref_name }}"
-          releaseBody: "Automated release for ${{ github.event.inputs.tag_name || github.ref_name }}"
+          generateReleaseNotes: true
           releaseDraft: true
           prerelease: false
           args: --bundles nsis

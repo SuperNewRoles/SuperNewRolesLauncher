@@ -1,0 +1,4 @@
+interface:
+  display_name: "SuperNewRoles Release"
+  short_description: "Release workflow for SuperNewRolesLauncher"
+  default_prompt: "Use $supernewroles-release to prepare and run the next app release."

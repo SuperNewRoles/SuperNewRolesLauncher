@@ -92,12 +92,9 @@ npm run tauri:build
 
 ### リリース手順
 
-```powershell
-git tag v0.1.1
-git push origin v0.1.1
-```
-
-これで Release workflow が走り、更新用アセットが GitHub Releases に公開されます。
+- 推奨手順（GitHub Actions）と、ローカルコマンドのみで完結する手順を
+  `docs/RELEASE.md` にまとめています。
+- 手順書: `docs/RELEASE.md`
 
 ## 次にやること
 
