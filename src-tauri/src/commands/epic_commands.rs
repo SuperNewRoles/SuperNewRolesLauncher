@@ -81,35 +81,19 @@ pub async fn epic_get_login_status() -> Result<EpicLoginStatus, String> {
         });
     };
 
-    let mut status = EpicLoginStatus {
+    let display_name = session
+        .display_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned);
+
+    Ok(EpicLoginStatus {
         logged_in: true,
         account_id: Some(session.account_id.clone()),
-        display_name: None,
+        display_name,
         profile_error: None,
-    };
-
-    match EpicApi::new() {
-        Ok(api) => match api.get_account_profile(&session).await {
-            Ok(profile) => {
-                if let Some(display_name) = profile.display_name {
-                    if !display_name.trim().is_empty() {
-                        status.display_name = Some(display_name.trim().to_string());
-                    }
-                }
-                if status.account_id.is_none() && !profile.account_id.trim().is_empty() {
-                    status.account_id = Some(profile.account_id);
-                }
-            }
-            Err(error) => {
-                status.profile_error = Some(error);
-            }
-        },
-        Err(error) => {
-            status.profile_error = Some(error);
-        }
-    }
-
-    Ok(status)
+    })
 }
 
 #[tauri::command]

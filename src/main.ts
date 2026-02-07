@@ -2,6 +2,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { join } from "@tauri-apps/api/path";
+import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import { check } from "@tauri-apps/plugin-updater";
 
 type GamePlatform = "steam" | "epic";
@@ -54,6 +55,13 @@ interface EpicLoginStatus {
   profile_error: string | null;
 }
 
+interface OfficialLink {
+  label: string;
+  url: string;
+  backgroundColor: string;
+  iconSvg: string;
+}
+
 const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) {
   throw new Error("#app not found");
@@ -72,9 +80,9 @@ app.innerHTML = `
         <div>参考: Starlight PC (起動やEpicログインなどの実装を参考)</div>
       </div>
       <div style="font-size: 12px; color: #57606a; display: grid; gap: 4px;">
-        <div>公式: https://github.com/SuperNewRoles/SuperNewRoles</div>
         <div>Wiki: https://wiki.supernewroles.com</div>
       </div>
+      <div id="official-link-buttons" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
     </section>
 
     <section style="display: grid; gap: 8px; padding: 12px; border: 1px solid #d0d7de; border-radius: 8px;">
@@ -99,6 +107,10 @@ app.innerHTML = `
         <button id="refresh-releases" type="button" style="padding: 8px 12px;">タグ再取得</button>
       </div>
       <div>展開先: <code id="profile-path"></code></div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button id="open-among-us-folder" type="button" style="padding: 8px 12px;">AmongUsフォルダを開く</button>
+        <button id="open-profile-folder" type="button" style="padding: 8px 12px;">プロファイルフォルダを開く</button>
+      </div>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
         <button id="install-snr" type="button" style="padding: 8px 12px;">SNRをインストール</button>
         <progress id="install-progress" value="0" max="100" style="width: 260px;"></progress>
@@ -159,6 +171,8 @@ const platformSelect = mustElement<HTMLSelectElement>("#platform-select");
 const releaseSelect = mustElement<HTMLSelectElement>("#release-select");
 const refreshReleasesButton = mustElement<HTMLButtonElement>("#refresh-releases");
 const profilePath = mustElement<HTMLElement>("#profile-path");
+const openAmongUsFolderButton = mustElement<HTMLButtonElement>("#open-among-us-folder");
+const openProfileFolderButton = mustElement<HTMLButtonElement>("#open-profile-folder");
 const installButton = mustElement<HTMLButtonElement>("#install-snr");
 const installProgress = mustElement<HTMLProgressElement>("#install-progress");
 const installStatus = mustElement<HTMLSpanElement>("#install-status");
@@ -176,8 +190,40 @@ const updateStatus = mustElement<HTMLSpanElement>("#update-status");
 const githubTokenInput = mustElement<HTMLInputElement>("#github-token");
 const saveTokenButton = mustElement<HTMLButtonElement>("#save-token");
 const clearTokenButton = mustElement<HTMLButtonElement>("#clear-token");
+const officialLinkButtons = mustElement<HTMLDivElement>("#official-link-buttons");
 
 const UPDATER_TOKEN_STORAGE_KEY = "updater.githubToken";
+
+const OFFICIAL_LINKS: OfficialLink[] = [
+  {
+    label: "FANBOX",
+    url: "https://supernewroles.fanbox.cc",
+    backgroundColor: "#06A6F2",
+    iconSvg:
+      '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M2 2h9v9H2zm11 0h9v9h-9zM2 13h20v9H2z"/></svg>',
+  },
+  {
+    label: "Discord",
+    url: "https://discord.gg/Cqfwx82ynN",
+    backgroundColor: "#5865F2",
+    iconSvg:
+      '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>',
+  },
+  {
+    label: "YouTube",
+    url: "https://www.youtube.com/@SuperNewRoles",
+    backgroundColor: "#FF0000",
+    iconSvg:
+      '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12z"/></svg>',
+  },
+  {
+    label: "GitHub",
+    url: "https://github.com/SuperNewRoles/SuperNewRoles",
+    backgroundColor: "#24292F",
+    iconSvg:
+      '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>',
+  },
+];
 
 let settings: LauncherSettings | null = null;
 let releases: SnrReleaseSummary[] = [];
@@ -217,9 +263,59 @@ function formatDate(value: string): string {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
 }
 
+function renderOfficialLinks(): void {
+  officialLinkButtons.replaceChildren();
+
+  for (const link of OFFICIAL_LINKS) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.style.cssText = [
+      "display: inline-flex",
+      "align-items: center",
+      "gap: 6px",
+      "padding: 8px 12px",
+      "border: none",
+      "border-radius: 999px",
+      "color: #fff",
+      `background: ${link.backgroundColor}`,
+      "font-size: 13px",
+      "font-weight: 600",
+      "cursor: pointer",
+    ].join(";");
+    button.setAttribute("aria-label", `${link.label} をブラウザで開く`);
+    button.innerHTML = `${link.iconSvg}<span>${link.label}</span>`;
+
+    button.addEventListener("click", async () => {
+      try {
+        await openUrl(link.url);
+      } catch {
+        window.open(link.url, "_blank", "noopener,noreferrer");
+      }
+    });
+
+    officialLinkButtons.append(button);
+  }
+}
+
+async function openFolder(pathValue: string | null | undefined, label: string): Promise<void> {
+  const target = pathValue?.trim() ?? "";
+  if (!target) {
+    installStatus.textContent = `${label} が未設定です。`;
+    return;
+  }
+
+  try {
+    await openPath(target);
+    installStatus.textContent = `${label} を開きました。`;
+  } catch (error) {
+    installStatus.textContent = `${label} を開けませんでした: ${String(error)}`;
+  }
+}
+
 function updateButtons(): void {
   const hasSettings = settings !== null;
   const hasGamePath = Boolean(settings?.among_us_path.trim());
+  const hasProfilePath = Boolean(settings?.profile_path.trim());
   const hasTag = Boolean(settings?.selected_release_tag.trim());
   const launchAvailable = hasSettings && hasGamePath && !launchInProgress && !gameRunning;
 
@@ -234,6 +330,8 @@ function updateButtons(): void {
   refreshReleasesButton.disabled = releasesLoading || installInProgress;
   releaseSelect.disabled = releasesLoading || installInProgress;
   platformSelect.disabled = installInProgress;
+  openAmongUsFolderButton.disabled = !hasGamePath || launchInProgress || installInProgress;
+  openProfileFolderButton.disabled = !hasProfilePath || launchInProgress || installInProgress;
 }
 
 function renderSettings(): void {
@@ -375,6 +473,14 @@ detectAmongUsPathButton.addEventListener("click", async () => {
   }
 });
 
+openAmongUsFolderButton.addEventListener("click", async () => {
+  await openFolder(settings?.among_us_path, "Among Usフォルダ");
+});
+
+openProfileFolderButton.addEventListener("click", async () => {
+  await openFolder(settings?.profile_path, "プロファイルフォルダ");
+});
+
 platformSelect.addEventListener("change", async () => {
   const platform = platformSelect.value as GamePlatform;
   await saveSettings({ game_platform: platform });
@@ -511,6 +617,8 @@ const savedToken = localStorage.getItem(UPDATER_TOKEN_STORAGE_KEY);
 if (savedToken) {
   githubTokenInput.value = savedToken;
 }
+
+renderOfficialLinks();
 
 saveTokenButton.addEventListener("click", () => {
   const token = normalizeGithubToken(githubTokenInput.value);

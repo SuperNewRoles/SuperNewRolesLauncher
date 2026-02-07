@@ -1,7 +1,9 @@
 use base64::Engine;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::sync::OnceLock;
+use std::fs;
+use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 
 use crate::utils::storage::KeyringStorage;
 
@@ -13,25 +15,23 @@ const USER_AGENT: &str =
 
 const B64: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 static STORAGE: OnceLock<KeyringStorage<EpicSession>> = OnceLock::new();
+static SESSION_CACHE: OnceLock<Mutex<Option<EpicSession>>> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EpicSession {
+    #[serde(alias = "accessToken")]
     pub access_token: String,
+    #[serde(alias = "refreshToken")]
     pub refresh_token: String,
+    #[serde(alias = "accountId")]
     pub account_id: String,
+    #[serde(alias = "displayName")]
+    pub display_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct GameTokenResponse {
     code: String,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct EpicAccountProfile {
-    #[serde(alias = "accountId")]
-    pub account_id: String,
-    #[serde(alias = "displayName")]
-    pub display_name: Option<String>,
 }
 
 pub struct EpicApi {
@@ -102,35 +102,6 @@ impl EpicApi {
             .map_err(|e| format!("Failed to parse Epic game token response: {e}"))
     }
 
-    pub async fn get_account_profile(
-        &self,
-        session: &EpicSession,
-    ) -> Result<EpicAccountProfile, String> {
-        let response = self
-            .client
-            .get(format!(
-                "https://{OAUTH_HOST}/account/api/public/account/{}",
-                session.account_id
-            ))
-            .header("Authorization", format!("Bearer {}", session.access_token))
-            .send()
-            .await
-            .map_err(|e| format!("Failed to request Epic account profile: {e}"))?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(format!(
-                "Failed to get Epic account profile ({status}): {body}"
-            ));
-        }
-
-        response
-            .json::<EpicAccountProfile>()
-            .await
-            .map_err(|e| format!("Failed to parse Epic account profile: {e}"))
-    }
-
     async fn oauth_request(&self, params: &[(&str, &str)]) -> Result<EpicSession, String> {
         let response = self
             .client
@@ -158,14 +129,126 @@ fn storage() -> &'static KeyringStorage<EpicSession> {
     STORAGE.get_or_init(|| KeyringStorage::new("supernewroleslauncher", "epic_session"))
 }
 
+fn session_cache() -> &'static Mutex<Option<EpicSession>> {
+    SESSION_CACHE.get_or_init(|| Mutex::new(None))
+}
+
+fn fallback_session_path() -> Option<PathBuf> {
+    #[cfg(windows)]
+    {
+        std::env::var_os("APPDATA").map(|app_data| {
+            PathBuf::from(app_data)
+                .join("SuperNewRolesLauncher")
+                .join("epic_session.json")
+        })
+    }
+
+    #[cfg(not(windows))]
+    {
+        std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")))
+            .map(|data_home| data_home.join("SuperNewRolesLauncher").join("epic_session.json"))
+    }
+}
+
+fn save_session_fallback_file(session: &EpicSession) -> Result<(), String> {
+    let Some(path) = fallback_session_path() else {
+        return Err("No writable fallback path for Epic session".to_string());
+    };
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create fallback session directory: {e}"))?;
+    }
+
+    let json =
+        serde_json::to_string(session).map_err(|e| format!("Failed to serialize session: {e}"))?;
+    fs::write(&path, json).map_err(|e| format!("Failed to write fallback session file: {e}"))?;
+    Ok(())
+}
+
+fn load_session_fallback_file() -> Option<EpicSession> {
+    let path = fallback_session_path()?;
+    let content = fs::read_to_string(path).ok()?;
+    serde_json::from_str::<EpicSession>(&content).ok()
+}
+
+fn clear_session_fallback_file() -> Result<(), String> {
+    let Some(path) = fallback_session_path() else {
+        return Ok(());
+    };
+    if !path.exists() {
+        return Ok(());
+    }
+    fs::remove_file(path).map_err(|e| format!("Failed to remove fallback session file: {e}"))
+}
+
 pub fn save_session(session: &EpicSession) -> Result<(), String> {
-    storage().save(session)
+    let keyring_result = storage().save(session);
+    let file_result = save_session_fallback_file(session);
+
+    if let Ok(mut guard) = session_cache().lock() {
+        *guard = Some(session.clone());
+    }
+
+    if keyring_result.is_ok() || file_result.is_ok() {
+        Ok(())
+    } else {
+        Err(format!(
+            "Failed to persist Epic session (keyring: {}, file: {})",
+            keyring_result
+                .err()
+                .unwrap_or_else(|| "unknown".to_string()),
+            file_result.err().unwrap_or_else(|| "unknown".to_string())
+        ))
+    }
 }
 
 pub fn load_session() -> Option<EpicSession> {
-    storage().load()
+    if let Ok(guard) = session_cache().lock() {
+        if let Some(session) = guard.clone() {
+            return Some(session);
+        }
+    }
+
+    let loaded = storage().load();
+    if let Some(session) = loaded {
+        let _ = save_session_fallback_file(&session);
+        if let Ok(mut guard) = session_cache().lock() {
+            *guard = Some(session.clone());
+        }
+        return Some(session);
+    }
+
+    let fallback_loaded = load_session_fallback_file();
+    if let Some(session) = fallback_loaded {
+        let _ = storage().save(&session);
+        if let Ok(mut guard) = session_cache().lock() {
+            *guard = Some(session.clone());
+        }
+        return Some(session);
+    }
+
+    None
 }
 
 pub fn clear_session() -> Result<(), String> {
-    storage().clear()
+    if let Ok(mut guard) = session_cache().lock() {
+        *guard = None;
+    }
+    let keyring_result = storage().clear();
+    let file_result = clear_session_fallback_file();
+
+    if keyring_result.is_ok() || file_result.is_ok() {
+        Ok(())
+    } else {
+        Err(format!(
+            "Failed to clear Epic session (keyring: {}, file: {})",
+            keyring_result
+                .err()
+                .unwrap_or_else(|| "unknown".to_string()),
+            file_result.err().unwrap_or_else(|| "unknown".to_string())
+        ))
+    }
 }
