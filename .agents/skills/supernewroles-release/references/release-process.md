@@ -5,12 +5,15 @@
 - Preconditions
 - Method A: GitHub Actions Release (Recommended)
 - Method B: Local Commands Only
+- Required User Approval Gate
+- Release Notes Authoring
 - Post-Build Validation
 - Cleanup for Wrong Assets
 
 ## Overview
 Use this runbook to create a new release for `SuperNewRolesLauncher`.
 Current policy is Windows NSIS only. Do not ship MSI assets.
+Default automation path is GitHub Actions `workflow_dispatch`.
 
 ## Preconditions
 - Node.js and Rust are installed.
@@ -19,9 +22,20 @@ Current policy is Windows NSIS only. Do not ship MSI assets.
   - `TAURI_SIGNING_PRIVATE_KEY`
   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
 - Updater settings in `src-tauri/tauri.conf.json` are correct.
+- You can use `gh` CLI with repo/workflow scopes.
 
-## Method A: GitHub Actions Release (Recommended)
+## Method A: GitHub Actions Release (Recommended, workflow_dispatch)
 Target workflow: `.github/workflows/release.yml`
+
+### 0. Authenticate GitHub CLI
+```powershell
+gh auth status
+```
+
+If needed:
+```powershell
+gh auth login
+```
 
 ### 1. Update versions
 Update both files when needed:
@@ -35,23 +49,70 @@ git commit -m "release: v0.1.1"
 git push origin main
 ```
 
-### 3. Push tag to trigger release
+### 3. Trigger release workflow (first)
 ```powershell
-git tag v0.1.1
-git push origin v0.1.1
+$tag = "v0.1.1"
+$version = $tag.TrimStart("v")
+
+gh workflow run release.yml --ref main -f tag_name=$tag
 ```
 
-The workflow creates a draft release.
-`args: --bundles nsis` keeps distribution NSIS-only.
-`generateReleaseNotes: true` generates release notes automatically.
+### 4. Resolve run id
+```powershell
+$runId = gh run list --workflow release.yml --event workflow_dispatch --limit 1 --json databaseId --jq ".[0].databaseId"
+$runId
+```
 
-### 4. Review draft and publish
-Check the draft assets:
-- `latest.json` exists.
-- `msi` and `msi.sig` do not exist.
-- Auto-generated release notes are correct for this tag.
+If `$runId` is empty, run this and choose the latest workflow_dispatch run manually:
+```powershell
+gh run list --workflow release.yml --limit 10
+```
 
-Publish only after validation succeeds.
+### 5. Generate release note draft automatically
+Collect release delta to ground the draft:
+```powershell
+$prevTag = gh release list --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq ".[0].tagName"
+git log "$prevTag..HEAD" --pretty=format:"- %s"
+```
+
+Then author the notes following `references/release-notes-style.md`.
+
+### 6. Ask user approval (required)
+- Present the drafted release note text to the user.
+- Ask for explicit approval (`OK` / `Publish`).
+- If the user requests changes, revise and ask again.
+- Do not watch/publish before approval.
+
+### 7. Watch workflow only after approval
+```powershell
+gh run watch $runId --exit-status
+```
+
+### 8. Validate draft release assets
+```powershell
+gh release view $tag --json assets --jq ".assets[].name"
+```
+
+Expected:
+- NSIS installer `.exe`
+- Matching `.sig`
+- `latest.json`
+
+Unexpected:
+- Any `msi`
+- Any `msi.sig`
+
+### 9. Apply approved notes and publish
+```powershell
+$notesPath = ".tmp/release-notes-$tag.md"
+New-Item -ItemType Directory -Path ".tmp" -Force | Out-Null
+@'
+<approved notes>
+'@ | Set-Content -Path $notesPath -Encoding UTF8
+
+gh release edit $tag --notes-file $notesPath
+gh release edit $tag --draft=false
+```
 
 ## Method B: Local Commands Only
 Use this when CI is not used.
@@ -102,10 +163,30 @@ gh release create $tag `
   --draft
 ```
 
-### 5. Publish release
+### 5. Generate notes and ask user approval
+Generate notes with `references/release-notes-style.md`.
+Do not publish without user approval.
+
+### 6. Apply approved notes and publish release
 ```powershell
+gh release edit $tag --notes-file ".tmp/release-notes-$tag.md"
 gh release edit $tag --draft=false
 ```
+
+## Required User Approval Gate
+Before publish, explicit user approval is mandatory.
+Approved examples:
+- `OK`
+- `この内容で公開して`
+- `publish`
+
+## Release Notes Authoring
+Always follow `references/release-notes-style.md`:
+- Japanese section first
+- Download section as `##` heading with installer name
+- `---` separator
+- English section second
+- Download section as `##` heading with installer name
 
 ## Post-Build Validation
 Run before publish:

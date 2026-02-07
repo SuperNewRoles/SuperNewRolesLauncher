@@ -54,5 +54,5 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: --bundles nsis
-          uploadUpdaterJson: true
+          includeUpdaterJson: true
           updaterJsonPreferNsis: true

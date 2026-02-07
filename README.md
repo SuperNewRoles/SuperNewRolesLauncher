@@ -73,6 +73,34 @@ npm run tauri:build
 
 `bundle.createUpdaterArtifacts` は有効化済みなので、ビルド時に updater 用ファイルと署名が生成されます。
 
+## SNR Releases ZIP インストール機能
+
+ランチャーは `SuperNewRoles/SuperNewRoles` の GitHub Releases から `Steam/Epic` 用 zip を取得し、  
+`%AppData%/SuperNewRolesLauncher/profiles/default` に展開できます。
+
+- `SNRタグ` は UI で毎回選択
+- インストール時は `snr-install-progress` イベントで進捗を通知
+- 展開時は staging (`default._staging`) を使い、成功時のみ `default` へ切り替え
+- 必須ファイル検証:
+  - `winhttp.dll`
+  - `doorstop_config.ini`
+  - `BepInEx/core/BepInEx.Unity.IL2CPP.dll`
+  - `dotnet/coreclr.dll`
+
+### Mod起動
+
+`launch_modded` は Among Us 実行時に doorstop 引数を付与して、展開先プロファイルを参照して起動します。  
+`launch_vanilla` は通常起動です。
+
+### Epic認証
+
+Epic は以下の両方に対応しています。
+
+- WebView ログイン (`epic_login_with_webview`)
+- 認証コード手入力 (`epic_login_with_code`)
+
+セッションは keyring に保存し、`settings.json` には保存しません。
+
 ## CI/CD (GitHub Actions)
 
 以下の workflow を追加済みです。
@@ -100,3 +128,7 @@ npm run tauri:build
 
 - `src-tauri/tauri.conf.json` の `identifier` を自分のものに変更
 - アイコンを作る場合は `src-tauri/icons/icon.png` を用意して `npm run tauri icon` を実行
+
+# クレジット
+- [All-Of-Us-Mods/Starlight-PC](https://github.com/All-Of-Us-Mods/Starlight-PC)
+  - BepInExを分離して起動する仕組みとEpicログインの参考。

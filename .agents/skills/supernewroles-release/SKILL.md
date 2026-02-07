@@ -1,51 +1,75 @@
 ---
 name: supernewroles-release
-description: Run and support release operations for SuperNewRolesLauncher (Tauri v2) with NSIS-only distribution, including version bump checks, tag-driven GitHub Actions releases, and local gh CLI draft/publish flow. Use when asked to create, verify, troubleshoot, or publish a release; inspect release assets; ensure latest.json is included; or remove accidental msi/msi.sig assets.
+description: Run and support release operations for SuperNewRolesLauncher (Tauri v2) with NSIS-only distribution, including workflow_dispatch-based GitHub Actions releases, auto-authored bilingual release notes, explicit user approval gates, and final publish.
 ---
 
 # SuperNewRoles Release
 
 ## Overview
 
-Execute the release workflow defined by this repository and keep release outputs consistent with current policy: Windows NSIS only, no MSI artifacts.
-Prefer GitHub Actions release flow and use local manual flow only when explicitly requested or when CI cannot be used.
+Execute the repository release workflow with this policy:
+- Windows distribution is NSIS only.
+- No `msi` and no `msi.sig`.
+- Release notes are auto-authored in Japanese and English, then confirmed by the user before publish.
+
+Use GitHub Actions (`workflow_dispatch`) by default.
+Use the local flow only when the user explicitly requests local-only release or CI is unavailable.
 
 ## Workflow Decision
 
-1. Use the GitHub Actions flow by default.
-2. Use the local flow only when the user asks for a local-only release or when CI is unavailable.
-3. Enforce NSIS-only outputs in both flows.
-4. Verify release assets before publish: include `latest.json`, exclude `msi` and `msi.sig`.
+1. Default to GitHub Actions flow in `references/release-process.md` Method A.
+2. Trigger the action first, then auto-draft release notes.
+3. Show drafted notes to the user and ask for explicit approval.
+4. Only after user approval: watch the workflow, validate assets, set release notes, and publish.
+5. Enforce NSIS-only outputs and remove wrong assets if needed.
 
 ## Required Inputs
 
 - Target tag (example: `v0.1.1`)
-- Confirmation that versions are updated in `package.json` and `src-tauri/tauri.conf.json`
-- Availability of signing secrets/key:
+- Version sync in:
+  - `package.json` -> `version`
+  - `src-tauri/tauri.conf.json` -> `version`
+- Availability of signing secrets:
   - `TAURI_SIGNING_PRIVATE_KEY`
   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
 
-## Standard Procedure
+## Standard Procedure (GitHub Actions Default)
 
-1. Confirm release path (GitHub Actions or local).
-2. Validate preconditions (version, key/secrets, config).
-3. Run the selected flow commands from `references/release-process.md`.
-4. Check draft assets and publish only after validation checklist passes.
-5. If unwanted assets exist (`msi`, `msi.sig`), remove and re-verify before publish.
+1. Validate preconditions and update versions.
+2. Commit/push to `main`.
+3. Trigger `release.yml` via `workflow_dispatch` with the target tag.
+4. Auto-generate bilingual release notes draft using `references/release-notes-style.md`.
+5. Ask user confirmation with explicit yes/no.
+6. If approved, run `gh run watch ... --exit-status`.
+7. Validate draft assets (`latest.json`, `.exe`, `.sig`, no MSI).
+8. Apply approved notes to draft release and publish.
+9. If user requests edits, revise notes and repeat confirmation.
+
+## Hard Rules
+
+- Never publish without explicit user approval.
+- Never publish if `latest.json` is missing.
+- Never leave `msi` / `msi.sig` in assets.
+- Always use the required bilingual note format from `references/release-notes-style.md`.
+- The final section in each language must be a `##` heading that tells users to download `SuperNewRolesLauncher_{version}_x64-setup.exe`.
 
 ## Validation Checklist
 
 - Release is created with expected tag.
 - Installer artifact is NSIS executable and has matching `.sig`.
 - `latest.json` exists in release assets.
-- Auto-generated release notes are suitable for publish.
+- Release notes are in the required JA/EN format and approved by the user.
 - No `msi` and no `msi.sig` in release assets.
 - Draft is published only after the above checks pass.
 
 ## References
 
 - Full command runbook: `references/release-process.md`
+- Release note style and template: `references/release-notes-style.md`
 - Workflow source of truth: `.github/workflows/release.yml`
 - Project release document: `docs/RELEASE.md`
 
-When the user asks to execute a release, copy the relevant commands exactly from the reference file and substitute only variables such as tag names and key paths.
+When the user asks to execute a release:
+1. Copy relevant commands exactly from `references/release-process.md`.
+2. Substitute only variables such as tag, version, run id, and notes path.
+3. Follow `references/release-notes-style.md` exactly for note structure and tone.
