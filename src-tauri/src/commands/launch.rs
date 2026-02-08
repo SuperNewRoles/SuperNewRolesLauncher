@@ -14,6 +14,7 @@ static LAST_AUTOLAUNCH_ERROR: LazyLock<Mutex<Option<String>>> = LazyLock::new(||
 
 pub const AUTOLAUNCH_MODDED_ARGUMENT: &str = "--autolaunch-modded";
 const MODDED_SHORTCUT_FILE_NAME: &str = "SuperNewRoles Mod Launch.lnk";
+const RUNNING_GAME_PID_FILE_NAME: &str = "running-game.pid";
 
 #[derive(Clone, serde::Serialize)]
 pub struct GameStatePayload {
@@ -38,6 +39,132 @@ pub fn take_autolaunch_error() -> Option<String> {
         Ok(mut guard) => guard.take(),
         Err(_) => Some("Failed to access auto launch error state".to_string()),
     }
+}
+
+#[tauri::command]
+pub fn is_game_running<R: Runtime>(app: AppHandle<R>) -> Result<bool, String> {
+    let mut guard = GAME_PROCESS
+        .lock()
+        .map_err(|_| "Failed to acquire game process lock".to_string())?;
+
+    match guard.as_mut() {
+        Some(process) => match process.try_wait() {
+            Ok(Some(_)) => {
+                *guard = None;
+                clear_persisted_running_game_pid(&app);
+                Ok(false)
+            }
+            Ok(None) => {
+                persist_running_game_pid(&app, process.id());
+                Ok(true)
+            }
+            Err(error) => Err(format!("Failed to inspect game process state: {error}")),
+        },
+        None => {
+            drop(guard);
+
+            let Some(pid) = load_persisted_running_game_pid(&app)? else {
+                return Ok(false);
+            };
+
+            if is_pid_running(pid) {
+                return Ok(true);
+            }
+
+            clear_persisted_running_game_pid(&app);
+            Ok(false)
+        }
+    }
+}
+
+fn running_game_pid_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    Ok(settings::app_data_dir(app)?.join(RUNNING_GAME_PID_FILE_NAME))
+}
+
+fn persist_running_game_pid<R: Runtime>(app: &AppHandle<R>, pid: u32) {
+    let path = match running_game_pid_path(app) {
+        Ok(path) => path,
+        Err(error) => {
+            eprintln!("Failed to resolve running game PID path: {error}");
+            return;
+        }
+    };
+
+    if let Some(parent) = path.parent() {
+        if let Err(error) = fs::create_dir_all(parent) {
+            eprintln!("Failed to create running game PID directory: {error}");
+            return;
+        }
+    }
+
+    if let Err(error) = fs::write(&path, pid.to_string()) {
+        eprintln!("Failed to persist running game PID: {error}");
+    }
+}
+
+fn clear_persisted_running_game_pid<R: Runtime>(app: &AppHandle<R>) {
+    let path = match running_game_pid_path(app) {
+        Ok(path) => path,
+        Err(error) => {
+            eprintln!("Failed to resolve running game PID path: {error}");
+            return;
+        }
+    };
+
+    if let Err(error) = fs::remove_file(path) {
+        if error.kind() != std::io::ErrorKind::NotFound {
+            eprintln!("Failed to clear running game PID: {error}");
+        }
+    }
+}
+
+fn load_persisted_running_game_pid<R: Runtime>(app: &AppHandle<R>) -> Result<Option<u32>, String> {
+    let path = running_game_pid_path(app)?;
+    let content = match fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => {
+            return Err(format!(
+                "Failed to read running game PID file ({}): {error}",
+                path.to_string_lossy()
+            ))
+        }
+    };
+
+    match content.trim().parse::<u32>() {
+        Ok(pid) => Ok(Some(pid)),
+        Err(_) => {
+            clear_persisted_running_game_pid(app);
+            Ok(None)
+        }
+    }
+}
+
+#[cfg(windows)]
+fn is_pid_running(pid: u32) -> bool {
+    let filter = format!("PID eq {pid}");
+    let output = match Command::new("tasklist")
+        .args(["/FI", &filter, "/FO", "CSV", "/NH"])
+        .output()
+    {
+        Ok(output) => output,
+        Err(_) => return false,
+    };
+
+    if !output.status.success() {
+        return false;
+    }
+
+    let pid_fragment = format!(",\"{pid}\",");
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim)
+        .any(|line| line.starts_with('"') && line.contains(&pid_fragment))
+}
+
+#[cfg(not(windows))]
+fn is_pid_running(_pid: u32) -> bool {
+    false
 }
 
 #[cfg(windows)]
@@ -156,6 +283,7 @@ fn monitor_game_process<R: Runtime>(app: AppHandle<R>) {
             }
         }
 
+        clear_persisted_running_game_pid(&app);
         let _ = app.emit("game-state-changed", GameStatePayload { running: false });
     });
 }
@@ -187,6 +315,7 @@ fn launch_process<R: Runtime>(app: AppHandle<R>, mut command: Command) -> Result
         let child = command
             .spawn()
             .map_err(|e| format!("Failed to launch game process: {e}"))?;
+        persist_running_game_pid(&app, child.id());
         *guard = Some(child);
     }
 

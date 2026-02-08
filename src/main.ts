@@ -901,6 +901,25 @@ function updateButtons(): void {
   reportSendMessageButton.disabled = !reportingReady || !selectedReportThreadId || reportMessageSending;
 }
 
+function applyGameRunningState(running: boolean): void {
+  gameRunning = running;
+  if (gameRunning) {
+    launchStatus.textContent = t("launch.gameRunning");
+  } else if (!launchInProgress) {
+    launchStatus.textContent = t("launch.gameStopped");
+  }
+  updateButtons();
+}
+
+async function refreshGameRunningState(): Promise<void> {
+  try {
+    const running = await invoke<boolean>("is_game_running");
+    applyGameRunningState(running);
+  } catch {
+    // ignore game running state retrieval errors
+  }
+}
+
 function renderSettings(): void {
   if (!settings) {
     return;
@@ -2157,13 +2176,7 @@ void listen<InstallProgressPayload>("snr-install-progress", (event) => {
 });
 
 void listen<GameStatePayload>("game-state-changed", (event) => {
-  gameRunning = event.payload.running;
-  if (gameRunning) {
-    launchStatus.textContent = t("launch.gameRunning");
-  } else if (!launchInProgress) {
-    launchStatus.textContent = t("launch.gameStopped");
-  }
-  updateButtons();
+  applyGameRunningState(event.payload.running);
 });
 
 void listen("epic-login-success", async () => {
@@ -2188,6 +2201,7 @@ void (async () => {
   await refreshPreservedSaveDataStatus();
   await refreshReleases();
   await refreshReportingLogSource();
+  await refreshGameRunningState();
 
   try {
     await invoke<boolean>("epic_try_restore_session");

@@ -18,9 +18,39 @@ const TRAY_ID: &str = "main-tray";
 const TRAY_MENU_SHOW_ID: &str = "tray_show";
 const TRAY_MENU_EXIT_ID: &str = "tray_exit";
 
+fn args_contain_autolaunch_modded<I, S>(args: I) -> bool
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    args.into_iter()
+        .any(|arg| arg.as_ref() == commands::launch::AUTOLAUNCH_MODDED_ARGUMENT)
+}
+
 fn should_auto_launch_modded() -> bool {
-    std::env::args_os()
-        .any(|arg| arg == OsStr::new(commands::launch::AUTOLAUNCH_MODDED_ARGUMENT))
+    std::env::args_os().any(|arg| arg == OsStr::new(commands::launch::AUTOLAUNCH_MODDED_ARGUMENT))
+}
+
+fn start_modded_autolaunch<R: tauri::Runtime>(
+    app_handle: AppHandle<R>,
+    bypass_close_to_tray: Arc<AtomicBool>,
+    exit_on_success: bool,
+) {
+    commands::launch::clear_autolaunch_error();
+    tauri::async_runtime::spawn(async move {
+        match commands::launch::launch_modded_from_saved_settings(app_handle.clone()).await {
+            Ok(()) => {
+                if exit_on_success {
+                    bypass_close_to_tray.store(true, Ordering::SeqCst);
+                    app_handle.exit(0);
+                }
+            }
+            Err(error) => {
+                commands::launch::set_autolaunch_error(error);
+                show_main_window(&app_handle);
+            }
+        }
+    });
 }
 
 fn show_main_window<R: tauri::Runtime>(app: &AppHandle<R>) {
@@ -66,10 +96,23 @@ fn setup_tray<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
 pub fn run() {
     let auto_launch_modded = should_auto_launch_modded();
     let bypass_close_to_tray = Arc::new(AtomicBool::new(false));
+    let bypass_close_to_tray_for_single_instance = bypass_close_to_tray.clone();
     let bypass_close_to_tray_for_menu = bypass_close_to_tray.clone();
     let bypass_close_to_tray_for_window = bypass_close_to_tray.clone();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(move |app, args, _cwd| {
+            if args_contain_autolaunch_modded(args) {
+                start_modded_autolaunch(
+                    app.clone(),
+                    bypass_close_to_tray_for_single_instance.clone(),
+                    false,
+                );
+                return;
+            }
+
+            show_main_window(app);
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -114,23 +157,7 @@ pub fn run() {
                     let _ = window.hide();
                 }
 
-                commands::launch::clear_autolaunch_error();
-                let app_handle = app.handle().clone();
-                let bypass_close_to_tray_for_autolaunch = bypass_close_to_tray.clone();
-                tauri::async_runtime::spawn(async move {
-                    match commands::launch::launch_modded_from_saved_settings(app_handle.clone())
-                        .await
-                    {
-                        Ok(()) => {
-                            bypass_close_to_tray_for_autolaunch.store(true, Ordering::SeqCst);
-                            app_handle.exit(0);
-                        }
-                        Err(error) => {
-                            commands::launch::set_autolaunch_error(error);
-                            show_main_window(&app_handle);
-                        }
-                    }
-                });
+                start_modded_autolaunch(app.handle().clone(), bypass_close_to_tray.clone(), true);
             } else if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
             }
@@ -164,6 +191,7 @@ pub fn run() {
             commands::launch::launch_vanilla,
             commands::launch::create_modded_launch_shortcut,
             commands::launch::take_autolaunch_error,
+            commands::launch::is_game_running,
             commands::epic_commands::get_epic_auth_url,
             commands::epic_commands::epic_login_with_code,
             commands::epic_commands::epic_login_with_webview,
