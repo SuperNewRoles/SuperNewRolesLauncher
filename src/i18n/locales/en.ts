@@ -1,4 +1,4 @@
-import ja from "./ja";
+import type ja from "./ja";
 
 const en: Record<keyof typeof ja, string> = {
   "language.label": "Language",
@@ -32,7 +32,8 @@ const en: Record<keyof typeof ja, string> = {
   "launcher.launchModded": "Launch Modded",
   "launcher.launchVanilla": "Launch Vanilla",
   "launcher.createModdedShortcut": "Create Modded shortcut",
-  "launcher.preservedSaveDataAvailable": "Preserved save data: {count} file(s) (can restore on install)",
+  "launcher.preservedSaveDataAvailable":
+    "Preserved save data: {count} file(s) (can restore on install)",
   "launcher.preservedSaveDataNone": "Preserved save data: none",
   "launcher.preservedSaveDataStatusFailed": "Failed to get preserved save data status: {error}",
 
@@ -89,7 +90,8 @@ const en: Record<keyof typeof ja, string> = {
   "report.notificationFallbackBody": "You have new messages in Report Center",
   "report.notificationOff": "Windows notifications: OFF",
   "report.notificationOn": "Windows notifications: ON",
-  "report.notificationDisabledNoPermission": "Disabled because notification permission is not granted",
+  "report.notificationDisabledNoPermission":
+    "Disabled because notification permission is not granted",
   "report.permissionRequired": "Notification permission is required",
   "report.notificationsEnabled": "Windows notifications enabled",
   "report.notReady": "Report Center is not ready",
@@ -175,15 +177,53 @@ const en: Record<keyof typeof ja, string> = {
   "detect.failed": "Detection failed: {error}",
 
   "migration.exporting": "Exporting migration data...",
-  "migration.exportDone": "Export complete: {path} ({count} files: profile {profile} / locallow {locallow})",
+  "migration.exportDone":
+    "Export complete: {path} ({count} files: profile {profile} / locallow {locallow})",
   "migration.exportFailed": "Export failed: {error}",
   "migration.exportPasswordRequired": "Enter a password when encryption is enabled.",
   "migration.importPathRequired": "Enter the path to a .snrdata file.",
   "migration.importing": "Importing migration data...",
-  "migration.importDone": "Import complete: {count} files (profile {profile} / locallow {locallow})",
+  "migration.importDone":
+    "Import complete: {count} files (profile {profile} / locallow {locallow})",
   "migration.importFailed": "Import failed: {error}",
   "migration.encrypted": "encrypted",
   "migration.unencrypted": "unencrypted",
+
+  "preset.title": "Preset Sharing (.snrpresets)",
+  "preset.refreshLocal": "Refresh local list",
+  "preset.selectAll": "Select all",
+  "preset.clearSelection": "Clear selection",
+  "preset.exportPathPlaceholder": "C:\\path\\to\\presets.snrpresets (auto when empty)",
+  "preset.exportSelected": "Export selected",
+  "preset.importPathPlaceholder": "C:\\path\\to\\presets.snrpresets",
+  "preset.inspectArchive": "Inspect archive",
+  "preset.importSelected": "Import selected",
+  "preset.localEmpty": "No local presets found.",
+  "preset.localMissingDataFile": "(PresetOptions file missing)",
+  "preset.archiveHint": "Archive entries will appear here after inspection.",
+  "preset.archiveMissingData": "(Missing data: cannot import)",
+  "preset.statusReadyToRefresh": "Click refresh local list to load presets.",
+  "preset.statusLoadingLocal": "Loading local presets...",
+  "preset.statusLoadedLocal": "Loaded local presets ({count}).",
+  "preset.statusNoLocal": "No local presets.",
+  "preset.statusLoadFailed": "Failed to load local presets: {error}",
+  "preset.exportSelectRequired": "Select presets to export.",
+  "preset.statusExporting": "Exporting presets...",
+  "preset.statusExportDone": "Export completed: {path} ({count})",
+  "preset.statusExportFailed": "Export failed: {error}",
+  "preset.inspectPathRequired": "Enter the .snrpresets path to inspect.",
+  "preset.statusInspecting": "Inspecting archive contents...",
+  "preset.statusInspectDone":
+    "Inspection done: {total} (importable {importable} / missing {missing})",
+  "preset.statusInspectFailed": "Inspection failed: {error}",
+  "preset.importPathRequired": "Enter the source .snrpresets path.",
+  "preset.importSelectRequired": "Select presets to import.",
+  "preset.emptyName": "(empty name)",
+  "preset.importConfirmPrompt":
+    "The following presets will be imported.\\n\\n{list}\\n\\nDuplicate names are automatically resolved. Continue?",
+  "preset.statusImporting": "Importing presets...",
+  "preset.statusImportDone": "Import completed: {count}{names}",
+  "preset.statusImportFailed": "Import failed: {error}",
 
   "install.tagRequired": "Select an SNR tag first.",
   "install.starting": "Starting installation...",
@@ -198,8 +238,10 @@ const en: Record<keyof typeof ja, string> = {
   "uninstall.done": "Uninstall complete",
   "uninstall.doneWithPreserved": "Uninstall complete (preserved saves: {count})",
   "uninstall.failed": "Uninstall failed: {error}",
-  "uninstall.confirmWithPreserve": "This will delete all profile contents and preserve the current 4 save files. Continue?",
-  "uninstall.confirmWithoutPreserve": "This will delete all profile contents and will not preserve save data. Continue?",
+  "uninstall.confirmWithPreserve":
+    "This will delete all profile contents and preserve the current 4 save files. Continue?",
+  "uninstall.confirmWithoutPreserve":
+    "This will delete all profile contents and will not preserve save data. Continue?",
 
   "launch.moddedStarting": "Launching Modded...",
   "launch.moddedSent": "Modded launch request sent.",

@@ -12,12 +12,11 @@ export default defineConfig(async () => ({
       ? {
           protocol: "ws",
           host,
-          port: 5183
+          port: 5183,
         }
       : undefined,
     watch: {
-      ignored: ["**/src-tauri/**"]
-    }
-  }
+      ignored: ["**/src-tauri/**"],
+    },
+  },
 }));
-

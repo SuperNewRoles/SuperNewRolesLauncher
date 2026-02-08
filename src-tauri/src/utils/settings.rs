@@ -1,3 +1,6 @@
+//! ランチャー設定の永続化と正規化を担当するユーティリティ。
+//! フロント向けDTO(camelCase)と内部表現をここで吸収し、他層の責務を軽く保つ。
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -12,17 +15,12 @@ pub const REQUIRED_PROFILE_FILES: [&str; 4] = [
     "dotnet/coreclr.dll",
 ];
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum GamePlatform {
+    #[default]
     Steam,
     Epic,
-}
-
-impl Default for GamePlatform {
-    fn default() -> Self {
-        Self::Steam
-    }
 }
 
 impl GamePlatform {
@@ -43,6 +41,7 @@ impl GamePlatform {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LauncherSettings {
     pub among_us_path: String,
     pub game_platform: GamePlatform,
@@ -53,6 +52,7 @@ pub struct LauncherSettings {
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 struct LauncherSettingsOnDisk {
     among_us_path: Option<String>,
     game_platform: Option<GamePlatform>,
@@ -63,6 +63,7 @@ struct LauncherSettingsOnDisk {
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct LauncherSettingsInput {
     pub among_us_path: Option<String>,
     pub game_platform: Option<GamePlatform>,
@@ -79,12 +80,14 @@ fn normalize_ui_locale(value: &str) -> &'static str {
     }
 }
 
+/// アプリ固有データの保存先ディレクトリを返す。
 pub fn app_data_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     app.path()
         .app_data_dir()
         .map_err(|e| format!("Failed to resolve app data directory: {e}"))
 }
 
+/// デフォルトのSNRプロファイル保存先を返す。
 pub fn default_profile_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     Ok(app_data_dir(app)?.join("profiles").join("default"))
 }
@@ -133,6 +136,7 @@ pub fn load_or_init_settings<R: Runtime>(app: &AppHandle<R>) -> Result<LauncherS
     let path = settings_path(app)?;
     let mut default_settings = make_default_settings(app)?;
 
+    // 初回起動では既定値を即保存し、以降の処理を同一フローにそろえる。
     if !path.exists() {
         save_settings(app, &default_settings)?;
         return Ok(default_settings);
@@ -140,13 +144,15 @@ pub fn load_or_init_settings<R: Runtime>(app: &AppHandle<R>) -> Result<LauncherS
 
     let content =
         fs::read_to_string(&path).map_err(|e| format!("Failed to read settings file: {e}"))?;
+    // 破損JSONがあっても起動不能にしないため、読取失敗時は既定値へフォールバックする。
     let on_disk: LauncherSettingsOnDisk = serde_json::from_str(&content).unwrap_or_default();
 
     default_settings.among_us_path = on_disk.among_us_path.unwrap_or_default();
     default_settings.game_platform = on_disk.game_platform.unwrap_or_default();
     default_settings.selected_release_tag = on_disk.selected_release_tag.unwrap_or_default();
     default_settings.close_to_tray_on_close = on_disk.close_to_tray_on_close.unwrap_or(true);
-    default_settings.ui_locale = normalize_ui_locale(on_disk.ui_locale.as_deref().unwrap_or("ja")).to_string();
+    default_settings.ui_locale =
+        normalize_ui_locale(on_disk.ui_locale.as_deref().unwrap_or("ja")).to_string();
     if let Some(profile_path) = on_disk.profile_path {
         let trimmed = profile_path.trim();
         if !trimmed.is_empty() {
@@ -154,6 +160,7 @@ pub fn load_or_init_settings<R: Runtime>(app: &AppHandle<R>) -> Result<LauncherS
         }
     }
 
+    // 読み込み直後に正規化して再保存し、以降の設定形式を安定化する。
     default_settings = normalize_settings(default_settings);
     save_settings(app, &default_settings)?;
     Ok(default_settings)
@@ -188,17 +195,20 @@ pub fn apply_settings_input<R: Runtime>(
         settings.profile_path = default_profile_path(app)?.to_string_lossy().to_string();
     }
 
+    // 外部入力を都度正規化してから保存し、不正な空白やlocale値を残さない。
     settings = normalize_settings(settings);
     save_settings(app, &settings)?;
     Ok(settings)
 }
 
+/// プロファイルの必須ファイルがすべて揃っているかを判定する。
 pub fn is_profile_ready(profile_path: &Path) -> bool {
     REQUIRED_PROFILE_FILES
         .iter()
         .all(|relative_path| profile_path.join(relative_path).is_file())
 }
 
+/// 必須ファイルの不足内容を詳細メッセージ付きで検証する。
 pub fn verify_profile_required_files(profile_path: &Path) -> Result<(), String> {
     for relative_path in REQUIRED_PROFILE_FILES {
         let file_path = profile_path.join(relative_path);

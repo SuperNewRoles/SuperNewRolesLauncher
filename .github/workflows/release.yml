@@ -33,6 +33,15 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Lint frontend
+        run: npm run lint
+
+      - name: Test frontend
+        run: npm run test
+
+      - name: Build frontend
+        run: npm run build
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -40,6 +49,18 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+
+      - name: Cargo fmt check
+        working-directory: src-tauri
+        run: cargo fmt --check
+
+      - name: Cargo clippy
+        working-directory: src-tauri
+        run: cargo clippy -- -D warnings
+
+      - name: Cargo test
+        working-directory: src-tauri
+        run: cargo test
 
       - name: Build and publish Tauri app
         uses: tauri-apps/tauri-action@v0

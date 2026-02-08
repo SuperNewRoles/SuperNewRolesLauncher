@@ -30,7 +30,8 @@ const ja = {
   "launcher.launchModded": "Mod起動",
   "launcher.launchVanilla": "Vanilla起動",
   "launcher.createModdedShortcut": "Mod起動ショートカット作成",
-  "launcher.preservedSaveDataAvailable": "保持済みセーブデータ: {count}件 (インストール時に復元可能)",
+  "launcher.preservedSaveDataAvailable":
+    "保持済みセーブデータ: {count}件 (インストール時に復元可能)",
   "launcher.preservedSaveDataNone": "保持済みセーブデータ: なし",
   "launcher.preservedSaveDataStatusFailed": "保持済みセーブデータ状態の取得失敗: {error}",
 
@@ -104,7 +105,8 @@ const ja = {
 
   "migration.title": "データお引越し (.snrdata)",
   "migration.export": "書き出し",
-  "migration.exportDescription": "プロファイルの対象SaveData + LocalLow/Innersloth/SuperNewRoles を保存",
+  "migration.exportDescription":
+    "プロファイルの対象SaveData + LocalLow/Innersloth/SuperNewRoles を保存",
   "migration.encryptionEnabled": "パスワード暗号化を有効",
   "migration.exportPasswordPlaceholder": "書き出しパスワード",
   "migration.importPlaceholder": "C:\\path\\to\\migration.snrdata",
@@ -173,7 +175,8 @@ const ja = {
   "detect.failed": "検出失敗: {error}",
 
   "migration.exporting": "お引越しデータを書き出し中...",
-  "migration.exportDone": "書き出し完了: {path} ({count}件: profile {profile} / locallow {locallow})",
+  "migration.exportDone":
+    "書き出し完了: {path} ({count}件: profile {profile} / locallow {locallow})",
   "migration.exportFailed": "書き出し失敗: {error}",
   "migration.exportPasswordRequired": "暗号化を有効にする場合はパスワードを入力してください。",
   "migration.importPathRequired": ".snrdata のパスを入力してください。",
@@ -182,6 +185,41 @@ const ja = {
   "migration.importFailed": "読み込み失敗: {error}",
   "migration.encrypted": "暗号化あり",
   "migration.unencrypted": "暗号化なし",
+
+  "preset.title": "プリセット共有 (.snrpresets)",
+  "preset.refreshLocal": "ローカル一覧更新",
+  "preset.selectAll": "全選択",
+  "preset.clearSelection": "選択解除",
+  "preset.exportPathPlaceholder": "C:\\path\\to\\presets.snrpresets (空で自動)",
+  "preset.exportSelected": "選択をエクスポート",
+  "preset.importPathPlaceholder": "C:\\path\\to\\presets.snrpresets",
+  "preset.inspectArchive": "中身確認",
+  "preset.importSelected": "選択をインポート",
+  "preset.localEmpty": "ローカルにプリセットが見つかりません。",
+  "preset.localMissingDataFile": "(PresetOptions ファイルなし)",
+  "preset.archiveHint": "中身確認を実行すると、ここに候補が表示されます。",
+  "preset.archiveMissingData": "(データ欠損: インポート不可)",
+  "preset.statusReadyToRefresh": "ローカル一覧更新でプリセットを取得できます。",
+  "preset.statusLoadingLocal": "ローカルプリセットを読み込み中...",
+  "preset.statusLoadedLocal": "ローカルプリセットを読み込みました ({count}件)。",
+  "preset.statusNoLocal": "ローカルプリセットがありません。",
+  "preset.statusLoadFailed": "ローカルプリセット読み込み失敗: {error}",
+  "preset.exportSelectRequired": "エクスポートするプリセットを選択してください。",
+  "preset.statusExporting": "プリセットを書き出し中...",
+  "preset.statusExportDone": "書き出し完了: {path} ({count}件)",
+  "preset.statusExportFailed": "書き出し失敗: {error}",
+  "preset.inspectPathRequired": "読み込む .snrpresets のパスを入力してください。",
+  "preset.statusInspecting": "アーカイブの中身を確認中...",
+  "preset.statusInspectDone": "確認完了: {total}件 (インポート可能 {importable} / 欠損 {missing})",
+  "preset.statusInspectFailed": "中身確認失敗: {error}",
+  "preset.importPathRequired": "インポート元の .snrpresets パスを入力してください。",
+  "preset.importSelectRequired": "インポートするプリセットを選択してください。",
+  "preset.emptyName": "(空名)",
+  "preset.importConfirmPrompt":
+    "次のプリセットをインポートします。\\n\\n{list}\\n\\n重複名は自動で回避されます。続行しますか？",
+  "preset.statusImporting": "プリセットをインポート中...",
+  "preset.statusImportDone": "インポート完了: {count}件{names}",
+  "preset.statusImportFailed": "インポート失敗: {error}",
 
   "install.tagRequired": "先にSNRタグを選択してください。",
   "install.starting": "インストール開始...",
@@ -196,8 +234,10 @@ const ja = {
   "uninstall.done": "アンインストール完了",
   "uninstall.doneWithPreserved": "アンインストール完了 (セーブ保持 {count}件)",
   "uninstall.failed": "アンインストール失敗: {error}",
-  "uninstall.confirmWithPreserve": "プロファイルの中身を全て削除し、現行4ファイルのセーブデータを保持します。続行しますか？",
-  "uninstall.confirmWithoutPreserve": "プロファイルの中身を全て削除します。セーブデータは保持しません。続行しますか？",
+  "uninstall.confirmWithPreserve":
+    "プロファイルの中身を全て削除し、現行4ファイルのセーブデータを保持します。続行しますか？",
+  "uninstall.confirmWithoutPreserve":
+    "プロファイルの中身を全て削除します。セーブデータは保持しません。続行しますか？",
 
   "launch.moddedStarting": "Mod起動中...",
   "launch.moddedSent": "Mod起動要求を送信しました。",

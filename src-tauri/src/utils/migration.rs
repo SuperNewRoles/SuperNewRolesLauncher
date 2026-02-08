@@ -61,7 +61,9 @@ struct PlannedImportFile {
 fn compile_profile_patterns() -> Result<Vec<Regex>, String> {
     PROFILE_INCLUDE_REGEX_PATTERNS
         .iter()
-        .map(|pattern| Regex::new(pattern).map_err(|e| format!("Invalid profile regex '{pattern}': {e}")))
+        .map(|pattern| {
+            Regex::new(pattern).map_err(|e| format!("Invalid profile regex '{pattern}': {e}"))
+        })
         .collect()
 }
 
@@ -140,12 +142,11 @@ pub fn collect_supported_profile_save_files(
 fn resolve_locallow_root() -> Result<PathBuf, String> {
     #[cfg(target_os = "windows")]
     {
-        let user_profile = std::env::var_os("USERPROFILE")
-            .ok_or_else(|| "Failed to resolve Windows home directory for LocalLow path".to_string())?;
+        let user_profile = std::env::var_os("USERPROFILE").ok_or_else(|| {
+            "Failed to resolve Windows home directory for LocalLow path".to_string()
+        })?;
 
-        return Ok(PathBuf::from(user_profile)
-            .join("AppData")
-            .join("LocalLow"));
+        return Ok(PathBuf::from(user_profile).join("AppData").join("LocalLow"));
     }
 
     #[allow(unreachable_code)]
@@ -248,8 +249,12 @@ fn write_file_to_zip<W: Write + Seek>(
     source: &Path,
     archive_path: &str,
 ) -> Result<(), String> {
-    let mut input = File::open(source)
-        .map_err(|e| format!("Failed to open migration source file '{}': {e}", source.display()))?;
+    let mut input = File::open(source).map_err(|e| {
+        format!(
+            "Failed to open migration source file '{}': {e}",
+            source.display()
+        )
+    })?;
 
     let options = zip::write::SimpleFileOptions::default()
         .compression_method(CompressionMethod::Deflated)
@@ -288,7 +293,10 @@ fn build_zip_bytes(
     Ok(cursor.into_inner())
 }
 
-fn derive_encryption_key(password: &str, salt: &[u8; ENCRYPTION_SALT_LEN]) -> Result<[u8; 32], String> {
+fn derive_encryption_key(
+    password: &str,
+    salt: &[u8; ENCRYPTION_SALT_LEN],
+) -> Result<[u8; 32], String> {
     if password.is_empty() {
         return Err("Password is required when encryption is enabled".to_string());
     }
@@ -335,8 +343,9 @@ fn build_snrdata_container(
         .map_err(|_| "Failed to encrypt .snrdata payload".to_string())?;
     key.fill(0);
 
-    let mut container =
-        Vec::with_capacity(ARCHIVE_MAGIC.len() + 2 + ENCRYPTION_SALT_LEN + ENCRYPTION_NONCE_LEN + ciphertext.len());
+    let mut container = Vec::with_capacity(
+        ARCHIVE_MAGIC.len() + 2 + ENCRYPTION_SALT_LEN + ENCRYPTION_NONCE_LEN + ciphertext.len(),
+    );
     container.extend_from_slice(ARCHIVE_MAGIC);
     container.push(ARCHIVE_VERSION);
     container.push(CONTAINER_FLAG_ENCRYPTED);
@@ -386,9 +395,9 @@ fn extract_zip_bytes_from_archive_bytes(
             .map_err(|_| "Invalid .snrdata nonce".to_string())?;
         let ciphertext = &payload[nonce_end..];
 
-        let password = password
-            .filter(|value| !value.is_empty())
-            .ok_or_else(|| "This .snrdata file is encrypted. Please provide a password.".to_string())?;
+        let password = password.filter(|value| !value.is_empty()).ok_or_else(|| {
+            "This .snrdata file is encrypted. Please provide a password.".to_string()
+        })?;
 
         let mut key = derive_encryption_key(password, &salt)?;
         let cipher = XChaCha20Poly1305::new((&key).into());
@@ -596,7 +605,10 @@ fn create_backup_root<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String>
     Err("Failed to allocate a unique migration backup directory".to_string())
 }
 
-fn clean_managed_profile_files(profile_root: &Path, profile_patterns: &[Regex]) -> Result<(), String> {
+fn clean_managed_profile_files(
+    profile_root: &Path,
+    profile_patterns: &[Regex],
+) -> Result<(), String> {
     let existing_files = collect_profile_files(profile_root, profile_patterns)?;
     for (path, _) in existing_files {
         fs::remove_file(&path).map_err(|e| {
@@ -830,7 +842,8 @@ pub fn import_migration_data<R: Runtime>(
         ));
     }
 
-    let (zip_bytes, encrypted) = read_zip_bytes_from_archive_file(archive_path, password.as_deref())?;
+    let (zip_bytes, encrypted) =
+        read_zip_bytes_from_archive_file(archive_path, password.as_deref())?;
     let mut archive = ZipArchive::new(Cursor::new(zip_bytes))
         .map_err(|e| format!("Invalid migration archive format: {e}"))?;
 
@@ -840,7 +853,12 @@ pub fn import_migration_data<R: Runtime>(
     let locallow_snr_dir = locallow_root.join("Innersloth").join("SuperNewRoles");
     let profile_patterns = compile_profile_patterns()?;
 
-    let planned_files = plan_import_files(&mut archive, &profile_root, &locallow_root, &profile_patterns)?;
+    let planned_files = plan_import_files(
+        &mut archive,
+        &profile_root,
+        &locallow_root,
+        &profile_patterns,
+    )?;
     if planned_files.is_empty() {
         return Err("No supported migration entries were found in the archive.".to_string());
     }

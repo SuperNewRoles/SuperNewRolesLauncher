@@ -4,6 +4,7 @@ use tauri::{AppHandle, Runtime};
 use crate::utils::migration;
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MigrationExportResult {
     pub archive_path: String,
     pub included_files: usize,
@@ -13,6 +14,7 @@ pub struct MigrationExportResult {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MigrationImportResult {
     pub imported_files: usize,
     pub profile_files: usize,
@@ -20,8 +22,9 @@ pub struct MigrationImportResult {
     pub encrypted: bool,
 }
 
+/// お引越しデータを書き出す。
 #[tauri::command]
-pub fn export_migration_data<R: Runtime>(
+pub fn migration_export<R: Runtime>(
     app: AppHandle<R>,
     output_path: Option<String>,
     encryption_enabled: Option<bool>,
@@ -43,8 +46,9 @@ pub fn export_migration_data<R: Runtime>(
     })
 }
 
+/// お引越しデータを読み込む。
 #[tauri::command]
-pub fn import_migration_data<R: Runtime>(
+pub fn migration_import<R: Runtime>(
     app: AppHandle<R>,
     archive_path: String,
     password: Option<String>,

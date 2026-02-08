@@ -1,0 +1,105 @@
+import { describe, expect, it } from "vitest";
+
+import { computeControlState } from "./selectors";
+import type { AppStateSnapshot } from "./store";
+
+function createBaseSnapshot(): AppStateSnapshot {
+  return {
+    settings: null,
+    releases: [],
+    profileIsReady: false,
+    gameRunning: false,
+    installInProgress: false,
+    uninstallInProgress: false,
+    launchInProgress: false,
+    creatingShortcut: false,
+    releasesLoading: false,
+    checkingUpdate: false,
+    epicLoggedIn: false,
+    migrationExporting: false,
+    migrationImporting: false,
+    presetLoading: false,
+    presetExporting: false,
+    presetInspecting: false,
+    presetImporting: false,
+    localPresets: [],
+    archivePresets: [],
+    reportingReady: false,
+    reportPreparing: false,
+    reportingLoading: false,
+    reportMessagesLoading: false,
+    reportSending: false,
+    reportMessageSending: false,
+    reportThreads: [],
+    reportMessages: [],
+    selectedReportThreadId: null,
+    reportMessageLoadTicket: 0,
+    reportingPollTimer: null,
+    reportingUnreadBaselineCaptured: false,
+    knownUnreadThreadIds: new Set(),
+    preservedSaveDataAvailable: false,
+    preservedSaveDataFiles: 0,
+    reportingNotificationEnabled: false,
+  };
+}
+
+describe("computeControlState", () => {
+  it("settings 未取得時は主要操作が無効になる", () => {
+    const result = computeControlState(createBaseSnapshot());
+    expect(result.installButtonDisabled).toBe(true);
+    expect(result.launchVanillaButtonDisabled).toBe(true);
+    expect(result.migrationExportButtonDisabled).toBe(true);
+  });
+
+  it("起動可能状態で Vanilla 起動が有効になる", () => {
+    const state = createBaseSnapshot();
+    state.settings = {
+      amongUsPath: "C:/AmongUs",
+      gamePlatform: "steam",
+      selectedReleaseTag: "v1.0.0",
+      profilePath: "C:/profile",
+      closeToTrayOnClose: true,
+      uiLocale: "ja",
+    };
+    state.profileIsReady = true;
+
+    const result = computeControlState(state);
+    expect(result.launchVanillaButtonDisabled).toBe(false);
+    expect(result.launchModdedButtonDisabled).toBe(false);
+    expect(result.installButtonDisabled).toBe(false);
+  });
+
+  it("ゲーム実行中は launch 系が無効になる", () => {
+    const state = createBaseSnapshot();
+    state.settings = {
+      amongUsPath: "C:/AmongUs",
+      gamePlatform: "steam",
+      selectedReleaseTag: "v1.0.0",
+      profilePath: "C:/profile",
+      closeToTrayOnClose: true,
+      uiLocale: "ja",
+    };
+    state.gameRunning = true;
+    state.profileIsReady = true;
+
+    const result = computeControlState(state);
+    expect(result.launchVanillaButtonDisabled).toBe(true);
+    expect(result.launchModdedButtonDisabled).toBe(true);
+  });
+
+  it("アーカイブに importable preset が無い場合は import を無効化する", () => {
+    const state = createBaseSnapshot();
+    state.settings = {
+      amongUsPath: "C:/AmongUs",
+      gamePlatform: "steam",
+      selectedReleaseTag: "v1.0.0",
+      profilePath: "C:/profile",
+      closeToTrayOnClose: true,
+      uiLocale: "ja",
+    };
+    state.archivePresets = [{ id: 1, name: "x", hasDataFile: false }];
+
+    const result = computeControlState(state);
+    expect(result.presetImportButtonDisabled).toBe(true);
+  });
+});

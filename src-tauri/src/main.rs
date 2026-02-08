@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod services;
 mod utils;
 
 use std::ffi::OsStr;
@@ -113,18 +114,20 @@ pub fn run() {
     let bypass_close_to_tray_for_window = bypass_close_to_tray.clone();
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(move |app, args, _cwd| {
-            if args_contain_autolaunch_modded(args) {
-                start_modded_autolaunch(
-                    app.clone(),
-                    bypass_close_to_tray_for_single_instance.clone(),
-                    false,
-                );
-                return;
-            }
+        .plugin(tauri_plugin_single_instance::init(
+            move |app, args, _cwd| {
+                if args_contain_autolaunch_modded(args) {
+                    start_modded_autolaunch(
+                        app.clone(),
+                        bypass_close_to_tray_for_single_instance.clone(),
+                        false,
+                    );
+                    return;
+                }
 
-            show_main_window(app);
-        }))
+                show_main_window(app);
+            },
+        ))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -149,11 +152,11 @@ pub fn run() {
                     return;
                 }
 
-                let close_to_tray = match crate::utils::settings::load_or_init_settings(&window.app_handle())
-                {
-                    Ok(settings) => settings.close_to_tray_on_close,
-                    Err(_) => true,
-                };
+                let close_to_tray =
+                    match crate::utils::settings::load_or_init_settings(window.app_handle()) {
+                        Ok(settings) => settings.close_to_tray_on_close,
+                        Err(_) => true,
+                    };
 
                 if close_to_tray {
                     api.prevent_close();
@@ -162,7 +165,7 @@ pub fn run() {
             }
         })
         .setup(move |app| {
-            setup_tray(&app.handle())?;
+            setup_tray(app.handle())?;
 
             if auto_launch_modded {
                 if let Some(window) = app.get_webview_window("main") {
@@ -177,39 +180,39 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::settings::get_launcher_settings,
-            commands::settings::save_launcher_settings,
-            commands::settings::check_profile_ready,
-            commands::migration::export_migration_data,
-            commands::migration::import_migration_data,
-            commands::presets::list_local_presets,
-            commands::presets::export_selected_presets,
-            commands::presets::inspect_preset_archive,
-            commands::presets::import_presets_from_archive,
-            commands::finder::detect_among_us,
-            commands::finder::get_game_platform,
-            commands::snr::list_snr_releases,
-            commands::snr::install_snr_release,
-            commands::snr::uninstall_snr_profile,
-            commands::snr::get_preserved_save_data_status,
-            commands::reporting::reporting_prepare_account,
-            commands::reporting::reporting_list_threads,
-            commands::reporting::reporting_get_messages,
-            commands::reporting::reporting_send_message,
-            commands::reporting::reporting_send_report,
-            commands::reporting::reporting_get_notification_flag,
-            commands::reporting::reporting_get_log_source_info,
+            commands::settings::settings_get,
+            commands::settings::settings_update,
+            commands::settings::settings_profile_ready,
+            commands::migration::migration_export,
+            commands::migration::migration_import,
+            commands::presets::presets_list_local,
+            commands::presets::presets_export,
+            commands::presets::presets_inspect_archive,
+            commands::presets::presets_import_archive,
+            commands::finder::finder_detect_among_us,
+            commands::finder::finder_detect_platform,
+            commands::snr::snr_releases_list,
+            commands::snr::snr_install,
+            commands::snr::snr_uninstall,
+            commands::snr::snr_preserved_save_data_status,
+            commands::reporting::reporting_prepare,
+            commands::reporting::reporting_threads_list,
+            commands::reporting::reporting_messages_list,
+            commands::reporting::reporting_message_send,
+            commands::reporting::reporting_report_send,
+            commands::reporting::reporting_notification_flag_get,
+            commands::reporting::reporting_log_source_get,
             commands::launch::launch_modded,
             commands::launch::launch_vanilla,
-            commands::launch::create_modded_launch_shortcut,
-            commands::launch::take_autolaunch_error,
-            commands::launch::is_game_running,
-            commands::epic_commands::get_epic_auth_url,
-            commands::epic_commands::epic_login_with_code,
-            commands::epic_commands::epic_login_with_webview,
-            commands::epic_commands::epic_try_restore_session,
-            commands::epic_commands::epic_is_logged_in,
-            commands::epic_commands::epic_get_login_status,
+            commands::launch::launch_shortcut_create,
+            commands::launch::launch_autolaunch_error_take,
+            commands::launch::launch_game_running_get,
+            commands::epic_commands::epic_auth_url_get,
+            commands::epic_commands::epic_login_code,
+            commands::epic_commands::epic_login_webview,
+            commands::epic_commands::epic_session_restore,
+            commands::epic_commands::epic_logged_in_get,
+            commands::epic_commands::epic_status_get,
             commands::epic_commands::epic_logout,
         ])
         .run(tauri::generate_context!())

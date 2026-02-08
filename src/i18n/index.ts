@@ -15,9 +15,7 @@ const LOCALES = {
 export type LocaleCode = keyof typeof LOCALES;
 export type MessageKey = keyof typeof ja;
 
-export const SUPPORTED_LOCALES = Object.freeze(
-  Object.keys(LOCALES) as LocaleCode[]
-);
+export const SUPPORTED_LOCALES = Object.freeze(Object.keys(LOCALES) as LocaleCode[]);
 
 type TranslateParams = Record<string, string | number>;
 
@@ -56,11 +54,7 @@ export function saveLocale(locale: LocaleCode): void {
 }
 
 export function resolveInitialLocale(): LocaleCode {
-  return (
-    loadSavedLocale() ??
-    normalizeLocale(navigator.language) ??
-    (DEFAULT_LOCALE as LocaleCode)
-  );
+  return loadSavedLocale() ?? normalizeLocale(navigator.language) ?? (DEFAULT_LOCALE as LocaleCode);
 }
 
 export function createTranslator(locale: LocaleCode) {

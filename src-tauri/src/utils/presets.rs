@@ -91,7 +91,8 @@ fn parse_preset_id_from_archive_path(path: &str) -> Option<i32> {
     let normalized = path.replace('\\', "/");
     let lower = normalized.to_ascii_lowercase();
 
-    if !lower.starts_with(PRESET_ARCHIVE_FILE_PREFIX_LOWER) || !lower.ends_with(PRESET_FILE_SUFFIX) {
+    if !lower.starts_with(PRESET_ARCHIVE_FILE_PREFIX_LOWER) || !lower.ends_with(PRESET_FILE_SUFFIX)
+    {
         return None;
     }
 
@@ -127,8 +128,7 @@ fn read_7bit_encoded_int(bytes: &[u8], cursor: &mut usize) -> Result<usize, Stri
     for _ in 0..5 {
         if *cursor >= bytes.len() {
             return Err(
-                "Unexpected end of Options.data while reading a string length."
-                    .to_string(),
+                "Unexpected end of Options.data while reading a string length.".to_string(),
             );
         }
 
@@ -151,8 +151,7 @@ fn read_dotnet_string(bytes: &[u8], cursor: &mut usize) -> Result<String, String
     let length = read_7bit_encoded_int(bytes, cursor)?;
     if *cursor + length > bytes.len() {
         return Err(
-            "Unexpected end of Options.data while reading a preset name string."
-                .to_string(),
+            "Unexpected end of Options.data while reading a preset name string.".to_string(),
         );
     }
 
@@ -194,8 +193,7 @@ fn parse_options_data(bytes: &[u8]) -> Result<OptionsData, String> {
 
     if checksum_seed.saturating_mul(checksum_seed) != checksum {
         return Err(
-            "Options.data checksum validation failed (random^2 check mismatch)."
-                .to_string(),
+            "Options.data checksum validation failed (random^2 check mismatch).".to_string(),
         );
     }
 
@@ -232,7 +230,11 @@ fn checksum_seed() -> u8 {
 
 fn build_options_data(options: &OptionsData) -> Result<Vec<u8>, String> {
     let mut output = Vec::new();
-    let version = if options.version == 0 { 1 } else { options.version };
+    let version = if options.version == 0 {
+        1
+    } else {
+        options.version
+    };
 
     output.push(version);
 
@@ -320,9 +322,9 @@ fn make_default_archive_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, 
         .unwrap_or_default()
         .as_secs();
 
-    Ok(base_dir
-        .join(PRESET_ARCHIVE_DIR_NAME)
-        .join(format!("snr-presets-{timestamp}.{PRESET_ARCHIVE_EXTENSION}")))
+    Ok(base_dir.join(PRESET_ARCHIVE_DIR_NAME).join(format!(
+        "snr-presets-{timestamp}.{PRESET_ARCHIVE_EXTENSION}"
+    )))
 }
 
 fn resolve_archive_output_path<R: Runtime>(
@@ -366,7 +368,11 @@ fn archive_extension_is_supported(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-fn write_bytes_to_zip(zip: &mut ZipWriter<File>, archive_path: &str, data: &[u8]) -> Result<(), String> {
+fn write_bytes_to_zip(
+    zip: &mut ZipWriter<File>,
+    archive_path: &str,
+    data: &[u8],
+) -> Result<(), String> {
     let options = zip::write::SimpleFileOptions::default()
         .compression_method(CompressionMethod::Deflated)
         .unix_permissions(0o644);
@@ -381,9 +387,17 @@ fn write_bytes_to_zip(zip: &mut ZipWriter<File>, archive_path: &str, data: &[u8]
     Ok(())
 }
 
-fn write_file_to_zip(zip: &mut ZipWriter<File>, source: &Path, archive_path: &str) -> Result<(), String> {
-    let mut input = File::open(source)
-        .map_err(|e| format!("Failed to open preset source file '{}': {e}", source.display()))?;
+fn write_file_to_zip(
+    zip: &mut ZipWriter<File>,
+    source: &Path,
+    archive_path: &str,
+) -> Result<(), String> {
+    let mut input = File::open(source).map_err(|e| {
+        format!(
+            "Failed to open preset source file '{}': {e}",
+            source.display()
+        )
+    })?;
 
     let options = zip::write::SimpleFileOptions::default()
         .compression_method(CompressionMethod::Deflated)
@@ -413,10 +427,14 @@ fn read_archive_contents(archive_path: &Path) -> Result<ArchiveContents, String>
         ));
     }
 
-    let input_file = File::open(archive_path)
-        .map_err(|e| format!("Failed to open preset archive '{}': {e}", archive_path.display()))?;
-    let mut archive = ZipArchive::new(input_file)
-        .map_err(|e| format!("Invalid preset archive format: {e}"))?;
+    let input_file = File::open(archive_path).map_err(|e| {
+        format!(
+            "Failed to open preset archive '{}': {e}",
+            archive_path.display()
+        )
+    })?;
+    let mut archive =
+        ZipArchive::new(input_file).map_err(|e| format!("Invalid preset archive format: {e}"))?;
 
     let mut options_bytes: Option<Vec<u8>> = None;
     let mut preset_files = HashMap::new();
@@ -497,7 +515,9 @@ fn make_unique_name(base_name: &str, used_names: &HashSet<String>) -> String {
     }
 }
 
-pub fn list_local_presets<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<PresetEntrySummary>, String> {
+pub fn list_local_presets<R: Runtime>(
+    app: &AppHandle<R>,
+) -> Result<Vec<PresetEntrySummary>, String> {
     let save_data_dir = profile_save_data_dir(app)?;
     let options_path = save_data_dir.join(OPTIONS_FILE_NAME);
 
@@ -547,9 +567,7 @@ pub fn export_selected_presets<R: Runtime>(
 
     for preset_id in selected_ids {
         let preset_name = local_options.preset_names.get(&preset_id).ok_or_else(|| {
-            format!(
-                "Selected preset id {preset_id} does not exist in local Options.data."
-            )
+            format!("Selected preset id {preset_id} does not exist in local Options.data.")
         })?;
 
         let source_path = preset_file_path(&save_data_dir, preset_id);
@@ -684,7 +702,13 @@ pub fn import_presets_from_archive<R: Runtime>(
     }
 
     let mut used_ids = collect_existing_preset_ids(&save_data_dir)?;
-    used_ids.extend(local_options.preset_names.keys().copied().filter(|id| *id >= 0));
+    used_ids.extend(
+        local_options
+            .preset_names
+            .keys()
+            .copied()
+            .filter(|id| *id >= 0),
+    );
 
     let mut used_names: HashSet<String> = local_options
         .preset_names
@@ -705,11 +729,15 @@ pub fn import_presets_from_archive<R: Runtime>(
             continue;
         }
 
-        let source_name = contents.options.preset_names.get(&source_id).ok_or_else(|| {
-            format!(
+        let source_name = contents
+            .options
+            .preset_names
+            .get(&source_id)
+            .ok_or_else(|| {
+                format!(
                 "Selected source preset id {source_id} was not found in the archive Options.data."
             )
-        })?;
+            })?;
 
         let source_data = contents.preset_files.get(&source_id).ok_or_else(|| {
             format!(

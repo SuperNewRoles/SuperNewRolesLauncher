@@ -26,6 +26,7 @@ const B64: base64::engine::GeneralPurpose = base64::engine::general_purpose::STA
 static TOKEN_CACHE: OnceLock<Mutex<Option<String>>> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ReportStatus {
     pub status: String,
     pub color: String,
@@ -33,6 +34,7 @@ pub struct ReportStatus {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ReportThread {
     pub thread_id: String,
     pub title: String,
@@ -43,6 +45,7 @@ pub struct ReportThread {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ReportMessage {
     pub message_type: String,
     pub message_id: String,
@@ -60,6 +63,7 @@ pub struct PrepareAccountSummary {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LogSourceInfo {
     pub profile_candidate: String,
     pub game_candidate: String,
@@ -68,6 +72,7 @@ pub struct LogSourceInfo {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SendReportInput {
     pub report_type: String,
     pub title: String,
@@ -159,7 +164,9 @@ fn windows_home_dir() -> Result<PathBuf, String> {
     {
         std::env::var_os("USERPROFILE")
             .map(PathBuf::from)
-            .ok_or_else(|| "Failed to resolve USERPROFILE path for reporting token search".to_string())
+            .ok_or_else(|| {
+                "Failed to resolve USERPROFILE path for reporting token search".to_string()
+            })
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -181,7 +188,11 @@ fn token_candidate_paths<R: Runtime>(_app: &AppHandle<R>) -> Result<Vec<PathBuf>
 fn read_token(path: &Path) -> Option<String> {
     let content = fs::read_to_string(path).ok()?;
     let token = content.trim().to_string();
-    if token.is_empty() { None } else { Some(token) }
+    if token.is_empty() {
+        None
+    } else {
+        Some(token)
+    }
 }
 
 fn collect_token_candidates(paths: &[PathBuf]) -> Vec<TokenCandidate> {
@@ -324,7 +335,8 @@ fn normalize_report_type(value: &str) -> Result<&'static str, String> {
 fn report_log_source_info<R: Runtime>(app: &AppHandle<R>) -> Result<LogSourceInfo, String> {
     let launcher_settings = settings::load_or_init_settings(app)?;
 
-    let profile_candidate_path = PathBuf::from(&launcher_settings.profile_path).join(LOG_OUTPUT_RELATIVE_PATH);
+    let profile_candidate_path =
+        PathBuf::from(&launcher_settings.profile_path).join(LOG_OUTPUT_RELATIVE_PATH);
     let game_candidate_path = if launcher_settings.among_us_path.trim().is_empty() {
         PathBuf::new()
     } else {
@@ -424,7 +436,9 @@ pub async fn list_threads<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<ReportTh
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        return Err(format!("Failed to get reporting threads ({status}): {body}"));
+        return Err(format!(
+            "Failed to get reporting threads ({status}): {body}"
+        ));
     }
 
     let payload = response
@@ -485,9 +499,7 @@ pub async fn get_messages<R: Runtime>(
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        return Err(format!(
-            "Failed to get thread messages ({status}): {body}"
-        ));
+        return Err(format!("Failed to get thread messages ({status}): {body}"));
     }
 
     let payload = response
@@ -637,12 +649,17 @@ pub async fn send_report<R: Runtime>(
             .map(str::trim)
             .filter(|value| !value.is_empty())
         {
-            payload.insert("timing".to_string(), Value::String(timing_value.to_string()));
+            payload.insert(
+                "timing".to_string(),
+                Value::String(timing_value.to_string()),
+            );
         }
     }
 
     let response = client
-        .post(format!("{REPORTING_API_BASE_URL}/sendRequest/{report_type}"))
+        .post(format!(
+            "{REPORTING_API_BASE_URL}/sendRequest/{report_type}"
+        ))
         .header("Authorization", format!("Bearer {token}"))
         .json(&payload)
         .send()

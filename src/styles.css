@@ -22,8 +22,7 @@ body {
   margin: 0;
   color: var(--text);
   font-family: "M PLUS 1p", "Yu Gothic UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
-  background:
-    radial-gradient(1000px 500px at 8% -8%, #b9ddff 10%, transparent 60%),
+  background: radial-gradient(1000px 500px at 8% -8%, #b9ddff 10%, transparent 60%),
     radial-gradient(900px 480px at 100% 0%, #c9f0e0 8%, transparent 62%),
     linear-gradient(160deg, var(--bg-0) 0%, var(--bg-1) 100%);
 }

@@ -28,6 +28,22 @@ npm run tauri:dev
 npm run tauri:build
 ```
 
+## 品質チェック
+
+開発時は以下を実行してください。
+
+```powershell
+npm run lint
+npm run test
+npm run build
+cd src-tauri
+cargo fmt --check
+cargo clippy -- -D warnings
+cargo test
+```
+
+アーキテクチャ方針は `docs/ARCHITECTURE.md` を参照してください。
+
 ## 自動アップデート (in-app updater)
 
 このプロジェクトは `@tauri-apps/plugin-updater` を組み込み済みです。  
@@ -118,8 +134,8 @@ npm run tauri:build
 
 Epic は以下の両方に対応しています。
 
-- WebView ログイン (`epic_login_with_webview`)
-- 認証コード手入力 (`epic_login_with_code`)
+- WebView ログイン (`epic_login_webview`)
+- 認証コード手入力 (`epic_login_code`)
 
 セッションは keyring に保存し、`settings.json` には保存しません。
 
@@ -128,7 +144,7 @@ Epic は以下の両方に対応しています。
 以下の workflow を追加済みです。
 
 - `.github/workflows/ci.yml`
-  - `main` への push / PR で `npm run build` と `cargo check` を実行
+  - `main` への push / PR で `npm run lint` / `npm run test` / `npm run build` / `cargo fmt --check` / `cargo clippy -- -D warnings` / `cargo test` を実行
 - `.github/workflows/release.yml`
   - `v*` タグ push で Tauri ビルドし、GitHub Release に成果物を公開
   - `latest.json` も自動アップロード (`uploadUpdaterJson: true`)

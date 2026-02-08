@@ -1,6 +1,6 @@
 use base64::Engine;
 use keyring::{Entry, Error};
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Serialize};
 use std::marker::PhantomData;
 
 const DEFAULT_CHUNK_SIZE: usize = 1000;
@@ -70,7 +70,8 @@ where
     pub fn save(&self, value: &T) -> Result<(), String> {
         self.clear()?;
 
-        let json = serde_json::to_vec(value).map_err(|e| format!("Failed to serialize data: {e}"))?;
+        let json =
+            serde_json::to_vec(value).map_err(|e| format!("Failed to serialize data: {e}"))?;
         let encoded = B64.encode(json);
         let chunks: Vec<&[u8]> = encoded.as_bytes().chunks(DEFAULT_CHUNK_SIZE).collect();
 

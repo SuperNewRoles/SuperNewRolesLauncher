@@ -4,6 +4,7 @@ use tauri::{AppHandle, Runtime};
 use crate::utils::presets;
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PresetSummary {
     pub id: i32,
     pub name: String,
@@ -11,6 +12,7 @@ pub struct PresetSummary {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PresetExportResult {
     pub archive_path: String,
     pub exported_presets: usize,
@@ -24,6 +26,7 @@ pub struct PresetImportSelectionInput {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ImportedPresetResult {
     pub source_id: i32,
     pub target_id: i32,
@@ -31,13 +34,15 @@ pub struct ImportedPresetResult {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PresetImportResult {
     pub imported_presets: usize,
     pub imported: Vec<ImportedPresetResult>,
 }
 
+/// ローカルプリセット一覧を取得する。
 #[tauri::command]
-pub fn list_local_presets<R: Runtime>(app: AppHandle<R>) -> Result<Vec<PresetSummary>, String> {
+pub fn presets_list_local<R: Runtime>(app: AppHandle<R>) -> Result<Vec<PresetSummary>, String> {
     let presets = presets::list_local_presets(&app)?;
     Ok(presets
         .into_iter()
@@ -49,8 +54,9 @@ pub fn list_local_presets<R: Runtime>(app: AppHandle<R>) -> Result<Vec<PresetSum
         .collect())
 }
 
+/// 指定プリセットをアーカイブへ書き出す。
 #[tauri::command]
-pub fn export_selected_presets<R: Runtime>(
+pub fn presets_export<R: Runtime>(
     app: AppHandle<R>,
     preset_ids: Vec<i32>,
     output_path: Option<String>,
@@ -62,8 +68,9 @@ pub fn export_selected_presets<R: Runtime>(
     })
 }
 
+/// プリセットアーカイブ内容を確認する。
 #[tauri::command]
-pub fn inspect_preset_archive(archive_path: String) -> Result<Vec<PresetSummary>, String> {
+pub fn presets_inspect_archive(archive_path: String) -> Result<Vec<PresetSummary>, String> {
     let normalized = archive_path.trim();
     if normalized.is_empty() {
         return Err("Preset archive path is required".to_string());
@@ -80,8 +87,9 @@ pub fn inspect_preset_archive(archive_path: String) -> Result<Vec<PresetSummary>
         .collect())
 }
 
+/// プリセットアーカイブを取り込む。
 #[tauri::command]
-pub fn import_presets_from_archive<R: Runtime>(
+pub fn presets_import_archive<R: Runtime>(
     app: AppHandle<R>,
     archive_path: String,
     selections: Vec<PresetImportSelectionInput>,
@@ -99,7 +107,8 @@ pub fn import_presets_from_archive<R: Runtime>(
         })
         .collect();
 
-    let result = presets::import_presets_from_archive(&app, &PathBuf::from(normalized), selections)?;
+    let result =
+        presets::import_presets_from_archive(&app, &PathBuf::from(normalized), selections)?;
 
     Ok(PresetImportResult {
         imported_presets: result.imported_presets,
