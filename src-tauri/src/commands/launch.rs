@@ -159,7 +159,10 @@ fn is_pid_running(pid: u32) -> bool {
     String::from_utf8_lossy(&output.stdout)
         .lines()
         .map(str::trim)
-        .any(|line| line.starts_with('"') && line.contains(&pid_fragment))
+        .any(|line| {
+            line.to_ascii_lowercase().starts_with("\"among us.exe\"")
+                && line.contains(&pid_fragment)
+        })
 }
 
 #[cfg(not(windows))]

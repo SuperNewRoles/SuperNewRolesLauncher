@@ -29,6 +29,7 @@ interface LauncherSettings {
   selected_release_tag: string;
   profile_path: string;
   close_to_tray_on_close: boolean;
+  ui_locale: LocaleCode;
 }
 
 interface LauncherSettingsInput {
@@ -37,6 +38,7 @@ interface LauncherSettingsInput {
   selected_release_tag?: string;
   profile_path?: string;
   close_to_tray_on_close?: boolean;
+  ui_locale?: LocaleCode;
 }
 
 interface SnrReleaseSummary {
@@ -586,6 +588,8 @@ let reportingUnreadBaselineCaptured = false;
 let knownUnreadThreadIds = new Set<string>();
 let preservedSaveDataAvailable = false;
 let preservedSaveDataFiles = 0;
+let gameStatePollTimer: number | null = null;
+let gameStatePolling = false;
 let reportingNotificationEnabled =
   localStorage.getItem(REPORTING_NOTIFICATION_STORAGE_KEY) === "1";
 
@@ -918,6 +922,23 @@ async function refreshGameRunningState(): Promise<void> {
   } catch {
     // ignore game running state retrieval errors
   }
+}
+
+function startGameRunningPolling(): void {
+  if (gameStatePollTimer !== null) {
+    window.clearInterval(gameStatePollTimer);
+  }
+
+  gameStatePollTimer = window.setInterval(() => {
+    if (gameStatePolling) {
+      return;
+    }
+
+    gameStatePolling = true;
+    void refreshGameRunningState().finally(() => {
+      gameStatePolling = false;
+    });
+  }, 2_000);
 }
 
 function renderSettings(): void {
@@ -2034,10 +2055,17 @@ if (savedToken) {
   githubTokenInput.value = savedToken;
 }
 
-languageSelect.addEventListener("change", () => {
+void invoke("save_launcher_settings", { settings: { ui_locale: currentLocale } }).catch(() => undefined);
+
+languageSelect.addEventListener("change", async () => {
   const nextLocale = normalizeLocale(languageSelect.value) ?? currentLocale;
   if (nextLocale === currentLocale) {
     return;
+  }
+  try {
+    await invoke("save_launcher_settings", { settings: { ui_locale: nextLocale } });
+  } catch {
+    // ignore backend locale sync failures
   }
   saveLocale(nextLocale);
   window.location.reload();
@@ -2202,6 +2230,7 @@ void (async () => {
   await refreshReleases();
   await refreshReportingLogSource();
   await refreshGameRunningState();
+  startGameRunningPolling();
 
   try {
     await invoke<boolean>("epic_try_restore_session");

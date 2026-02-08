@@ -18,6 +18,13 @@ const TRAY_ID: &str = "main-tray";
 const TRAY_MENU_SHOW_ID: &str = "tray_show";
 const TRAY_MENU_EXIT_ID: &str = "tray_exit";
 
+fn tray_menu_labels(locale: &str) -> (&'static str, &'static str) {
+    match locale {
+        "en" => ("Show", "Exit"),
+        _ => ("表示", "終了"),
+    }
+}
+
 fn args_contain_autolaunch_modded<I, S>(args: I) -> bool
 where
     I: IntoIterator<Item = S>,
@@ -62,8 +69,13 @@ fn show_main_window<R: tauri::Runtime>(app: &AppHandle<R>) {
 }
 
 fn setup_tray<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
-    let show_item = MenuItem::with_id(app, TRAY_MENU_SHOW_ID, "Show", true, None::<&str>)?;
-    let exit_item = MenuItem::with_id(app, TRAY_MENU_EXIT_ID, "Exit", true, None::<&str>)?;
+    let locale = crate::utils::settings::load_or_init_settings(app)
+        .map(|settings| settings.ui_locale)
+        .unwrap_or_else(|_| "ja".to_string());
+    let (show_label, exit_label) = tray_menu_labels(&locale);
+
+    let show_item = MenuItem::with_id(app, TRAY_MENU_SHOW_ID, show_label, true, None::<&str>)?;
+    let exit_item = MenuItem::with_id(app, TRAY_MENU_EXIT_ID, exit_label, true, None::<&str>)?;
     let tray_menu = Menu::with_items(app, &[&show_item, &exit_item])?;
 
     let mut tray_builder = TrayIconBuilder::with_id(TRAY_ID)

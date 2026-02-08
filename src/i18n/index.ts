@@ -4,7 +4,7 @@ import ja from "./locales/ja";
 type LocaleMessages = Record<string, string>;
 
 const LOCALE_STORAGE_KEY = "ui.locale";
-const DEFAULT_LOCALE = "ja";
+const DEFAULT_LOCALE = "en";
 const PARAM_PATTERN = /\{([a-zA-Z0-9_]+)\}/g;
 
 const LOCALES = {
