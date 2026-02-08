@@ -81,6 +81,8 @@ npm run tauri:build
 - `SNRタグ` は UI で毎回選択
 - インストール時は `snr-install-progress` イベントで進捗を通知
 - 展開時は staging (`default._staging`) を使い、成功時のみ `default` へ切り替え
+- `Modをアンインストール` でプロファイル中身を全削除
+- アンインストール時に「現行4ファイル」を保持し、次回インストール時に復元オプションで再利用可能
 - 必須ファイル検証:
   - `winhttp.dll`
   - `doorstop_config.ini`
@@ -92,6 +94,10 @@ npm run tauri:build
 `launch_modded` は Among Us 実行時に doorstop 引数を付与して、展開先プロファイルを参照して起動します。  
 `launch_vanilla` は通常起動です。
 
+ランチャーUIには「Mod起動ショートカット作成」ボタンがあります。作成されるショートカットは
+`--autolaunch-modded` 付きでランチャーを起動し、通常は画面を表示せずにMod起動を試みます。
+起動に失敗した場合のみランチャー画面を表示して、失敗理由をステータスに表示します。
+
 ## データお引越し (.snrdata)
 
 ランチャーの「データお引越し」機能で、移行用アーカイブ (`.snrdata`) を書き出し/読み込みできます。
@@ -102,7 +108,11 @@ npm run tauri:build
   - `SuperNewRolesNext/SaveData/SuperTrophyData.dat`
   - `SuperNewRolesNext/SaveData/CustomCosmetics.data`
 - 追加で `LocalLow/Innersloth/SuperNewRoles` 配下も含めます（ゲーム内報告アカウント等）
-- 読み込み時は zip 内の構造を保ったまま適切な配置先に上書き復元します
+- 書き出し時は「パスワード暗号化」を ON/OFF できます（ON の場合は復元時に同じパスワードが必要）
+- 読み込み時は「完全同期」で復元します
+  - プロファイル側は管理対象ファイルを一度クリアしてから復元
+  - `LocalLow/Innersloth/SuperNewRoles` は一度クリアしてから復元
+  - 復元失敗時はバックアップからロールバックを試みます
 
 ### Epic認証
 

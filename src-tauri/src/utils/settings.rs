@@ -48,6 +48,7 @@ pub struct LauncherSettings {
     pub game_platform: GamePlatform,
     pub selected_release_tag: String,
     pub profile_path: String,
+    pub close_to_tray_on_close: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -56,6 +57,7 @@ struct LauncherSettingsOnDisk {
     game_platform: Option<GamePlatform>,
     selected_release_tag: Option<String>,
     profile_path: Option<String>,
+    close_to_tray_on_close: Option<bool>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -64,6 +66,7 @@ pub struct LauncherSettingsInput {
     pub game_platform: Option<GamePlatform>,
     pub selected_release_tag: Option<String>,
     pub profile_path: Option<String>,
+    pub close_to_tray_on_close: Option<bool>,
 }
 
 pub fn app_data_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
@@ -87,6 +90,7 @@ fn make_default_settings<R: Runtime>(app: &AppHandle<R>) -> Result<LauncherSetti
         game_platform: GamePlatform::Steam,
         selected_release_tag: String::new(),
         profile_path: profile_path.to_string_lossy().to_string(),
+        close_to_tray_on_close: true,
     })
 }
 
@@ -129,6 +133,7 @@ pub fn load_or_init_settings<R: Runtime>(app: &AppHandle<R>) -> Result<LauncherS
     default_settings.among_us_path = on_disk.among_us_path.unwrap_or_default();
     default_settings.game_platform = on_disk.game_platform.unwrap_or_default();
     default_settings.selected_release_tag = on_disk.selected_release_tag.unwrap_or_default();
+    default_settings.close_to_tray_on_close = on_disk.close_to_tray_on_close.unwrap_or(true);
     if let Some(profile_path) = on_disk.profile_path {
         let trimmed = profile_path.trim();
         if !trimmed.is_empty() {
@@ -158,6 +163,9 @@ pub fn apply_settings_input<R: Runtime>(
     }
     if let Some(profile_path) = input.profile_path {
         settings.profile_path = profile_path;
+    }
+    if let Some(close_to_tray_on_close) = input.close_to_tray_on_close {
+        settings.close_to_tray_on_close = close_to_tray_on_close;
     }
 
     if settings.profile_path.trim().is_empty() {

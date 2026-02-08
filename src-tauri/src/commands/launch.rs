@@ -1,4 +1,8 @@
-use crate::utils::epic_api::{self, EpicApi};
+use crate::utils::{
+    epic_api::{self, EpicApi},
+    settings,
+};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::sync::{LazyLock, Mutex};
@@ -6,10 +10,130 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Runtime};
 
 static GAME_PROCESS: LazyLock<Mutex<Option<Child>>> = LazyLock::new(|| Mutex::new(None));
+static LAST_AUTOLAUNCH_ERROR: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
+
+pub const AUTOLAUNCH_MODDED_ARGUMENT: &str = "--autolaunch-modded";
+const MODDED_SHORTCUT_FILE_NAME: &str = "SuperNewRoles Mod Launch.lnk";
 
 #[derive(Clone, serde::Serialize)]
 pub struct GameStatePayload {
     pub running: bool,
+}
+
+pub fn clear_autolaunch_error() {
+    if let Ok(mut guard) = LAST_AUTOLAUNCH_ERROR.lock() {
+        *guard = None;
+    }
+}
+
+pub fn set_autolaunch_error(message: String) {
+    if let Ok(mut guard) = LAST_AUTOLAUNCH_ERROR.lock() {
+        *guard = Some(message);
+    }
+}
+
+#[tauri::command]
+pub fn take_autolaunch_error() -> Option<String> {
+    match LAST_AUTOLAUNCH_ERROR.lock() {
+        Ok(mut guard) => guard.take(),
+        Err(_) => Some("Failed to access auto launch error state".to_string()),
+    }
+}
+
+#[cfg(windows)]
+fn escape_powershell_single_quoted(value: &str) -> String {
+    value.replace('\'', "''")
+}
+
+#[cfg(windows)]
+fn create_shortcut_with_powershell(
+    shortcut_path: &Path,
+    target_path: &Path,
+    arguments: &str,
+    working_directory: &Path,
+    description: &str,
+) -> Result<(), String> {
+    let shortcut_path = escape_powershell_single_quoted(&shortcut_path.to_string_lossy());
+    let target_path = escape_powershell_single_quoted(&target_path.to_string_lossy());
+    let arguments = escape_powershell_single_quoted(arguments);
+    let working_directory = escape_powershell_single_quoted(&working_directory.to_string_lossy());
+    let icon_location = target_path.clone();
+    let description = escape_powershell_single_quoted(description);
+
+    let script = format!(
+        "$ErrorActionPreference = 'Stop'; \
+         $wsh = New-Object -ComObject WScript.Shell; \
+         $shortcut = $wsh.CreateShortcut('{shortcut_path}'); \
+         $shortcut.TargetPath = '{target_path}'; \
+         $shortcut.Arguments = '{arguments}'; \
+         $shortcut.WorkingDirectory = '{working_directory}'; \
+         $shortcut.IconLocation = '{icon_location}'; \
+         $shortcut.Description = '{description}'; \
+         $shortcut.Save();"
+    );
+
+    let output = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            &script,
+        ])
+        .output()
+        .map_err(|e| format!("Failed to execute PowerShell for shortcut creation: {e}"))?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let detail = if !stderr.is_empty() {
+        stderr
+    } else if !stdout.is_empty() {
+        stdout
+    } else {
+        "No detail".to_string()
+    };
+
+    Err(format!("PowerShell shortcut creation failed: {detail}"))
+}
+
+#[tauri::command]
+pub fn create_modded_launch_shortcut() -> Result<String, String> {
+    #[cfg(windows)]
+    {
+        let launcher_exe = std::env::current_exe()
+            .map_err(|e| format!("Failed to resolve launcher executable path: {e}"))?;
+        let working_directory = launcher_exe
+            .parent()
+            .ok_or_else(|| "Launcher executable directory is invalid".to_string())?;
+
+        let desktop_dir = std::env::var_os("USERPROFILE")
+            .map(PathBuf::from)
+            .map(|path| path.join("Desktop"))
+            .ok_or_else(|| "Failed to resolve desktop directory: USERPROFILE is not set".to_string())?;
+        fs::create_dir_all(&desktop_dir)
+            .map_err(|e| format!("Failed to create desktop directory: {e}"))?;
+
+        let shortcut_path = desktop_dir.join(MODDED_SHORTCUT_FILE_NAME);
+        create_shortcut_with_powershell(
+            &shortcut_path,
+            &launcher_exe,
+            AUTOLAUNCH_MODDED_ARGUMENT,
+            working_directory,
+            "Launch SuperNewRoles modded",
+        )?;
+
+        return Ok(shortcut_path.to_string_lossy().to_string());
+    }
+
+    #[cfg(not(windows))]
+    {
+        Err("Shortcut creation is only supported on Windows".to_string())
+    }
 }
 
 fn monitor_game_process<R: Runtime>(app: AppHandle<R>) {
@@ -76,6 +200,30 @@ fn ensure_file_exists(path: &Path, label: &str) -> Result<(), String> {
     } else {
         Err(format!("{label} not found: {}", path.to_string_lossy()))
     }
+}
+
+pub async fn launch_modded_from_saved_settings<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<(), String> {
+    let launcher_settings = settings::load_or_init_settings(&app)?;
+    let among_us_path = launcher_settings.among_us_path.trim();
+    if among_us_path.is_empty() {
+        return Err("Among Us path is not configured".to_string());
+    }
+
+    let profile_path = launcher_settings.profile_path.trim();
+    if profile_path.is_empty() {
+        return Err("Profile path is not configured".to_string());
+    }
+
+    let game_exe_path = PathBuf::from(among_us_path).join("Among Us.exe");
+    launch_modded(
+        app,
+        game_exe_path.to_string_lossy().to_string(),
+        profile_path.to_string(),
+        launcher_settings.game_platform.as_str().to_string(),
+    )
+    .await
 }
 
 #[tauri::command]

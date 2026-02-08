@@ -1,13 +1,14 @@
-use crate::utils::{download, settings, zip};
+use crate::utils::{download, migration, settings, zip};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use tauri::{AppHandle, Emitter, Runtime};
 
 const RELEASES_API_URL: &str =
     "https://api.github.com/repos/SuperNewRoles/SuperNewRoles/releases?per_page=30";
 const RELEASE_BY_TAG_API_URL: &str =
     "https://api.github.com/repos/SuperNewRoles/SuperNewRoles/releases/tags";
+const PRESERVED_SAVE_DATA_DIR: &str = "preserved_save_data";
 
 #[derive(Debug, Deserialize)]
 struct GitHubAsset {
@@ -37,6 +38,20 @@ pub struct InstallResult {
     pub platform: String,
     pub asset_name: String,
     pub profile_path: String,
+    pub restored_save_files: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UninstallResult {
+    pub profile_path: String,
+    pub removed_profile: bool,
+    pub preserved_files: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PreservedSaveDataStatus {
+    pub available: bool,
+    pub files: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -127,6 +142,153 @@ fn clean_path(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
+fn preserved_save_data_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    Ok(settings::app_data_dir(app)?.join(PRESERVED_SAVE_DATA_DIR))
+}
+
+fn validate_relative_path(path: &Path) -> Result<(), String> {
+    if path.as_os_str().is_empty() {
+        return Err("Relative path must not be empty".to_string());
+    }
+
+    if path.is_absolute()
+        || path.components().any(|component| {
+            matches!(
+                component,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
+        })
+    {
+        return Err(format!(
+            "Refused unsafe relative path for save data copy: {}",
+            path.display()
+        ));
+    }
+
+    Ok(())
+}
+
+fn collect_files_recursive(current: &Path, out: &mut Vec<PathBuf>) -> Result<(), String> {
+    for entry in fs::read_dir(current)
+        .map_err(|e| format!("Failed to read directory '{}': {e}", current.display()))?
+    {
+        let entry =
+            entry.map_err(|e| format!("Failed to read directory entry '{}': {e}", current.display()))?;
+        let path = entry.path();
+
+        if path.is_dir() {
+            collect_files_recursive(&path, out)?;
+            continue;
+        }
+
+        if path.is_file() {
+            out.push(path);
+        }
+    }
+
+    Ok(())
+}
+
+fn clear_preserved_save_data<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    let preserved_path = preserved_save_data_path(app)?;
+    clean_path(&preserved_path)
+}
+
+fn preserve_profile_save_data<R: Runtime>(app: &AppHandle<R>, profile_path: &Path) -> Result<usize, String> {
+    let files = migration::collect_supported_profile_save_files(profile_path)?;
+    let file_count = files.len();
+    let preserved_path = preserved_save_data_path(app)?;
+
+    clean_path(&preserved_path)?;
+
+    if files.is_empty() {
+        return Ok(0);
+    }
+
+    fs::create_dir_all(&preserved_path).map_err(|e| {
+        format!(
+            "Failed to create preserved save data directory '{}': {e}",
+            preserved_path.display()
+        )
+    })?;
+
+    for (source_path, relative_path) in &files {
+        let relative = PathBuf::from(relative_path);
+        validate_relative_path(&relative)?;
+
+        let destination = preserved_path.join(relative);
+        if let Some(parent) = destination.parent() {
+            fs::create_dir_all(parent).map_err(|e| {
+                format!(
+                    "Failed to create preserved save data parent '{}': {e}",
+                    parent.display()
+                )
+            })?;
+        }
+
+        fs::copy(source_path, &destination).map_err(|e| {
+            format!(
+                "Failed to preserve save data '{}' -> '{}': {e}",
+                source_path.display(),
+                destination.display()
+            )
+        })?;
+    }
+
+    Ok(file_count)
+}
+
+fn restore_preserved_save_data_into_profile<R: Runtime>(
+    app: &AppHandle<R>,
+    profile_path: &Path,
+) -> Result<usize, String> {
+    let preserved_path = preserved_save_data_path(app)?;
+    if !preserved_path.exists() {
+        return Ok(0);
+    }
+
+    if !preserved_path.is_dir() {
+        return Err(format!(
+            "Preserved save data path is not a directory: {}",
+            preserved_path.display()
+        ));
+    }
+
+    let mut files = Vec::new();
+    collect_files_recursive(&preserved_path, &mut files)?;
+
+    for source_path in &files {
+        let relative = source_path.strip_prefix(&preserved_path).map_err(|_| {
+            format!(
+                "Internal path error while restoring preserved save data: '{}' is not under '{}'.",
+                source_path.display(),
+                preserved_path.display()
+            )
+        })?;
+        validate_relative_path(relative)?;
+
+        let destination = profile_path.join(relative);
+        if let Some(parent) = destination.parent() {
+            fs::create_dir_all(parent).map_err(|e| {
+                format!(
+                    "Failed to create profile directory while restoring save data '{}': {e}",
+                    parent.display()
+                )
+            })?;
+        }
+
+        fs::copy(source_path, &destination).map_err(|e| {
+            format!(
+                "Failed to restore preserved save data '{}' -> '{}': {e}",
+                source_path.display(),
+                destination.display()
+            )
+        })?;
+    }
+
+    Ok(files.len())
+}
+
 fn promote_staging_to_profile(staging: &Path, profile: &Path, backup: &Path) -> Result<(), String> {
     clean_path(backup)?;
 
@@ -202,10 +364,78 @@ pub async fn list_snr_releases() -> Result<Vec<SnrReleaseSummary>, String> {
 }
 
 #[tauri::command]
+pub fn get_preserved_save_data_status<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<PreservedSaveDataStatus, String> {
+    let preserved_path = preserved_save_data_path(&app)?;
+    if !preserved_path.exists() {
+        return Ok(PreservedSaveDataStatus {
+            available: false,
+            files: 0,
+        });
+    }
+
+    if !preserved_path.is_dir() {
+        return Err(format!(
+            "Preserved save data path is not a directory: {}",
+            preserved_path.display()
+        ));
+    }
+
+    let mut files = Vec::new();
+    collect_files_recursive(&preserved_path, &mut files)?;
+
+    Ok(PreservedSaveDataStatus {
+        available: !files.is_empty(),
+        files: files.len(),
+    })
+}
+
+#[tauri::command]
+pub fn uninstall_snr_profile<R: Runtime>(
+    app: AppHandle<R>,
+    preserve_save_data: bool,
+) -> Result<UninstallResult, String> {
+    let mut launcher_settings = settings::load_or_init_settings(&app)?;
+    if launcher_settings.profile_path.trim().is_empty() {
+        launcher_settings.profile_path = settings::default_profile_path(&app)?
+            .to_string_lossy()
+            .to_string();
+        settings::save_settings(&app, &launcher_settings)?;
+    }
+
+    let profile_path = PathBuf::from(&launcher_settings.profile_path);
+
+    if let Some(parent) = profile_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create profile parent directory: {e}"))?;
+    }
+
+    let preserved_files = if preserve_save_data {
+        preserve_profile_save_data(&app, &profile_path)?
+    } else {
+        clear_preserved_save_data(&app)?;
+        0
+    };
+
+    let removed_profile = profile_path.exists();
+    clean_path(&profile_path)?;
+    fs::create_dir_all(&profile_path)
+        .map_err(|e| format!("Failed to recreate profile directory after uninstall: {e}"))?;
+
+    Ok(UninstallResult {
+        profile_path: profile_path.to_string_lossy().to_string(),
+        removed_profile,
+        preserved_files,
+    })
+}
+
+#[tauri::command]
 pub async fn install_snr_release<R: Runtime>(
     app: AppHandle<R>,
     tag: String,
     platform: String,
+    restore_preserved_save_data: Option<bool>,
 ) -> Result<InstallResult, String> {
     let platform = settings::GamePlatform::from_user_value(&platform)?;
     let tag = tag.trim().to_string();
@@ -213,7 +443,10 @@ pub async fn install_snr_release<R: Runtime>(
         return Err("Release tag is required".to_string());
     }
 
-    let result = install_snr_release_inner(&app, &tag, &platform).await;
+    let restore_preserved_save_data = restore_preserved_save_data.unwrap_or(false);
+
+    let result =
+        install_snr_release_inner(&app, &tag, &platform, restore_preserved_save_data).await;
     if let Err(ref error) = result {
         emit_progress(
             &app,
@@ -233,6 +466,7 @@ async fn install_snr_release_inner<R: Runtime>(
     app: &AppHandle<R>,
     tag: &str,
     platform: &settings::GamePlatform,
+    restore_preserved_save_data: bool,
 ) -> Result<InstallResult, String> {
     emit_progress(
         app,
@@ -351,6 +585,34 @@ async fn install_snr_release_inner<R: Runtime>(
         );
     })?;
 
+    let restored_save_files = if restore_preserved_save_data {
+        emit_progress(
+            app,
+            "restoring",
+            95.0,
+            "Restoring preserved save data...",
+            None,
+            None,
+            None,
+            None,
+        );
+
+        let restored = restore_preserved_save_data_into_profile(app, &staging_path)?;
+        emit_progress(
+            app,
+            "restoring",
+            96.0,
+            format!("Restored {restored} preserved save file(s)"),
+            None,
+            None,
+            None,
+            None,
+        );
+        restored
+    } else {
+        0
+    };
+
     settings::verify_profile_required_files(&staging_path)?;
     promote_staging_to_profile(&staging_path, &profile_path, &backup_path)?;
 
@@ -375,5 +637,6 @@ async fn install_snr_release_inner<R: Runtime>(
         platform: platform.as_str().to_string(),
         asset_name: asset.name.clone(),
         profile_path: profile_path.to_string_lossy().to_string(),
+        restored_save_files,
     })
 }

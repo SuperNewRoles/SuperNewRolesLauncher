@@ -9,6 +9,7 @@ pub struct MigrationExportResult {
     pub included_files: usize,
     pub profile_files: usize,
     pub locallow_files: usize,
+    pub encrypted: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -16,20 +17,29 @@ pub struct MigrationImportResult {
     pub imported_files: usize,
     pub profile_files: usize,
     pub locallow_files: usize,
+    pub encrypted: bool,
 }
 
 #[tauri::command]
 pub fn export_migration_data<R: Runtime>(
     app: AppHandle<R>,
     output_path: Option<String>,
+    encryption_enabled: Option<bool>,
+    password: Option<String>,
 ) -> Result<MigrationExportResult, String> {
-    let result = migration::export_migration_data(&app, output_path)?;
+    let result = migration::export_migration_data(
+        &app,
+        output_path,
+        encryption_enabled.unwrap_or(false),
+        password,
+    )?;
 
     Ok(MigrationExportResult {
         archive_path: result.archive_path.to_string_lossy().to_string(),
         included_files: result.included_files,
         profile_files: result.profile_files,
         locallow_files: result.locallow_files,
+        encrypted: result.encrypted,
     })
 }
 
@@ -37,17 +47,19 @@ pub fn export_migration_data<R: Runtime>(
 pub fn import_migration_data<R: Runtime>(
     app: AppHandle<R>,
     archive_path: String,
+    password: Option<String>,
 ) -> Result<MigrationImportResult, String> {
     let normalized = archive_path.trim();
     if normalized.is_empty() {
         return Err("Migration archive path is required".to_string());
     }
 
-    let result = migration::import_migration_data(&app, &PathBuf::from(normalized))?;
+    let result = migration::import_migration_data(&app, &PathBuf::from(normalized), password)?;
 
     Ok(MigrationImportResult {
         imported_files: result.imported_files,
         profile_files: result.profile_files,
         locallow_files: result.locallow_files,
+        encrypted: result.encrypted,
     })
 }

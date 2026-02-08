@@ -10,6 +10,15 @@ import {
 } from "@tauri-apps/plugin-notification";
 import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import { check } from "@tauri-apps/plugin-updater";
+import {
+  SUPPORTED_LOCALES,
+  createTranslator,
+  normalizeLocale,
+  resolveInitialLocale,
+  saveLocale,
+  type LocaleCode,
+  type MessageKey,
+} from "./i18n";
 
 type GamePlatform = "steam" | "epic";
 type ReportType = "Bug" | "Question" | "Request" | "Thanks" | "Other";
@@ -19,6 +28,7 @@ interface LauncherSettings {
   game_platform: GamePlatform;
   selected_release_tag: string;
   profile_path: string;
+  close_to_tray_on_close: boolean;
 }
 
 interface LauncherSettingsInput {
@@ -26,6 +36,7 @@ interface LauncherSettingsInput {
   game_platform?: GamePlatform;
   selected_release_tag?: string;
   profile_path?: string;
+  close_to_tray_on_close?: boolean;
 }
 
 interface SnrReleaseSummary {
@@ -39,6 +50,18 @@ interface InstallResult {
   platform: string;
   asset_name: string;
   profile_path: string;
+  restored_save_files: number;
+}
+
+interface UninstallResult {
+  profile_path: string;
+  removed_profile: boolean;
+  preserved_files: number;
+}
+
+interface PreservedSaveDataStatus {
+  available: boolean;
+  files: number;
 }
 
 interface MigrationExportResult {
@@ -46,12 +69,41 @@ interface MigrationExportResult {
   included_files: number;
   profile_files: number;
   locallow_files: number;
+  encrypted: boolean;
 }
 
 interface MigrationImportResult {
   imported_files: number;
   profile_files: number;
   locallow_files: number;
+  encrypted: boolean;
+}
+
+interface PresetSummary {
+  id: number;
+  name: string;
+  has_data_file: boolean;
+}
+
+interface PresetExportResult {
+  archive_path: string;
+  exported_presets: number;
+}
+
+interface PresetImportSelectionInput {
+  sourceId: number;
+  name?: string;
+}
+
+interface ImportedPresetResult {
+  source_id: number;
+  target_id: number;
+  name: string;
+}
+
+interface PresetImportResult {
+  imported_presets: number;
+  imported: ImportedPresetResult[];
 }
 
 interface InstallProgressPayload {
@@ -138,173 +190,243 @@ if (!app) {
   throw new Error("#app not found");
 }
 
+const currentLocale = resolveInitialLocale();
+const t = createTranslator(currentLocale);
+document.documentElement.lang = currentLocale;
+
+const LOCALE_OPTION_LABEL_KEYS: Record<LocaleCode, MessageKey> = {
+  ja: "language.option.ja",
+  en: "language.option.en",
+};
+
+function renderLocaleOptions(locale: LocaleCode): string {
+  return SUPPORTED_LOCALES.map((value) => {
+    const selected = value === locale ? " selected" : "";
+    return `<option value="${value}"${selected}>${t(LOCALE_OPTION_LABEL_KEYS[value])}</option>`;
+  }).join("");
+}
+
 app.innerHTML = `
   <main class="app-shell">
-    <h1 style="margin: 0;">SuperNewRolesLauncher</h1>
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <h1 style="margin: 0; flex: 1; min-width: 280px;">SuperNewRolesLauncher</h1>
+      <label for="language-select">${t("language.label")}</label>
+      <select id="language-select" style="padding: 8px; min-width: 140px;">${renderLocaleOptions(currentLocale)}</select>
+    </div>
 
     <section style="display: grid; gap: 8px; padding: 12px; border: 1px solid #d0d7de; border-radius: 8px;">
-      <strong>クレジット</strong>
+      <strong>${t("credit.title")}</strong>
       <div style="font-size: 14px; line-height: 1.6;">
-        <div>SuperNewRoles: SuperNewRoles Team / Contributors</div>
-        <div>Among Us: Innersloth LLC</div>
-        <div>Launcher: Tauri v2 + Vite + TypeScript</div>
-        <div>参考: Starlight PC (起動やEpicログインなどの実装を参考)</div>
+        <div>${t("credit.supernewrolesLine")}</div>
+        <div>${t("credit.amongUsLine")}</div>
+        <div>${t("credit.launcherLine")}</div>
+        <div>${t("credit.referenceLine")}</div>
       </div>
       <div style="font-size: 12px; color: #57606a; display: grid; gap: 4px;">
-        <div>Wiki: https://wiki.supernewroles.com</div>
+        <div>${t("credit.wikiLabel")}: https://wiki.supernewroles.com</div>
       </div>
       <div id="official-link-buttons" class="pill-links"></div>
     </section>
 
     <section style="display: grid; gap: 8px; padding: 12px; border: 1px solid #d0d7de; border-radius: 8px;">
-      <strong>ランチャー設定 / SNRインストール</strong>
-      <div>現在のバージョン: <span id="app-version">読み込み中...</span></div>
+      <strong>${t("launcher.title")}</strong>
+      <div>${t("launcher.currentVersionLabel")}: <span id="app-version">${t("launcher.currentVersionLoading")}</span></div>
       <div style="display: grid; gap: 6px;">
-        <label for="among-us-path">Among Us パス</label>
+        <label for="among-us-path">${t("launcher.amongUsPathLabel")}</label>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
           <input id="among-us-path" type="text" placeholder="C:\\\\Program Files (x86)\\\\Steam\\\\steamapps\\\\common\\\\Among Us" style="padding: 8px; min-width: 500px; flex: 1;" />
-          <button id="save-among-us-path" type="button" style="padding: 8px 12px;">保存</button>
-          <button id="detect-among-us-path" type="button" style="padding: 8px 12px;">自動検出</button>
+          <button id="save-among-us-path" type="button" style="padding: 8px 12px;">${t("launcher.save")}</button>
+          <button id="detect-among-us-path" type="button" style="padding: 8px 12px;">${t("launcher.autoDetect")}</button>
         </div>
       </div>
       <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-        <label for="platform-select">プラットフォーム</label>
+        <label for="platform-select">${t("launcher.platformLabel")}</label>
         <select id="platform-select" style="padding: 8px;">
           <option value="steam">steam</option>
           <option value="epic">epic</option>
         </select>
-        <label for="release-select">SNRタグ</label>
+        <label for="release-select">${t("launcher.releaseTagLabel")}</label>
         <select id="release-select" style="padding: 8px; min-width: 280px;"></select>
-        <button id="refresh-releases" type="button" style="padding: 8px 12px;">タグ再取得</button>
+        <button id="refresh-releases" type="button" style="padding: 8px 12px;">${t("launcher.refreshTags")}</button>
       </div>
-      <div>展開先: <code id="profile-path"></code></div>
+      <div>${t("launcher.profileDestinationLabel")}: <code id="profile-path"></code></div>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <button id="open-among-us-folder" type="button" style="padding: 8px 12px;">AmongUsフォルダを開く</button>
-        <button id="open-profile-folder" type="button" style="padding: 8px 12px;">プロファイルフォルダを開く</button>
+        <button id="open-among-us-folder" type="button" style="padding: 8px 12px;">${t("launcher.openAmongUsFolder")}</button>
+        <button id="open-profile-folder" type="button" style="padding: 8px 12px;">${t("launcher.openProfileFolder")}</button>
       </div>
+      <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #57606a;">
+        <input id="close-to-tray-on-close" type="checkbox" />
+        ${t("launcher.closeToTrayOnClose")}
+      </label>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <button id="install-snr" type="button" style="padding: 8px 12px;">SNRをインストール</button>
+        <button id="install-snr" type="button" style="padding: 8px 12px;">${t("launcher.installSnr")}</button>
+        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #57606a;">
+          <input id="install-restore-save-data" type="checkbox" />
+          ${t("launcher.restoreSavedDataOnInstall")}
+        </label>
         <progress id="install-progress" value="0" max="100" style="width: 260px;"></progress>
         <span id="install-status" aria-live="polite"></span>
       </div>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <button id="launch-modded" type="button" style="padding: 8px 12px;">Mod起動</button>
-        <button id="launch-vanilla" type="button" style="padding: 8px 12px;">Vanilla起動</button>
+        <button id="uninstall-snr" type="button" style="padding: 8px 12px;">${t("launcher.uninstallMod")}</button>
+        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #57606a;">
+          <input id="uninstall-preserve-save-data" type="checkbox" checked />
+          ${t("launcher.preserveCurrentSaveData")}
+        </label>
+      </div>
+      <div id="preserved-save-data-status" style="font-size: 12px; color: #57606a;"></div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button id="launch-modded" type="button" style="padding: 8px 12px;">${t("launcher.launchModded")}</button>
+        <button id="launch-vanilla" type="button" style="padding: 8px 12px;">${t("launcher.launchVanilla")}</button>
+        <button id="create-modded-shortcut" type="button" style="padding: 8px 12px;">${t("launcher.createModdedShortcut")}</button>
         <span id="launch-status" aria-live="polite"></span>
       </div>
       <div id="profile-ready-status" style="font-size: 12px; color: #57606a;"></div>
     </section>
 
     <section style="display: grid; gap: 8px; padding: 12px; border: 1px solid #d0d7de; border-radius: 8px; max-width: 780px;">
-      <strong>データお引越し (.snrdata)</strong>
+      <strong>${t("migration.title")}</strong>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <button id="migration-export" type="button" style="padding: 8px 12px;">書き出し</button>
-        <span style="font-size: 12px; color: #57606a;">プロファイルの対象SaveData + LocalLow/Innersloth/SuperNewRoles を保存</span>
+        <button id="migration-export" type="button" style="padding: 8px 12px;">${t("migration.export")}</button>
+        <span style="font-size: 12px; color: #57606a;">${t("migration.exportDescription")}</span>
       </div>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <input id="migration-import-path" type="text" placeholder="C:\\\\path\\\\to\\\\migration.snrdata" style="padding: 8px; min-width: 420px; flex: 1;" />
-        <button id="migration-import" type="button" style="padding: 8px 12px;">読み込み</button>
+        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #57606a;">
+          <input id="migration-encryption-enabled" type="checkbox" checked />
+          ${t("migration.encryptionEnabled")}
+        </label>
+        <input id="migration-export-password" type="password" placeholder="${t("migration.exportPasswordPlaceholder")}" style="padding: 8px; min-width: 220px;" />
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <input id="migration-import-path" type="text" placeholder="${t("migration.importPlaceholder")}" style="padding: 8px; min-width: 420px; flex: 1;" />
+        <input id="migration-import-password" type="password" placeholder="${t("migration.importPasswordPlaceholder")}" style="padding: 8px; min-width: 220px;" />
+        <button id="migration-import" type="button" style="padding: 8px 12px;">${t("migration.import")}</button>
       </div>
       <div id="migration-status" style="font-size: 12px; color: #57606a;" aria-live="polite"></div>
     </section>
 
+    <section style="display: grid; gap: 8px; padding: 12px; border: 1px solid #d0d7de; border-radius: 8px; max-width: 860px;">
+      <strong>プリセット共有 (.snrpresets)</strong>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button id="preset-refresh" type="button" style="padding: 8px 12px;">ローカル一覧更新</button>
+        <button id="preset-select-all-local" type="button" style="padding: 8px 12px;">全選択</button>
+        <button id="preset-clear-local" type="button" style="padding: 8px 12px;">選択解除</button>
+      </div>
+      <div id="preset-local-list" style="display: grid; gap: 6px; max-height: 220px; overflow: auto; border: 1px solid #d0d7de; border-radius: 8px; padding: 8px;"></div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <input id="preset-export-path" type="text" placeholder="C:\\path\\to\\presets.snrpresets (空で自動)" style="padding: 8px; min-width: 420px; flex: 1;" />
+        <button id="preset-export" type="button" style="padding: 8px 12px;">選択をエクスポート</button>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <input id="preset-import-path" type="text" placeholder="C:\\path\\to\\presets.snrpresets" style="padding: 8px; min-width: 420px; flex: 1;" />
+        <button id="preset-inspect" type="button" style="padding: 8px 12px;">中身確認</button>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button id="preset-select-all-archive" type="button" style="padding: 8px 12px;">全選択</button>
+        <button id="preset-clear-archive" type="button" style="padding: 8px 12px;">選択解除</button>
+        <button id="preset-import" type="button" style="padding: 8px 12px;">選択をインポート</button>
+      </div>
+      <div id="preset-archive-list" style="display: grid; gap: 6px; max-height: 260px; overflow: auto; border: 1px solid #d0d7de; border-radius: 8px; padding: 8px;"></div>
+      <div id="preset-status" style="font-size: 12px; color: #57606a;" aria-live="polite"></div>
+    </section>
+
     <section class="card">
       <div class="report-header">
-        <strong>報告センター</strong>
+        <strong>${t("report.title")}</strong>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-          <span id="report-account-state" class="badge">未準備</span>
-          <span id="report-remote-flag" class="badge">API通知: 不明</span>
+          <span id="report-account-state" class="badge">${t("report.accountStateUnready")}</span>
+          <span id="report-remote-flag" class="badge">${t("report.remoteFlagUnknown")}</span>
           <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #57606a;">
             <input id="report-notification-toggle" type="checkbox" />
-            Windows通知
+            ${t("report.notificationToggle")}
           </label>
-          <button id="report-refresh" type="button" class="ghost">手動再読込</button>
+          <button id="report-refresh" type="button" class="ghost">${t("report.refresh")}</button>
         </div>
       </div>
       <div id="report-notification-state" class="status-line" aria-live="polite"></div>
       <div class="report-grid">
         <div class="report-pane">
-          <strong>新規報告</strong>
+          <strong>${t("report.newReport")}</strong>
           <div class="field-grid two">
             <div class="stack">
-              <label for="report-type">種別</label>
+              <label for="report-type">${t("report.type")}</label>
               <select id="report-type">
-                <option value="Bug">Bug</option>
-                <option value="Question">Question</option>
-                <option value="Request">Request</option>
-                <option value="Thanks">Thanks</option>
-                <option value="Other">Other</option>
+                <option value="Bug">${t("report.typeOption.bug")}</option>
+                <option value="Question">${t("report.typeOption.question")}</option>
+                <option value="Request">${t("report.typeOption.request")}</option>
+                <option value="Thanks">${t("report.typeOption.thanks")}</option>
+                <option value="Other">${t("report.typeOption.other")}</option>
               </select>
             </div>
             <div class="stack">
-              <label for="report-title">タイトル</label>
+              <label for="report-title">${t("report.titleLabel")}</label>
               <input id="report-title" type="text" maxlength="80" />
             </div>
           </div>
           <div id="report-bug-fields" class="field-grid two">
             <div class="stack">
-              <label for="report-map">マップ</label>
+              <label for="report-map">${t("report.map")}</label>
               <input id="report-map" type="text" maxlength="40" />
             </div>
             <div class="stack">
-              <label for="report-role">役職/機能</label>
+              <label for="report-role">${t("report.role")}</label>
               <input id="report-role" type="text" maxlength="60" />
             </div>
             <div class="stack" style="grid-column: 1 / -1;">
-              <label for="report-timing">発生タイミング</label>
+              <label for="report-timing">${t("report.timing")}</label>
               <input id="report-timing" type="text" maxlength="100" />
             </div>
           </div>
           <div class="stack">
-            <label for="report-description">本文</label>
-            <textarea id="report-description" placeholder="再現手順や状況を記入"></textarea>
+            <label for="report-description">${t("report.body")}</label>
+            <textarea id="report-description" placeholder="${t("report.bodyPlaceholder")}"></textarea>
           </div>
           <div id="report-log-source" class="muted"></div>
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <button id="report-send" type="button">報告を送信</button>
+            <button id="report-send" type="button">${t("report.send")}</button>
             <span id="report-status" class="status-line" aria-live="polite"></span>
           </div>
         </div>
 
         <div class="report-pane">
-          <strong>スレッド / メッセージ</strong>
+          <strong>${t("report.threads")}</strong>
           <div id="report-thread-list" class="report-thread-list"></div>
           <div id="report-thread-status" class="status-line" aria-live="polite"></div>
-          <div id="report-selected-thread" class="muted">選択中: なし</div>
+          <div id="report-selected-thread" class="muted">${t("report.selectedNone")}</div>
           <div id="report-message-list" class="report-message-list"></div>
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <input id="report-reply-input" type="text" placeholder="返信メッセージ" style="padding: 8px; min-width: 220px; flex: 1;" />
-            <button id="report-send-message" type="button">返信</button>
+            <input id="report-reply-input" type="text" placeholder="${t("report.replyPlaceholder")}" style="padding: 8px; min-width: 220px; flex: 1;" />
+            <button id="report-send-message" type="button">${t("report.reply")}</button>
           </div>
         </div>
       </div>
     </section>
 
     <section style="display: grid; gap: 8px; padding: 12px; border: 1px solid #d0d7de; border-radius: 8px;">
-      <strong>Epic認証</strong>
+      <strong>${t("epic.title")}</strong>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <button id="epic-login-webview" type="button" style="padding: 8px 12px;">WebViewでログイン</button>
-        <button id="epic-logout" type="button" style="padding: 8px 12px;">ログアウト</button>
+        <button id="epic-login-webview" type="button" style="padding: 8px 12px;">${t("epic.loginWebview")}</button>
+        <button id="epic-logout" type="button" style="padding: 8px 12px;">${t("epic.logout")}</button>
         <span id="epic-auth-status" aria-live="polite"></span>
       </div>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <input id="epic-auth-code" type="text" placeholder="Epic auth code" style="padding: 8px; min-width: 320px;" />
-        <button id="epic-login-code" type="button" style="padding: 8px 12px;">コードでログイン</button>
+        <input id="epic-auth-code" type="text" placeholder="${t("epic.authCodePlaceholder")}" style="padding: 8px; min-width: 320px;" />
+        <button id="epic-login-code" type="button" style="padding: 8px 12px;">${t("epic.loginWithCode")}</button>
       </div>
     </section>
 
     <section style="display: grid; gap: 8px; padding: 12px; border: 1px solid #d0d7de; border-radius: 8px; max-width: 620px;">
-      <strong>アプリ更新</strong>
+      <strong>${t("update.title")}</strong>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <button id="check-update" type="button" style="padding: 8px 12px;">更新を確認</button>
+        <button id="check-update" type="button" style="padding: 8px 12px;">${t("update.check")}</button>
         <span id="update-status" aria-live="polite"></span>
       </div>
       <div style="display: grid; gap: 6px;">
-        <label for="github-token" style="font-size: 12px; color: #57606a;">Private repo test token (任意)</label>
+        <label for="github-token" style="font-size: 12px; color: #57606a;">${t("update.tokenLabel")}</label>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-          <input id="github-token" type="password" autocomplete="off" placeholder="ghp_xxx / github_pat_xxx" style="padding: 8px; min-width: 320px;" />
-          <button id="save-token" type="button" style="padding: 8px 12px;">トークン保存</button>
-          <button id="clear-token" type="button" style="padding: 8px 12px;">トークン削除</button>
+          <input id="github-token" type="password" autocomplete="off" placeholder="${t("update.tokenPlaceholder")}" style="padding: 8px; min-width: 320px;" />
+          <button id="save-token" type="button" style="padding: 8px 12px;">${t("update.saveToken")}</button>
+          <button id="clear-token" type="button" style="padding: 8px 12px;">${t("update.clearToken")}</button>
         </div>
       </div>
     </section>
@@ -320,6 +442,7 @@ function mustElement<T extends Element>(selector: string): T {
 }
 
 const appVersion = mustElement<HTMLSpanElement>("#app-version");
+const languageSelect = mustElement<HTMLSelectElement>("#language-select");
 const amongUsPathInput = mustElement<HTMLInputElement>("#among-us-path");
 const saveAmongUsPathButton = mustElement<HTMLButtonElement>("#save-among-us-path");
 const detectAmongUsPathButton = mustElement<HTMLButtonElement>("#detect-among-us-path");
@@ -329,17 +452,39 @@ const refreshReleasesButton = mustElement<HTMLButtonElement>("#refresh-releases"
 const profilePath = mustElement<HTMLElement>("#profile-path");
 const openAmongUsFolderButton = mustElement<HTMLButtonElement>("#open-among-us-folder");
 const openProfileFolderButton = mustElement<HTMLButtonElement>("#open-profile-folder");
+const closeToTrayOnCloseInput = mustElement<HTMLInputElement>("#close-to-tray-on-close");
 const installButton = mustElement<HTMLButtonElement>("#install-snr");
+const installRestoreSaveDataCheckbox = mustElement<HTMLInputElement>("#install-restore-save-data");
+const uninstallButton = mustElement<HTMLButtonElement>("#uninstall-snr");
+const uninstallPreserveSaveDataCheckbox = mustElement<HTMLInputElement>("#uninstall-preserve-save-data");
 const installProgress = mustElement<HTMLProgressElement>("#install-progress");
 const installStatus = mustElement<HTMLSpanElement>("#install-status");
+const preservedSaveDataStatus = mustElement<HTMLDivElement>("#preserved-save-data-status");
 const launchModdedButton = mustElement<HTMLButtonElement>("#launch-modded");
 const launchVanillaButton = mustElement<HTMLButtonElement>("#launch-vanilla");
+const createModdedShortcutButton = mustElement<HTMLButtonElement>("#create-modded-shortcut");
 const launchStatus = mustElement<HTMLSpanElement>("#launch-status");
 const profileReadyStatus = mustElement<HTMLDivElement>("#profile-ready-status");
 const migrationExportButton = mustElement<HTMLButtonElement>("#migration-export");
+const migrationEncryptionEnabledInput = mustElement<HTMLInputElement>("#migration-encryption-enabled");
+const migrationExportPasswordInput = mustElement<HTMLInputElement>("#migration-export-password");
 const migrationImportPathInput = mustElement<HTMLInputElement>("#migration-import-path");
+const migrationImportPasswordInput = mustElement<HTMLInputElement>("#migration-import-password");
 const migrationImportButton = mustElement<HTMLButtonElement>("#migration-import");
 const migrationStatus = mustElement<HTMLDivElement>("#migration-status");
+const presetRefreshButton = mustElement<HTMLButtonElement>("#preset-refresh");
+const presetSelectAllLocalButton = mustElement<HTMLButtonElement>("#preset-select-all-local");
+const presetClearLocalButton = mustElement<HTMLButtonElement>("#preset-clear-local");
+const presetLocalList = mustElement<HTMLDivElement>("#preset-local-list");
+const presetExportPathInput = mustElement<HTMLInputElement>("#preset-export-path");
+const presetExportButton = mustElement<HTMLButtonElement>("#preset-export");
+const presetImportPathInput = mustElement<HTMLInputElement>("#preset-import-path");
+const presetInspectButton = mustElement<HTMLButtonElement>("#preset-inspect");
+const presetSelectAllArchiveButton = mustElement<HTMLButtonElement>("#preset-select-all-archive");
+const presetClearArchiveButton = mustElement<HTMLButtonElement>("#preset-clear-archive");
+const presetImportButton = mustElement<HTMLButtonElement>("#preset-import");
+const presetArchiveList = mustElement<HTMLDivElement>("#preset-archive-list");
+const presetStatus = mustElement<HTMLDivElement>("#preset-status");
 const reportAccountState = mustElement<HTMLSpanElement>("#report-account-state");
 const reportRemoteFlag = mustElement<HTMLSpanElement>("#report-remote-flag");
 const reportRefreshButton = mustElement<HTMLButtonElement>("#report-refresh");
@@ -412,12 +557,20 @@ let releases: SnrReleaseSummary[] = [];
 let profileIsReady = false;
 let gameRunning = false;
 let installInProgress = false;
+let uninstallInProgress = false;
 let launchInProgress = false;
+let creatingShortcut = false;
 let releasesLoading = false;
 let checkingUpdate = false;
 let epicLoggedIn = false;
 let migrationExporting = false;
 let migrationImporting = false;
+let presetLoading = false;
+let presetExporting = false;
+let presetInspecting = false;
+let presetImporting = false;
+let localPresets: PresetSummary[] = [];
+let archivePresets: PresetSummary[] = [];
 let reportingReady = false;
 let reportPreparing = false;
 let reportingLoading = false;
@@ -431,6 +584,8 @@ let reportMessageLoadTicket = 0;
 let reportingPollTimer: number | null = null;
 let reportingUnreadBaselineCaptured = false;
 let knownUnreadThreadIds = new Set<string>();
+let preservedSaveDataAvailable = false;
+let preservedSaveDataFiles = 0;
 let reportingNotificationEnabled =
   localStorage.getItem(REPORTING_NOTIFICATION_STORAGE_KEY) === "1";
 
@@ -459,7 +614,7 @@ function formatDate(value: string): string {
     return "-";
   }
   const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString(currentLocale);
 }
 
 function setStatusLine(
@@ -477,9 +632,9 @@ function renderReportBugFields(): void {
 
 function updateReportingNotificationLabel(): void {
   if (reportingNotificationEnabled) {
-    setStatusLine(reportNotificationState, "Windows通知: ON", "success");
+    setStatusLine(reportNotificationState, t("report.notificationOn"), "success");
   } else {
-    setStatusLine(reportNotificationState, "Windows通知: OFF", "warn");
+    setStatusLine(reportNotificationState, t("report.notificationOff"), "warn");
   }
 }
 
@@ -513,21 +668,23 @@ async function sendUnreadWindowsNotification(newUnreadThreads: ReportThread[]): 
   if (!granted) {
     reportingNotificationEnabled = false;
     persistReportingNotificationEnabled();
-    setStatusLine(reportNotificationState, "通知許可がないためOFFにしました", "warn");
+    setStatusLine(reportNotificationState, t("report.notificationDisabledNoPermission"), "warn");
     return;
   }
 
   const title =
     newUnreadThreads.length === 1
-      ? `新着メッセージ: ${newUnreadThreads[0].title || "無題"}`
-      : `新着メッセージ ${newUnreadThreads.length}件`;
+      ? t("report.newUnreadSingle", {
+          title: newUnreadThreads[0].title || t("report.untitled"),
+        })
+      : t("report.newUnreadMulti", { count: newUnreadThreads.length });
   const sample = newUnreadThreads
     .slice(0, 2)
-    .map((thread) => thread.title || "(no title)")
+    .map((thread) => thread.title || t("report.noTitle"))
     .join(" / ");
 
   try {
-    await sendNotification({ title, body: sample || "報告センターに新着があります" });
+    await sendNotification({ title, body: sample || t("report.notificationFallbackBody") });
   } catch {
     // ignore notification errors
   }
@@ -580,7 +737,7 @@ function renderOfficialLinks(): void {
     button.type = "button";
     button.className = "pill-link";
     button.style.background = link.backgroundColor;
-    button.setAttribute("aria-label", `${link.label} をブラウザで開く`);
+    button.setAttribute("aria-label", t("official.openInBrowserAria", { label: link.label }));
     button.innerHTML = `${link.iconSvg}<span>${link.label}</span>`;
 
     button.addEventListener("click", async () => {
@@ -598,15 +755,46 @@ function renderOfficialLinks(): void {
 async function openFolder(pathValue: string | null | undefined, label: string): Promise<void> {
   const target = pathValue?.trim() ?? "";
   if (!target) {
-    installStatus.textContent = `${label} が未設定です。`;
+    installStatus.textContent = t("openFolder.notSet", { label });
     return;
   }
 
   try {
     await openPath(target);
-    installStatus.textContent = `${label} を開きました。`;
+    installStatus.textContent = t("openFolder.opened", { label });
   } catch (error) {
-    installStatus.textContent = `${label} を開けませんでした: ${String(error)}`;
+    installStatus.textContent = t("openFolder.failed", {
+      label,
+      error: String(error),
+    });
+  }
+}
+
+function renderPreservedSaveDataStatus(): void {
+  if (preservedSaveDataAvailable && preservedSaveDataFiles > 0) {
+    preservedSaveDataStatus.textContent = t("launcher.preservedSaveDataAvailable", {
+      count: preservedSaveDataFiles,
+    });
+    return;
+  }
+
+  installRestoreSaveDataCheckbox.checked = false;
+  preservedSaveDataStatus.textContent = t("launcher.preservedSaveDataNone");
+}
+
+async function refreshPreservedSaveDataStatus(): Promise<void> {
+  try {
+    const status = await invoke<PreservedSaveDataStatus>("get_preserved_save_data_status");
+    preservedSaveDataAvailable = status.available;
+    preservedSaveDataFiles = status.files;
+    renderPreservedSaveDataStatus();
+  } catch (error) {
+    preservedSaveDataAvailable = false;
+    preservedSaveDataFiles = 0;
+    installRestoreSaveDataCheckbox.checked = false;
+    preservedSaveDataStatus.textContent = t("launcher.preservedSaveDataStatusFailed", {
+      error: String(error),
+    });
   }
 }
 
@@ -616,26 +804,89 @@ function updateButtons(): void {
   const hasProfilePath = Boolean(settings?.profile_path.trim());
   const hasTag = Boolean(settings?.selected_release_tag.trim());
   const migrationBusy = migrationExporting || migrationImporting;
+  const presetBusy = presetLoading || presetExporting || presetInspecting || presetImporting;
+  const dataTransferBusy = migrationBusy || presetBusy;
+  const shortcutBusy = creatingShortcut;
+  const installOrUninstallBusy = installInProgress || uninstallInProgress;
   const launchAvailable =
-    hasSettings && hasGamePath && !launchInProgress && !gameRunning && !installInProgress && !migrationBusy;
+    hasSettings &&
+    hasGamePath &&
+    !launchInProgress &&
+    !gameRunning &&
+    !installOrUninstallBusy &&
+    !dataTransferBusy &&
+    !shortcutBusy;
 
-  installButton.disabled = !hasSettings || !hasTag || installInProgress || releasesLoading || migrationBusy;
+  installButton.disabled =
+    !hasSettings || !hasTag || installOrUninstallBusy || releasesLoading || dataTransferBusy;
+  installRestoreSaveDataCheckbox.disabled =
+    installOrUninstallBusy || releasesLoading || dataTransferBusy || !preservedSaveDataAvailable;
+  uninstallButton.disabled =
+    !hasSettings ||
+    installOrUninstallBusy ||
+    launchInProgress ||
+    gameRunning ||
+    dataTransferBusy ||
+    shortcutBusy;
+  uninstallPreserveSaveDataCheckbox.disabled =
+    uninstallInProgress ||
+    installInProgress ||
+    launchInProgress ||
+    gameRunning ||
+    dataTransferBusy ||
+    shortcutBusy;
   launchModdedButton.disabled = !launchAvailable || !profileIsReady;
   launchVanillaButton.disabled = !launchAvailable;
-  epicLoginWebviewButton.disabled = launchInProgress || installInProgress || migrationBusy;
-  epicLoginCodeButton.disabled = launchInProgress || installInProgress || migrationBusy;
-  epicLogoutButton.disabled = !epicLoggedIn || launchInProgress || installInProgress || migrationBusy;
-  detectAmongUsPathButton.disabled = launchInProgress || installInProgress || migrationBusy;
-  saveAmongUsPathButton.disabled = launchInProgress || installInProgress || migrationBusy;
-  refreshReleasesButton.disabled = releasesLoading || installInProgress || migrationBusy;
-  releaseSelect.disabled = releasesLoading || installInProgress || migrationBusy;
-  platformSelect.disabled = installInProgress || migrationBusy;
-  openAmongUsFolderButton.disabled = !hasGamePath || launchInProgress || installInProgress || migrationBusy;
-  openProfileFolderButton.disabled = !hasProfilePath || launchInProgress || installInProgress || migrationBusy;
+  createModdedShortcutButton.disabled =
+    !hasSettings ||
+    !hasGamePath ||
+    shortcutBusy ||
+    launchInProgress ||
+    installOrUninstallBusy ||
+    dataTransferBusy;
+  epicLoginWebviewButton.disabled = launchInProgress || installOrUninstallBusy || dataTransferBusy;
+  epicLoginCodeButton.disabled = launchInProgress || installOrUninstallBusy || dataTransferBusy;
+  epicLogoutButton.disabled = !epicLoggedIn || launchInProgress || installOrUninstallBusy || dataTransferBusy;
+  detectAmongUsPathButton.disabled = launchInProgress || installOrUninstallBusy || dataTransferBusy;
+  saveAmongUsPathButton.disabled = launchInProgress || installOrUninstallBusy || dataTransferBusy;
+  refreshReleasesButton.disabled = releasesLoading || installOrUninstallBusy || dataTransferBusy;
+  releaseSelect.disabled = releasesLoading || installOrUninstallBusy || dataTransferBusy;
+  platformSelect.disabled = installOrUninstallBusy || dataTransferBusy;
+  openAmongUsFolderButton.disabled =
+    !hasGamePath || launchInProgress || installOrUninstallBusy || dataTransferBusy;
+  openProfileFolderButton.disabled =
+    !hasProfilePath || launchInProgress || installOrUninstallBusy || dataTransferBusy;
+  closeToTrayOnCloseInput.disabled = launchInProgress || installOrUninstallBusy || dataTransferBusy;
   migrationExportButton.disabled =
-    !hasSettings || migrationBusy || installInProgress || launchInProgress || gameRunning;
-  migrationImportButton.disabled = migrationBusy || installInProgress || launchInProgress || gameRunning;
-  migrationImportPathInput.disabled = migrationBusy || installInProgress || launchInProgress || gameRunning;
+    !hasSettings || dataTransferBusy || installOrUninstallBusy || launchInProgress || gameRunning;
+  migrationImportButton.disabled = dataTransferBusy || installOrUninstallBusy || launchInProgress || gameRunning;
+  migrationImportPathInput.disabled = dataTransferBusy || installOrUninstallBusy || launchInProgress || gameRunning;
+  migrationEncryptionEnabledInput.disabled =
+    dataTransferBusy || installOrUninstallBusy || launchInProgress || gameRunning;
+  migrationExportPasswordInput.disabled =
+    !migrationEncryptionEnabledInput.checked ||
+    dataTransferBusy ||
+    installOrUninstallBusy ||
+    launchInProgress ||
+    gameRunning;
+  migrationImportPasswordInput.disabled =
+    dataTransferBusy || installOrUninstallBusy || launchInProgress || gameRunning;
+
+  const hasImportableArchivePreset = archivePresets.some((preset) => preset.has_data_file);
+  const presetControlsDisabled =
+    dataTransferBusy || installOrUninstallBusy || launchInProgress || gameRunning || !hasSettings;
+
+  presetRefreshButton.disabled = presetControlsDisabled;
+  presetSelectAllLocalButton.disabled = presetControlsDisabled || localPresets.length === 0;
+  presetClearLocalButton.disabled = presetControlsDisabled || localPresets.length === 0;
+  presetExportPathInput.disabled = presetControlsDisabled;
+  presetExportButton.disabled = presetControlsDisabled || localPresets.length === 0;
+  presetImportPathInput.disabled = presetControlsDisabled;
+  presetInspectButton.disabled = presetControlsDisabled;
+  presetSelectAllArchiveButton.disabled =
+    presetControlsDisabled || archivePresets.length === 0 || !hasImportableArchivePreset;
+  presetClearArchiveButton.disabled = presetControlsDisabled || archivePresets.length === 0;
+  presetImportButton.disabled = presetControlsDisabled || !hasImportableArchivePreset;
 
   reportRefreshButton.disabled = reportPreparing || reportingLoading || reportMessagesLoading;
   reportNotificationToggle.disabled = reportPreparing || reportSending;
@@ -656,7 +907,8 @@ function renderSettings(): void {
   }
   amongUsPathInput.value = settings.among_us_path;
   platformSelect.value = settings.game_platform;
-  profilePath.textContent = settings.profile_path || "(未設定)";
+  profilePath.textContent = settings.profile_path || t("common.unset");
+  closeToTrayOnCloseInput.checked = settings.close_to_tray_on_close;
 }
 
 function renderReleaseOptions(): void {
@@ -665,7 +917,11 @@ function renderReleaseOptions(): void {
   for (const release of releases) {
     const option = document.createElement("option");
     option.value = release.tag;
-    option.textContent = `${release.tag} - ${release.name || "(no title)"} - ${formatDate(release.published_at)}`;
+    option.textContent = t("releases.optionText", {
+      tag: release.tag,
+      name: release.name || t("releases.noTitle"),
+      date: formatDate(release.published_at),
+    });
     releaseSelect.append(option);
   }
 
@@ -690,9 +946,9 @@ function renderReportThreads(): void {
     const empty = document.createElement("div");
     empty.className = "muted";
     empty.style.padding = "8px";
-    empty.textContent = "スレッドがありません";
+    empty.textContent = t("report.threadsEmpty");
     reportThreadList.append(empty);
-    reportSelectedThread.textContent = "選択中: なし";
+    reportSelectedThread.textContent = t("report.selectedNone");
     return;
   }
 
@@ -703,9 +959,11 @@ function renderReportThreads(): void {
       selectedReportThreadId === thread.thread_id
         ? "report-thread-item active"
         : "report-thread-item";
-    button.textContent = `${thread.current_status.mark || "●"} ${thread.title || "(no title)"}${
-      thread.unread ? " [新着]" : ""
-    }`;
+    button.textContent = t("report.threadItem", {
+      mark: thread.current_status.mark || "●",
+      title: thread.title || t("report.noTitle"),
+      unread: thread.unread ? t("report.unreadSuffix") : "",
+    });
 
     button.addEventListener("click", async () => {
       selectedReportThreadId = thread.thread_id;
@@ -719,8 +977,8 @@ function renderReportThreads(): void {
 
   const selected = reportThreads.find((thread) => thread.thread_id === selectedReportThreadId);
   reportSelectedThread.textContent = selected
-    ? `選択中: ${selected.title || selected.thread_id}`
-    : "選択中: なし";
+    ? t("report.selected", { thread: selected.title || selected.thread_id })
+    : t("report.selectedNone");
 }
 
 function createMessageElement(message: ReportMessage): HTMLDivElement {
@@ -735,7 +993,7 @@ function createMessageElement(message: ReportMessage): HTMLDivElement {
   const date = document.createElement("span");
 
   if (isStatus) {
-    author.textContent = `${message.mark?.trim() || "●"} ステータス更新`;
+    author.textContent = t("report.statusUpdate", { mark: message.mark?.trim() || "●" });
     if (message.color) {
       author.style.color = message.color;
     }
@@ -760,7 +1018,7 @@ function renderReportMessages(): void {
   if (reportMessages.length === 0) {
     const empty = document.createElement("div");
     empty.className = "muted";
-    empty.textContent = "メッセージがありません";
+    empty.textContent = t("report.messagesEmpty");
     reportMessageList.append(empty);
     return;
   }
@@ -788,14 +1046,14 @@ async function refreshProfileReady(): Promise<void> {
     profilePath: explicitPath,
   });
   profileReadyStatus.textContent = profileIsReady
-    ? "展開済みプロファイル: 利用可能"
-    : "展開済みプロファイル: 未準備";
+    ? t("profile.ready")
+    : t("profile.notReady");
 }
 
 async function refreshReleases(): Promise<void> {
   releasesLoading = true;
   updateButtons();
-  installStatus.textContent = "SNRタグを取得中...";
+  installStatus.textContent = t("releases.loading");
 
   try {
     releases = await invoke<SnrReleaseSummary[]>("list_snr_releases");
@@ -808,9 +1066,9 @@ async function refreshReleases(): Promise<void> {
       renderSettings();
     }
 
-    installStatus.textContent = releases.length > 0 ? "SNRタグ取得完了" : "利用可能なタグがありません";
+    installStatus.textContent = releases.length > 0 ? t("releases.done") : t("releases.none");
   } catch (error) {
-    installStatus.textContent = `SNRタグ取得失敗: ${String(error)}`;
+    installStatus.textContent = t("releases.failed", { error: String(error) });
   } finally {
     releasesLoading = false;
     updateButtons();
@@ -823,7 +1081,7 @@ async function refreshEpicLoginState(): Promise<void> {
     epicLoggedIn = status.logged_in;
 
     if (!status.logged_in) {
-      epicAuthStatus.textContent = "未ログイン";
+      epicAuthStatus.textContent = t("epic.notLoggedIn");
       return;
     }
 
@@ -831,16 +1089,16 @@ async function refreshEpicLoginState(): Promise<void> {
       ? status.display_name.trim()
       : status.account_id?.trim()
         ? status.account_id.trim()
-        : "unknown user";
+        : t("epic.unknownUser");
 
     if (status.profile_error) {
-      epicAuthStatus.textContent = `ログイン済み: ${userLabel} (プロフィール取得失敗)`;
+      epicAuthStatus.textContent = t("epic.loggedInProfileError", { user: userLabel });
     } else {
-      epicAuthStatus.textContent = `ログイン済み: ${userLabel}`;
+      epicAuthStatus.textContent = t("epic.loggedIn", { user: userLabel });
     }
   } catch (error) {
     epicLoggedIn = false;
-    epicAuthStatus.textContent = `状態確認失敗: ${String(error)}`;
+    epicAuthStatus.textContent = t("epic.statusCheckFailed", { error: String(error) });
   } finally {
     updateButtons();
   }
@@ -850,12 +1108,182 @@ async function refreshReportingLogSource(): Promise<void> {
   try {
     const info = await invoke<ReportingLogSourceInfo>("reporting_get_log_source_info");
     if (info.exists && info.selected_path) {
-      reportLogSource.textContent = `Bugログ: ${info.selected_path}`;
+      reportLogSource.textContent = t("report.logDetected", { path: info.selected_path });
     } else {
-      reportLogSource.textContent = `Bugログ未検出。候補: ${info.profile_candidate} / ${info.game_candidate}`;
+      reportLogSource.textContent = t("report.logNotDetected", {
+        profile: info.profile_candidate,
+        game: info.game_candidate,
+      });
     }
   } catch (error) {
-    reportLogSource.textContent = `ログ候補取得失敗: ${String(error)}`;
+    reportLogSource.textContent = t("report.logSourceFailed", { error: String(error) });
+  }
+}
+
+function renderLocalPresetList(): void {
+  presetLocalList.replaceChildren();
+
+  if (localPresets.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "muted";
+    empty.textContent = "ローカルにプリセットが見つかりません。";
+    presetLocalList.append(empty);
+    return;
+  }
+
+  for (const preset of localPresets) {
+    const row = document.createElement("label");
+    row.style.display = "flex";
+    row.style.alignItems = "center";
+    row.style.gap = "8px";
+    row.style.flexWrap = "wrap";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.dataset.role = "local-preset-checkbox";
+    checkbox.dataset.presetId = String(preset.id);
+    checkbox.disabled = !preset.has_data_file;
+
+    const title = document.createElement("span");
+    title.textContent = `[${preset.id}] ${preset.name}`;
+
+    row.append(checkbox, title);
+
+    if (!preset.has_data_file) {
+      const missing = document.createElement("span");
+      missing.className = "muted";
+      missing.textContent = "(PresetOptions ファイルなし)";
+      row.append(missing);
+    }
+
+    presetLocalList.append(row);
+  }
+}
+
+function renderArchivePresetList(): void {
+  presetArchiveList.replaceChildren();
+
+  if (archivePresets.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "muted";
+    empty.textContent = "中身確認を実行すると、ここに候補が表示されます。";
+    presetArchiveList.append(empty);
+    return;
+  }
+
+  for (const preset of archivePresets) {
+    const row = document.createElement("div");
+    row.style.display = "flex";
+    row.style.alignItems = "center";
+    row.style.gap = "8px";
+    row.style.flexWrap = "wrap";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.dataset.role = "archive-preset-checkbox";
+    checkbox.dataset.presetId = String(preset.id);
+    checkbox.checked = preset.has_data_file;
+    checkbox.disabled = !preset.has_data_file;
+
+    const idLabel = document.createElement("span");
+    idLabel.textContent = `[${preset.id}]`;
+    idLabel.style.minWidth = "54px";
+
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.dataset.role = "archive-preset-name";
+    nameInput.dataset.presetId = String(preset.id);
+    nameInput.value = preset.name;
+    nameInput.style.padding = "6px 8px";
+    nameInput.style.minWidth = "260px";
+    nameInput.style.flex = "1";
+    nameInput.disabled = !preset.has_data_file;
+
+    row.append(checkbox, idLabel, nameInput);
+
+    if (!preset.has_data_file) {
+      const missing = document.createElement("span");
+      missing.className = "muted";
+      missing.textContent = "(データ欠損: インポート不可)";
+      row.append(missing);
+    }
+
+    presetArchiveList.append(row);
+  }
+}
+
+function setCheckedStateByRole(container: HTMLElement, role: string, checked: boolean): void {
+  const checkboxes = container.querySelectorAll<HTMLInputElement>(`input[data-role="${role}"]`);
+  for (const checkbox of checkboxes) {
+    if (!checkbox.disabled) {
+      checkbox.checked = checked;
+    }
+  }
+}
+
+function getSelectedLocalPresetIds(): number[] {
+  const selected = presetLocalList.querySelectorAll<HTMLInputElement>(
+    'input[data-role="local-preset-checkbox"]:checked'
+  );
+
+  return Array.from(selected)
+    .map((input) => Number(input.dataset.presetId))
+    .filter((value) => Number.isInteger(value) && value >= 0);
+}
+
+function getSelectedArchivePresetInputs(): PresetImportSelectionInput[] {
+  const selected = presetArchiveList.querySelectorAll<HTMLInputElement>(
+    'input[data-role="archive-preset-checkbox"]:checked'
+  );
+
+  const inputs: PresetImportSelectionInput[] = [];
+  for (const checkbox of selected) {
+    const sourceId = Number(checkbox.dataset.presetId);
+    if (!Number.isInteger(sourceId) || sourceId < 0) {
+      continue;
+    }
+
+    const nameInput = presetArchiveList.querySelector<HTMLInputElement>(
+      `input[data-role="archive-preset-name"][data-preset-id="${sourceId}"]`
+    );
+
+    inputs.push({
+      sourceId,
+      name: nameInput?.value ?? "",
+    });
+  }
+
+  return inputs;
+}
+
+async function refreshLocalPresets(keepStatusMessage = false): Promise<void> {
+  presetLoading = true;
+  updateButtons();
+
+  if (!keepStatusMessage) {
+    setStatusLine(presetStatus, "ローカルプリセットを読み込み中...");
+  }
+
+  try {
+    localPresets = await invoke<PresetSummary[]>("list_local_presets");
+    renderLocalPresetList();
+
+    if (!keepStatusMessage) {
+      if (localPresets.length > 0) {
+        setStatusLine(presetStatus, `ローカルプリセットを読み込みました (${localPresets.length}件)。`, "success");
+      } else {
+        setStatusLine(presetStatus, "ローカルプリセットがありません。", "warn");
+      }
+    }
+  } catch (error) {
+    localPresets = [];
+    renderLocalPresetList();
+    if (!keepStatusMessage) {
+      setStatusLine(presetStatus, `ローカルプリセット読み込み失敗: ${String(error)}`, "error");
+    }
+  } finally {
+    presetLoading = false;
+    updateButtons();
   }
 }
 
@@ -868,7 +1296,7 @@ async function loadReportMessages(threadId: string, withStatus: boolean): Promis
   const ticket = ++reportMessageLoadTicket;
   reportMessagesLoading = true;
   if (withStatus) {
-    setStatusLine(reportThreadStatus, "メッセージ取得中...");
+    setStatusLine(reportThreadStatus, t("report.messagesLoading"));
   }
   updateButtons();
 
@@ -885,13 +1313,13 @@ async function loadReportMessages(threadId: string, withStatus: boolean): Promis
     renderReportMessages();
 
     if (withStatus) {
-      setStatusLine(reportThreadStatus, `メッセージ ${messages.length}件`, "success");
+      setStatusLine(reportThreadStatus, t("report.messagesLoaded", { count: messages.length }), "success");
     }
   } catch (error) {
     if (ticket !== reportMessageLoadTicket) {
       return;
     }
-    setStatusLine(reportThreadStatus, `メッセージ取得失敗: ${String(error)}`, "error");
+    setStatusLine(reportThreadStatus, t("report.messagesLoadFailed", { error: String(error) }), "error");
   } finally {
     if (ticket === reportMessageLoadTicket) {
       reportMessagesLoading = false;
@@ -907,7 +1335,7 @@ async function refreshReportingCenter(manual: boolean, allowNotify: boolean): Pr
 
   reportingLoading = true;
   if (manual) {
-    setStatusLine(reportStatus, "スレッド更新中...");
+    setStatusLine(reportStatus, t("report.threadsRefreshing"));
   }
   updateButtons();
 
@@ -918,7 +1346,9 @@ async function refreshReportingCenter(manual: boolean, allowNotify: boolean): Pr
     ]);
 
     reportThreads = threads;
-    reportRemoteFlag.textContent = hasNotification ? "API通知: 新着あり" : "API通知: 新着なし";
+    reportRemoteFlag.textContent = hasNotification
+      ? t("report.remoteFlagUnread")
+      : t("report.remoteFlagNone");
 
     if (
       selectedReportThreadId &&
@@ -942,10 +1372,10 @@ async function refreshReportingCenter(manual: boolean, allowNotify: boolean): Pr
     }
 
     if (manual) {
-      setStatusLine(reportStatus, `スレッド更新完了 (${reportThreads.length}件)`, "success");
+      setStatusLine(reportStatus, t("report.threadsRefreshDone", { count: reportThreads.length }), "success");
     }
   } catch (error) {
-    setStatusLine(reportStatus, `報告センター更新失敗: ${String(error)}`, "error");
+    setStatusLine(reportStatus, t("report.threadsRefreshFailed", { error: String(error) }), "error");
   } finally {
     reportingLoading = false;
     updateButtons();
@@ -956,28 +1386,28 @@ async function initializeReporting(): Promise<void> {
   reportPreparing = true;
   reportingReady = false;
   updateButtons();
-  setStatusLine(reportStatus, "アカウント準備中...");
+  setStatusLine(reportStatus, t("report.preparingAccount"));
 
   try {
     const result = await invoke<ReportingPrepareResult>("reporting_prepare_account");
     reportingReady = result.ready;
     if (result.created_account) {
-      reportAccountState.textContent = "トークン準備完了 (新規作成)";
+      reportAccountState.textContent = t("report.accountReadyCreated");
     } else {
-      reportAccountState.textContent = `トークン準備完了 (${result.token_source})`;
+      reportAccountState.textContent = t("report.accountReady", { source: result.token_source });
     }
     reportAccountState.className = "badge success";
 
     await refreshReportingLogSource();
     await refreshReportingCenter(true, false);
     startReportingPolling();
-    setStatusLine(reportStatus, "報告センター準備完了", "success");
+    setStatusLine(reportStatus, t("report.ready"), "success");
   } catch (error) {
     reportingReady = false;
     stopReportingPolling();
-    reportAccountState.textContent = "準備失敗";
+    reportAccountState.textContent = t("report.accountPrepareFailed");
     reportAccountState.className = "badge warn";
-    setStatusLine(reportStatus, `報告センター準備失敗: ${String(error)}`, "error");
+    setStatusLine(reportStatus, t("report.prepareFailed", { error: String(error) }), "error");
   } finally {
     reportPreparing = false;
     updateButtons();
@@ -996,22 +1426,25 @@ saveAmongUsPathButton.addEventListener("click", async () => {
   await saveSettings({ among_us_path: value });
   await refreshProfileReady();
   await refreshReportingLogSource();
-  installStatus.textContent = "Among Usパスを保存しました。";
+  installStatus.textContent = t("settings.amongUsPathSaved");
   updateButtons();
 });
 
 detectAmongUsPathButton.addEventListener("click", async () => {
   detectAmongUsPathButton.disabled = true;
-  installStatus.textContent = "Among Usを検出中...";
+  installStatus.textContent = t("detect.loading");
   try {
     const detected = await invoke<string>("detect_among_us");
     const platform = await invoke<GamePlatform>("get_game_platform", { path: detected });
     await saveSettings({ among_us_path: detected, game_platform: platform });
     await refreshProfileReady();
     await refreshReportingLogSource();
-    installStatus.textContent = `検出成功: ${detected} (${platform})`;
+    installStatus.textContent = t("detect.success", {
+      path: detected,
+      platform,
+    });
   } catch (error) {
-    installStatus.textContent = `検出失敗: ${String(error)}`;
+    installStatus.textContent = t("detect.failed", { error: String(error) });
   } finally {
     detectAmongUsPathButton.disabled = false;
     updateButtons();
@@ -1019,28 +1452,53 @@ detectAmongUsPathButton.addEventListener("click", async () => {
 });
 
 openAmongUsFolderButton.addEventListener("click", async () => {
-  await openFolder(settings?.among_us_path, "Among Usフォルダ");
+  await openFolder(settings?.among_us_path, t("folder.amongUs"));
 });
 
 openProfileFolderButton.addEventListener("click", async () => {
-  await openFolder(settings?.profile_path, "プロファイルフォルダ");
+  await openFolder(settings?.profile_path, t("folder.profile"));
+});
+
+closeToTrayOnCloseInput.addEventListener("change", async () => {
+  const enabled = closeToTrayOnCloseInput.checked;
+  await saveSettings({ close_to_tray_on_close: enabled });
+  installStatus.textContent = t("settings.closeToTrayOnCloseSaved", {
+    state: enabled ? t("common.on") : t("common.off"),
+  });
+  updateButtons();
 });
 
 migrationExportButton.addEventListener("click", async () => {
+  const encryptionEnabled = migrationEncryptionEnabledInput.checked;
+  const exportPassword = migrationExportPasswordInput.value;
+  if (encryptionEnabled && exportPassword.length === 0) {
+    setStatusLine(migrationStatus, t("migration.exportPasswordRequired"), "warn");
+    return;
+  }
+
   migrationExporting = true;
   updateButtons();
-  setStatusLine(migrationStatus, "お引越しデータを書き出し中...");
+  setStatusLine(migrationStatus, t("migration.exporting"));
 
   try {
-    const result = await invoke<MigrationExportResult>("export_migration_data");
+    const result = await invoke<MigrationExportResult>("export_migration_data", {
+      encryptionEnabled,
+      password: encryptionEnabled ? exportPassword : undefined,
+    });
     migrationImportPathInput.value = result.archive_path;
     setStatusLine(
       migrationStatus,
-      `書き出し完了: ${result.archive_path} (${result.included_files}件: profile ${result.profile_files} / locallow ${result.locallow_files})`,
+      t("migration.exportDone", {
+        path: result.archive_path,
+        count: result.included_files,
+        profile: result.profile_files,
+        locallow: result.locallow_files,
+      }) +
+        ` (${result.encrypted ? t("migration.encrypted") : t("migration.unencrypted")})`,
       "success"
     );
   } catch (error) {
-    setStatusLine(migrationStatus, `書き出し失敗: ${String(error)}`, "error");
+    setStatusLine(migrationStatus, t("migration.exportFailed", { error: String(error) }), "error");
   } finally {
     migrationExporting = false;
     updateButtons();
@@ -1050,27 +1508,180 @@ migrationExportButton.addEventListener("click", async () => {
 migrationImportButton.addEventListener("click", async () => {
   const archivePath = migrationImportPathInput.value.trim();
   if (!archivePath) {
-    setStatusLine(migrationStatus, ".snrdata のパスを入力してください。", "warn");
+    setStatusLine(migrationStatus, t("migration.importPathRequired"), "warn");
     return;
   }
 
+  const importPassword = migrationImportPasswordInput.value;
+
   migrationImporting = true;
   updateButtons();
-  setStatusLine(migrationStatus, "お引越しデータを読み込み中...");
+  setStatusLine(migrationStatus, t("migration.importing"));
 
   try {
-    const result = await invoke<MigrationImportResult>("import_migration_data", { archivePath });
+    const result = await invoke<MigrationImportResult>("import_migration_data", {
+      archivePath,
+      password: importPassword.length > 0 ? importPassword : undefined,
+    });
     setStatusLine(
       migrationStatus,
-      `読み込み完了: ${result.imported_files}件 (profile ${result.profile_files} / locallow ${result.locallow_files})`,
+      t("migration.importDone", {
+        count: result.imported_files,
+        profile: result.profile_files,
+        locallow: result.locallow_files,
+      }) +
+        ` (${result.encrypted ? t("migration.encrypted") : t("migration.unencrypted")})`,
       "success"
     );
     await refreshProfileReady();
+    await refreshLocalPresets(true);
     await refreshReportingLogSource();
   } catch (error) {
-    setStatusLine(migrationStatus, `読み込み失敗: ${String(error)}`, "error");
+    setStatusLine(migrationStatus, t("migration.importFailed", { error: String(error) }), "error");
   } finally {
     migrationImporting = false;
+    updateButtons();
+  }
+});
+
+migrationEncryptionEnabledInput.addEventListener("change", () => {
+  updateButtons();
+});
+
+presetRefreshButton.addEventListener("click", async () => {
+  await refreshLocalPresets();
+});
+
+presetSelectAllLocalButton.addEventListener("click", () => {
+  setCheckedStateByRole(presetLocalList, "local-preset-checkbox", true);
+});
+
+presetClearLocalButton.addEventListener("click", () => {
+  setCheckedStateByRole(presetLocalList, "local-preset-checkbox", false);
+});
+
+presetExportButton.addEventListener("click", async () => {
+  const selectedIds = getSelectedLocalPresetIds();
+  if (selectedIds.length === 0) {
+    setStatusLine(presetStatus, "エクスポートするプリセットを選択してください。", "warn");
+    return;
+  }
+
+  const outputPath = presetExportPathInput.value.trim();
+
+  presetExporting = true;
+  updateButtons();
+  setStatusLine(presetStatus, "プリセットを書き出し中...");
+
+  try {
+    const result = await invoke<PresetExportResult>("export_selected_presets", {
+      presetIds: selectedIds,
+      outputPath: outputPath.length > 0 ? outputPath : undefined,
+    });
+
+    presetImportPathInput.value = result.archive_path;
+    setStatusLine(
+      presetStatus,
+      `書き出し完了: ${result.archive_path} (${result.exported_presets}件)`,
+      "success"
+    );
+  } catch (error) {
+    setStatusLine(presetStatus, `書き出し失敗: ${String(error)}`, "error");
+  } finally {
+    presetExporting = false;
+    updateButtons();
+  }
+});
+
+presetInspectButton.addEventListener("click", async () => {
+  const archivePath = presetImportPathInput.value.trim();
+  if (!archivePath) {
+    setStatusLine(presetStatus, "読み込む .snrpresets のパスを入力してください。", "warn");
+    return;
+  }
+
+  presetInspecting = true;
+  updateButtons();
+  setStatusLine(presetStatus, "アーカイブの中身を確認中...");
+
+  try {
+    archivePresets = await invoke<PresetSummary[]>("inspect_preset_archive", {
+      archivePath,
+    });
+    renderArchivePresetList();
+
+    const importable = archivePresets.filter((preset) => preset.has_data_file).length;
+    const missing = archivePresets.length - importable;
+    setStatusLine(
+      presetStatus,
+      `確認完了: ${archivePresets.length}件 (インポート可能 ${importable} / 欠損 ${missing})`,
+      importable > 0 ? "success" : "warn"
+    );
+  } catch (error) {
+    archivePresets = [];
+    renderArchivePresetList();
+    setStatusLine(presetStatus, `中身確認失敗: ${String(error)}`, "error");
+  } finally {
+    presetInspecting = false;
+    updateButtons();
+  }
+});
+
+presetSelectAllArchiveButton.addEventListener("click", () => {
+  setCheckedStateByRole(presetArchiveList, "archive-preset-checkbox", true);
+});
+
+presetClearArchiveButton.addEventListener("click", () => {
+  setCheckedStateByRole(presetArchiveList, "archive-preset-checkbox", false);
+});
+
+presetImportButton.addEventListener("click", async () => {
+  const archivePath = presetImportPathInput.value.trim();
+  if (!archivePath) {
+    setStatusLine(presetStatus, "インポート元の .snrpresets パスを入力してください。", "warn");
+    return;
+  }
+
+  const selections = getSelectedArchivePresetInputs();
+  if (selections.length === 0) {
+    setStatusLine(presetStatus, "インポートするプリセットを選択してください。", "warn");
+    return;
+  }
+
+  const previewLines = selections
+    .map((selection) => `- [${selection.sourceId}] ${(selection.name ?? "").trim() || "(空名)"}`)
+    .join("\n");
+  const confirmed = window.confirm(
+    `次のプリセットをインポートします。\n\n${previewLines}\n\n重複名は自動で回避されます。続行しますか？`
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  presetImporting = true;
+  updateButtons();
+  setStatusLine(presetStatus, "プリセットをインポート中...");
+
+  try {
+    const result = await invoke<PresetImportResult>("import_presets_from_archive", {
+      archivePath,
+      selections,
+    });
+
+    await refreshLocalPresets(true);
+
+    const importedNames = result.imported
+      .map((item) => `[${item.target_id}] ${item.name}`)
+      .join(", ");
+    setStatusLine(
+      presetStatus,
+      `インポート完了: ${result.imported_presets}件${importedNames ? ` (${importedNames})` : ""}`,
+      "success"
+    );
+  } catch (error) {
+    setStatusLine(presetStatus, `インポート失敗: ${String(error)}`, "error");
+  } finally {
+    presetImporting = false;
     updateButtons();
   }
 });
@@ -1078,14 +1689,14 @@ migrationImportButton.addEventListener("click", async () => {
 platformSelect.addEventListener("change", async () => {
   const platform = platformSelect.value as GamePlatform;
   await saveSettings({ game_platform: platform });
-  installStatus.textContent = `プラットフォームを ${platform} に変更しました。`;
+  installStatus.textContent = t("settings.platformChanged", { platform });
   updateButtons();
 });
 
 releaseSelect.addEventListener("change", async () => {
   const tag = releaseSelect.value;
   await saveSettings({ selected_release_tag: tag });
-  installStatus.textContent = `選択タグ: ${tag}`;
+  installStatus.textContent = t("settings.tagSelected", { tag });
   updateButtons();
 });
 
@@ -1099,28 +1710,75 @@ installButton.addEventListener("click", async () => {
   }
   const tag = settings.selected_release_tag.trim();
   if (!tag) {
-    installStatus.textContent = "先にSNRタグを選択してください。";
+    installStatus.textContent = t("install.tagRequired");
     return;
   }
+
+  const restorePreservedSaveData = installRestoreSaveDataCheckbox.checked;
 
   installInProgress = true;
   installProgress.value = 0;
   updateButtons();
-  installStatus.textContent = "インストール開始...";
+  installStatus.textContent = t("install.starting");
 
   try {
     const result = await invoke<InstallResult>("install_snr_release", {
       tag,
       platform: settings.game_platform,
+      restorePreservedSaveData,
     });
-    installStatus.textContent = `インストール完了: ${result.asset_name}`;
+    installStatus.textContent = restorePreservedSaveData
+      ? t("install.doneWithRestored", {
+          asset: result.asset_name,
+          count: result.restored_save_files,
+        })
+      : t("install.done", { asset: result.asset_name });
     await reloadSettings();
     await refreshProfileReady();
+    await refreshPreservedSaveDataStatus();
+    await refreshLocalPresets(true);
     await refreshReportingLogSource();
   } catch (error) {
-    installStatus.textContent = `インストール失敗: ${String(error)}`;
+    installStatus.textContent = t("install.failed", { error: String(error) });
   } finally {
     installInProgress = false;
+    updateButtons();
+  }
+});
+
+uninstallButton.addEventListener("click", async () => {
+  if (!settings) {
+    return;
+  }
+
+  const preserveSaveData = uninstallPreserveSaveDataCheckbox.checked;
+  const confirmed = window.confirm(
+    preserveSaveData ? t("uninstall.confirmWithPreserve") : t("uninstall.confirmWithoutPreserve")
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  uninstallInProgress = true;
+  installProgress.value = 0;
+  updateButtons();
+  installStatus.textContent = t("uninstall.starting");
+
+  try {
+    const result = await invoke<UninstallResult>("uninstall_snr_profile", {
+      preserveSaveData,
+    });
+    installStatus.textContent = preserveSaveData
+      ? t("uninstall.doneWithPreserved", { count: result.preserved_files })
+      : t("uninstall.done");
+    await refreshProfileReady();
+    await refreshPreservedSaveDataStatus();
+    await refreshLocalPresets(true);
+    await refreshReportingLogSource();
+  } catch (error) {
+    installStatus.textContent = t("uninstall.failed", { error: String(error) });
+  } finally {
+    uninstallInProgress = false;
     updateButtons();
   }
 });
@@ -1130,7 +1788,7 @@ launchModdedButton.addEventListener("click", async () => {
     return;
   }
   launchInProgress = true;
-  launchStatus.textContent = "Mod起動中...";
+  launchStatus.textContent = t("launch.moddedStarting");
   updateButtons();
 
   try {
@@ -1140,9 +1798,9 @@ launchModdedButton.addEventListener("click", async () => {
       profilePath: settings.profile_path,
       platform: settings.game_platform,
     });
-    launchStatus.textContent = "Mod起動要求を送信しました。";
+    launchStatus.textContent = t("launch.moddedSent");
   } catch (error) {
-    launchStatus.textContent = `Mod起動失敗: ${String(error)}`;
+    launchStatus.textContent = t("launch.moddedFailed", { error: String(error) });
   } finally {
     launchInProgress = false;
     updateButtons();
@@ -1154,7 +1812,7 @@ launchVanillaButton.addEventListener("click", async () => {
     return;
   }
   launchInProgress = true;
-  launchStatus.textContent = "Vanilla起動中...";
+  launchStatus.textContent = t("launch.vanillaStarting");
   updateButtons();
 
   try {
@@ -1163,11 +1821,29 @@ launchVanillaButton.addEventListener("click", async () => {
       gameExe,
       platform: settings.game_platform,
     });
-    launchStatus.textContent = "Vanilla起動要求を送信しました。";
+    launchStatus.textContent = t("launch.vanillaSent");
   } catch (error) {
-    launchStatus.textContent = `Vanilla起動失敗: ${String(error)}`;
+    launchStatus.textContent = t("launch.vanillaFailed", { error: String(error) });
   } finally {
     launchInProgress = false;
+    updateButtons();
+  }
+});
+
+createModdedShortcutButton.addEventListener("click", async () => {
+  creatingShortcut = true;
+  launchStatus.textContent = t("launch.shortcutCreating");
+  updateButtons();
+
+  try {
+    const shortcutPath = await invoke<string>("create_modded_launch_shortcut");
+    launchStatus.textContent = t("launch.shortcutCreated", { path: shortcutPath });
+  } catch (error) {
+    launchStatus.textContent = t("launch.shortcutCreateFailed", {
+      error: String(error),
+    });
+  } finally {
+    creatingShortcut = false;
     updateButtons();
   }
 });
@@ -1182,13 +1858,13 @@ reportNotificationToggle.addEventListener("change", async () => {
     if (!granted) {
       reportingNotificationEnabled = false;
       persistReportingNotificationEnabled();
-      setStatusLine(reportNotificationState, "通知許可が必要です", "warn");
+      setStatusLine(reportNotificationState, t("report.permissionRequired"), "warn");
       return;
     }
 
     reportingNotificationEnabled = true;
     persistReportingNotificationEnabled();
-    setStatusLine(reportNotificationState, "Windows通知を有効化しました", "success");
+    setStatusLine(reportNotificationState, t("report.notificationsEnabled"), "success");
     return;
   }
 
@@ -1208,7 +1884,7 @@ reportRefreshButton.addEventListener("click", async () => {
 
 reportSendButton.addEventListener("click", async () => {
   if (!reportingReady) {
-    setStatusLine(reportStatus, "報告センター未準備です", "warn");
+    setStatusLine(reportStatus, t("report.notReady"), "warn");
     return;
   }
 
@@ -1217,11 +1893,11 @@ reportSendButton.addEventListener("click", async () => {
   const description = reportDescriptionInput.value.trim();
 
   if (!title) {
-    setStatusLine(reportStatus, "タイトルを入力してください", "warn");
+    setStatusLine(reportStatus, t("report.titleRequired"), "warn");
     return;
   }
   if (!description) {
-    setStatusLine(reportStatus, "本文を入力してください", "warn");
+    setStatusLine(reportStatus, t("report.bodyRequired"), "warn");
     return;
   }
 
@@ -1248,11 +1924,11 @@ reportSendButton.addEventListener("click", async () => {
 
   reportSending = true;
   updateButtons();
-  setStatusLine(reportStatus, "報告送信中...");
+  setStatusLine(reportStatus, t("report.sending"));
 
   try {
     await invoke<ReportingSendResult>("reporting_send_report", { input });
-    setStatusLine(reportStatus, "報告を送信しました", "success");
+    setStatusLine(reportStatus, t("report.sent"), "success");
     reportTitleInput.value = "";
     reportDescriptionInput.value = "";
     reportMapInput.value = "";
@@ -1260,7 +1936,7 @@ reportSendButton.addEventListener("click", async () => {
     reportTimingInput.value = "";
     await refreshReportingCenter(true, false);
   } catch (error) {
-    setStatusLine(reportStatus, `報告送信失敗: ${String(error)}`, "error");
+    setStatusLine(reportStatus, t("report.sendFailed", { error: String(error) }), "error");
   } finally {
     reportSending = false;
     updateButtons();
@@ -1270,28 +1946,28 @@ reportSendButton.addEventListener("click", async () => {
 reportSendMessageButton.addEventListener("click", async () => {
   const threadId = selectedReportThreadId;
   if (!threadId) {
-    setStatusLine(reportThreadStatus, "先にスレッドを選択してください", "warn");
+    setStatusLine(reportThreadStatus, t("report.threadRequired"), "warn");
     return;
   }
 
   const content = reportReplyInput.value.trim();
   if (!content) {
-    setStatusLine(reportThreadStatus, "返信メッセージを入力してください", "warn");
+    setStatusLine(reportThreadStatus, t("report.replyRequired"), "warn");
     return;
   }
 
   reportMessageSending = true;
   updateButtons();
-  setStatusLine(reportThreadStatus, "返信送信中...");
+  setStatusLine(reportThreadStatus, t("report.replySending"));
 
   try {
     await invoke<ReportingSendResult>("reporting_send_message", { threadId, content });
     reportReplyInput.value = "";
-    setStatusLine(reportThreadStatus, "返信を送信しました", "success");
+    setStatusLine(reportThreadStatus, t("report.replySent"), "success");
     await loadReportMessages(threadId, false);
     await refreshReportingCenter(false, false);
   } catch (error) {
-    setStatusLine(reportThreadStatus, `返信送信失敗: ${String(error)}`, "error");
+    setStatusLine(reportThreadStatus, t("report.replySendFailed", { error: String(error) }), "error");
   } finally {
     reportMessageSending = false;
     updateButtons();
@@ -1299,38 +1975,38 @@ reportSendMessageButton.addEventListener("click", async () => {
 });
 
 epicLoginWebviewButton.addEventListener("click", async () => {
-  epicAuthStatus.textContent = "Epic WebViewログインを開始...";
+  epicAuthStatus.textContent = t("epic.webviewStarting");
   try {
     await invoke("epic_login_with_webview");
   } catch (error) {
-    epicAuthStatus.textContent = `WebViewログイン開始失敗: ${String(error)}`;
+    epicAuthStatus.textContent = t("epic.webviewStartFailed", { error: String(error) });
   }
 });
 
 epicLoginCodeButton.addEventListener("click", async () => {
   const code = epicAuthCodeInput.value.trim();
   if (!code) {
-    epicAuthStatus.textContent = "認証コードを入力してください。";
+    epicAuthStatus.textContent = t("epic.codeRequired");
     return;
   }
 
-  epicAuthStatus.textContent = "認証コードでログイン中...";
+  epicAuthStatus.textContent = t("epic.codeLoginInProgress");
   try {
     await invoke("epic_login_with_code", { code });
-    epicAuthStatus.textContent = "Epicログイン成功";
+    epicAuthStatus.textContent = t("epic.loginSuccess");
     await refreshEpicLoginState();
   } catch (error) {
-    epicAuthStatus.textContent = `Epicログイン失敗: ${String(error)}`;
+    epicAuthStatus.textContent = t("epic.loginFailed", { error: String(error) });
   }
 });
 
 epicLogoutButton.addEventListener("click", async () => {
   try {
     await invoke("epic_logout");
-    epicAuthStatus.textContent = "ログアウトしました。";
+    epicAuthStatus.textContent = t("epic.logoutDone");
     await refreshEpicLoginState();
   } catch (error) {
-    epicAuthStatus.textContent = `ログアウト失敗: ${String(error)}`;
+    epicAuthStatus.textContent = t("epic.logoutFailed", { error: String(error) });
   }
 });
 
@@ -1339,24 +2015,37 @@ if (savedToken) {
   githubTokenInput.value = savedToken;
 }
 
+languageSelect.addEventListener("change", () => {
+  const nextLocale = normalizeLocale(languageSelect.value) ?? currentLocale;
+  if (nextLocale === currentLocale) {
+    return;
+  }
+  saveLocale(nextLocale);
+  window.location.reload();
+});
+
 renderOfficialLinks();
 renderReportBugFields();
 persistReportingNotificationEnabled();
+renderPreservedSaveDataStatus();
+renderLocalPresetList();
+renderArchivePresetList();
+setStatusLine(presetStatus, "ローカル一覧更新でプリセットを取得できます。");
 
 saveTokenButton.addEventListener("click", () => {
   const token = normalizeGithubToken(githubTokenInput.value);
   if (!token) {
-    updateStatus.textContent = "保存するトークンを入力してください。";
+    updateStatus.textContent = t("token.inputRequired");
     return;
   }
   localStorage.setItem(UPDATER_TOKEN_STORAGE_KEY, token);
-  updateStatus.textContent = "トークンを保存しました。";
+  updateStatus.textContent = t("token.saved");
 });
 
 clearTokenButton.addEventListener("click", () => {
   localStorage.removeItem(UPDATER_TOKEN_STORAGE_KEY);
   githubTokenInput.value = "";
-  updateStatus.textContent = "保存済みトークンを削除しました。";
+  updateStatus.textContent = t("token.cleared");
 });
 
 checkUpdateButton.addEventListener("click", async () => {
@@ -1366,21 +2055,19 @@ checkUpdateButton.addEventListener("click", async () => {
 
   checkingUpdate = true;
   checkUpdateButton.disabled = true;
-  updateStatus.textContent = "更新を確認中...";
+  updateStatus.textContent = t("update.checking");
 
   try {
     const headers = createUpdaterHeaders(githubTokenInput.value);
     const update = await check(headers ? { headers } : undefined);
     if (!update) {
-      updateStatus.textContent = "最新バージョンです。";
+      updateStatus.textContent = t("update.latest");
       return;
     }
 
-    const shouldInstall = window.confirm(
-      `v${update.version} が利用可能です。今すぐダウンロードして適用しますか？`
-    );
+    const shouldInstall = window.confirm(t("update.confirmPrompt", { version: update.version }));
     if (!shouldInstall) {
-      updateStatus.textContent = `更新 v${update.version} は未適用です。`;
+      updateStatus.textContent = t("update.skipped", { version: update.version });
       return;
     }
 
@@ -1391,30 +2078,33 @@ checkUpdateButton.addEventListener("click", async () => {
       (event) => {
         if (event.event === "Started") {
           totalBytes = event.data.contentLength ?? 0;
-          updateStatus.textContent = "更新をダウンロード中...";
+          updateStatus.textContent = t("update.downloading");
           return;
         }
         if (event.event === "Progress") {
           downloadedBytes += event.data.chunkLength;
           if (totalBytes > 0) {
             const percent = Math.min(100, Math.floor((downloadedBytes / totalBytes) * 100));
-            updateStatus.textContent = `更新をダウンロード中... ${percent}%`;
+            updateStatus.textContent = t("update.downloadingPercent", { percent });
           } else {
-            updateStatus.textContent = "更新をダウンロード中...";
+            updateStatus.textContent = t("update.downloading");
           }
           return;
         }
-        updateStatus.textContent = "更新を適用中...";
+        updateStatus.textContent = t("update.applying");
       },
       headers ? { headers } : undefined
     );
 
-    updateStatus.textContent = "更新を適用しました。アプリを再起動してください。";
+    updateStatus.textContent = t("update.appliedRestart");
   } catch (error) {
     const hint = normalizeGithubToken(githubTokenInput.value)
       ? ""
-      : " (private repo では token の指定が必要です)";
-    updateStatus.textContent = `更新に失敗しました: ${String(error)}${hint}`;
+      : t("update.privateRepoHint");
+    updateStatus.textContent = t("update.failed", {
+      error: String(error),
+      hint,
+    });
   } finally {
     checkingUpdate = false;
     checkUpdateButton.disabled = false;
@@ -1425,7 +2115,7 @@ void (async () => {
   try {
     appVersion.textContent = `v${await getVersion()}`;
   } catch (error) {
-    appVersion.textContent = `取得失敗: ${String(error)}`;
+    appVersion.textContent = t("app.versionFetchFailed", { error: String(error) });
   }
 })();
 
@@ -1436,16 +2126,27 @@ void listen<InstallProgressPayload>("snr-install-progress", (event) => {
   if (payload.stage === "downloading" && typeof payload.downloaded === "number") {
     if (typeof payload.total === "number" && payload.total > 0) {
       const percent = Math.floor((payload.downloaded / payload.total) * 100);
-      installStatus.textContent = `${payload.message} (${percent}%)`;
+      installStatus.textContent = t("install.progressPercent", {
+        message: payload.message,
+        percent,
+      });
     } else {
-      installStatus.textContent = `${payload.message} (${payload.downloaded} bytes)`;
+      installStatus.textContent = t("install.progressBytes", {
+        message: payload.message,
+        downloaded: payload.downloaded,
+        bytes: t("common.bytes"),
+      });
     }
     return;
   }
 
   if (payload.stage === "extracting" && typeof payload.current === "number") {
     if (typeof payload.entries_total === "number" && payload.entries_total > 0) {
-      installStatus.textContent = `${payload.message} (${payload.current}/${payload.entries_total})`;
+      installStatus.textContent = t("install.progressEntries", {
+        message: payload.message,
+        current: payload.current,
+        total: payload.entries_total,
+      });
     } else {
       installStatus.textContent = payload.message;
     }
@@ -1458,31 +2159,33 @@ void listen<InstallProgressPayload>("snr-install-progress", (event) => {
 void listen<GameStatePayload>("game-state-changed", (event) => {
   gameRunning = event.payload.running;
   if (gameRunning) {
-    launchStatus.textContent = "ゲーム実行中";
+    launchStatus.textContent = t("launch.gameRunning");
   } else if (!launchInProgress) {
-    launchStatus.textContent = "ゲーム停止中";
+    launchStatus.textContent = t("launch.gameStopped");
   }
   updateButtons();
 });
 
 void listen("epic-login-success", async () => {
-  epicAuthStatus.textContent = "Epicログイン成功";
+  epicAuthStatus.textContent = t("epic.loginSuccess");
   await refreshEpicLoginState();
 });
 
 void listen<string>("epic-login-error", async (event) => {
-  epicAuthStatus.textContent = `Epicログイン失敗: ${event.payload}`;
+  epicAuthStatus.textContent = t("epic.loginFailed", { error: event.payload });
   await refreshEpicLoginState();
 });
 
 void listen("epic-login-cancelled", () => {
-  epicAuthStatus.textContent = "Epicログインはキャンセルされました。";
+  epicAuthStatus.textContent = t("epic.loginCancelled");
 });
 
 void (async () => {
   installProgress.value = 0;
   await reloadSettings();
   await refreshProfileReady();
+  await refreshLocalPresets(true);
+  await refreshPreservedSaveDataStatus();
   await refreshReleases();
   await refreshReportingLogSource();
 
@@ -1492,6 +2195,16 @@ void (async () => {
     // ignore restore errors; status is refreshed next.
   }
   await refreshEpicLoginState();
+
+  try {
+    const autoLaunchError = await invoke<string | null>("take_autolaunch_error");
+    if (autoLaunchError) {
+      launchStatus.textContent = t("launch.autoModLaunchFailed", { error: autoLaunchError });
+    }
+  } catch {
+    // ignore auto launch error retrieval errors
+  }
+
   await initializeReporting();
   updateButtons();
 })();

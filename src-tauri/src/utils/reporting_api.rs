@@ -12,7 +12,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::time::SystemTime;
-use tauri::{AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Runtime};
 
 use crate::utils::settings;
 
@@ -168,37 +168,14 @@ fn windows_home_dir() -> Result<PathBuf, String> {
     }
 }
 
-fn launcher_reporting_cache_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    if let Some(app_data) = std::env::var_os("APPDATA") {
-        return Ok(PathBuf::from(app_data)
-            .join("jp.ykundesu.supernewroleslauncher")
-            .join("reporting")
-            .join(TOKEN_FILE_NAME));
-    }
-
-    Ok(app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to resolve app data path for reporting cache: {e}"))?
-        .join("reporting")
-        .join(TOKEN_FILE_NAME))
-}
-
-fn token_candidate_paths<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<PathBuf>, String> {
+fn token_candidate_paths<R: Runtime>(_app: &AppHandle<R>) -> Result<Vec<PathBuf>, String> {
     let home = windows_home_dir()?;
     let locallow_root = home.join("AppData").join("LocalLow").join("Innersloth");
 
-    let mut paths = vec![
-        locallow_root.join("SuperNewRoles").join(TOKEN_FILE_NAME),
-        locallow_root
-            .join("Among Us")
-            .join("SuperNewRolesNextSecrets")
-            .join(TOKEN_FILE_NAME),
-        launcher_reporting_cache_path(app)?,
-    ];
-
-    paths.dedup();
-    Ok(paths)
+    Ok(vec![locallow_root
+        .join("Among Us")
+        .join("SuperNewRolesNextSecrets")
+        .join(TOKEN_FILE_NAME)])
 }
 
 fn read_token(path: &Path) -> Option<String> {
