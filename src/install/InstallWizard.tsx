@@ -264,7 +264,6 @@ export default function InstallWizard() {
 
   return (
     <div className={`install-wizard ${isWelcome ? "install-wizard-welcome" : ""}`}>
-      {isWelcome && <div className="welcome-bg-pattern" />}
       <StepTransition step={step}>{renderStep}</StepTransition>
     </div>
   );

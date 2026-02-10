@@ -28,16 +28,18 @@ function Confetti() {
         <div
           key={p.id}
           className="confetti-particle"
-          style={{
-            left: `${p.left}%`,
-            animationDelay: `${p.delay}s`,
-            animationDuration: `${p.duration}s`,
-            width: `${p.size}px`,
-            height: `${p.size * 1.4}px`,
-            backgroundColor: p.color,
-            "--drift": `${p.drift}px`,
-            "--rotation": `${p.rotation}deg`,
-          } as React.CSSProperties}
+          style={
+            {
+              left: `${p.left}%`,
+              animationDelay: `${p.delay}s`,
+              animationDuration: `${p.duration}s`,
+              width: `${p.size}px`,
+              height: `${p.size * 1.4}px`,
+              backgroundColor: p.color,
+              "--drift": `${p.drift}px`,
+              "--rotation": `${p.rotation}deg`,
+            } as React.CSSProperties
+          }
         />
       ))}
     </div>
@@ -103,9 +105,8 @@ export default function CompleteStep({ t, onNext }: CompleteStepProps) {
         <p className="complete-hint">{t("installFlow.completeHint")}</p>
       </div>
       <div className={`complete-actions ${showContent ? "visible" : ""}`}>
-        <button type="button" className="btn-primary btn-launcher" onClick={handleNext}>
-          <span className="btn-launcher-icon">🚀</span>
-          {t("installFlow.goToLauncher")}
+        <button type="button" className="btn-primary" onClick={handleNext}>
+          {t("installFlow.next")}
         </button>
       </div>
     </div>

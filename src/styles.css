@@ -148,6 +148,14 @@
   color: #fff;
 }
 
+[data-theme="light"] .version-platform-icon.steam {
+  color: #1b2838;
+}
+
+[data-theme="light"] .version-platform-icon.epic {
+  color: #000;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -884,7 +892,7 @@ progress {
 }
 
 .platform-icon {
-  color: var(--accent);
+  color: var(--text);
   margin-bottom: 4px;
   display: flex;
   align-items: center;
