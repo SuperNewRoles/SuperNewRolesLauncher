@@ -1,6 +1,5 @@
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
-import type { InstallProgressPayload } from "../app/types";
 import {
   epicLoginWebview,
   epicSessionRestore,
@@ -10,14 +9,16 @@ import {
   snrInstall,
   snrReleasesList,
 } from "../app/services/tauriClient";
+import { type ThemePreference, applyTheme, getStoredTheme, setStoredTheme } from "../app/theme";
+import type { InstallProgressPayload } from "../app/types";
 import type { GamePlatform } from "../app/types";
 import type { SnrReleaseSummary } from "../app/types";
 import {
   type LocaleCode,
+  SUPPORTED_LOCALES,
   createTranslator,
   resolveInitialLocale,
   saveLocale,
-  SUPPORTED_LOCALES,
 } from "../i18n";
 import type { MessageKey } from "../i18n";
 import StepTransition from "./StepTransition";
@@ -40,6 +41,8 @@ export default function InstallWizard() {
   const [locale, setLocale] = useState<LocaleCode>(initialLocale);
   const t = createTranslator(locale);
 
+  const [theme, setTheme] = useState<ThemePreference>(() => getStoredTheme());
+
   const [step, setStep] = useState<InstallStep>("welcome");
   const [platform, setPlatform] = useState<GamePlatform | null>(null);
   const [amongUsPath, setAmongUsPath] = useState("");
@@ -49,9 +52,7 @@ export default function InstallWizard() {
   const [progressMessage, setProgressMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const [detectedPlatforms, setDetectedPlatforms] = useState<DetectedPlatform[]>(
-    [],
-  );
+  const [detectedPlatforms, setDetectedPlatforms] = useState<DetectedPlatform[]>([]);
   const [releases, setReleases] = useState<SnrReleaseSummary[]>([]);
   const [epicLoggedIn, setEpicLoggedIn] = useState(false);
   const [epicUserDisplay, setEpicUserDisplay] = useState<string | null>(null);
@@ -72,18 +73,15 @@ export default function InstallWizard() {
     }
   }, []);
 
-  const onPlatformSelect = useCallback(
-    (path: string, plat: GamePlatform) => {
-      setAmongUsPath(path);
-      setPlatform(plat);
-      if (plat === "epic") {
-        setStep("epic-login");
-      } else {
-        setStep("version");
-      }
-    },
-    [],
-  );
+  const onPlatformSelect = useCallback((path: string, plat: GamePlatform) => {
+    setAmongUsPath(path);
+    setPlatform(plat);
+    if (plat === "epic") {
+      setStep("epic-login");
+    } else {
+      setStep("version");
+    }
+  }, []);
 
   const onManualFolderSelect = useCallback(async (path: string) => {
     setAmongUsPath(path);
@@ -142,14 +140,11 @@ export default function InstallWizard() {
   }, [step, platform]);
 
   useEffect(() => {
-    const unlisten = listen<InstallProgressPayload>(
-      "snr-install-progress",
-      (event) => {
-        const payload = event.payload;
-        setProgress(Math.max(0, Math.min(100, payload.progress ?? 0)));
-        setProgressMessage(payload.message);
-      },
-    );
+    const unlisten = listen<InstallProgressPayload>("snr-install-progress", (event) => {
+      const payload = event.payload;
+      setProgress(Math.max(0, Math.min(100, payload.progress ?? 0)));
+      setProgressMessage(payload.message);
+    });
     return () => {
       void unlisten.then((u) => u());
     };
@@ -159,9 +154,7 @@ export default function InstallWizard() {
     const unsubSuccess = listen("epic-login-success", () => {
       void epicStatusGet().then((s) => {
         setEpicLoggedIn(s.loggedIn);
-        setEpicUserDisplay(
-          s.displayName?.trim() || s.accountId?.trim() || null,
-        );
+        setEpicUserDisplay(s.displayName?.trim() || s.accountId?.trim() || null);
       });
     });
     return () => {
@@ -174,28 +167,25 @@ export default function InstallWizard() {
     void epicStatusGet()
       .then((s) => {
         setEpicLoggedIn(s.loggedIn);
-        setEpicUserDisplay(
-          s.displayName?.trim() || s.accountId?.trim() || null,
-        );
+        setEpicUserDisplay(s.displayName?.trim() || s.accountId?.trim() || null);
       })
       .catch(() => {});
   }, [step]);
 
-  const handleLocaleChange = useCallback(
-    async (newLocale: LocaleCode) => {
-      setLocale(newLocale);
-      saveLocale(newLocale);
-      await settingsUpdate({ uiLocale: newLocale }).catch(() => undefined);
-      document.documentElement.lang = newLocale;
-    },
-    [],
-  );
+  const handleLocaleChange = useCallback(async (newLocale: LocaleCode) => {
+    setLocale(newLocale);
+    saveLocale(newLocale);
+    await settingsUpdate({ uiLocale: newLocale }).catch(() => undefined);
+    document.documentElement.lang = newLocale;
+  }, []);
 
-  const renderStep = (
-    s: InstallStep,
-    isExiting: boolean,
-    _direction: "forward" | "back",
-  ) => {
+  const handleThemeChange = useCallback((newTheme: ThemePreference) => {
+    setTheme(newTheme);
+    setStoredTheme(newTheme);
+    applyTheme(newTheme);
+  }, []);
+
+  const renderStep = (s: InstallStep, isExiting: boolean, _direction: "forward" | "back") => {
     if (s === "welcome")
       return (
         <WelcomeStep
@@ -207,6 +197,8 @@ export default function InstallWizard() {
             value: code,
             label: t(LOCALE_OPTION_LABEL_KEYS[code]),
           }))}
+          theme={theme}
+          onThemeChange={handleThemeChange}
         />
       );
     if (s === "platform")
@@ -229,9 +221,7 @@ export default function InstallWizard() {
           onRefreshStatus={() =>
             epicStatusGet().then((s) => {
               setEpicLoggedIn(s.loggedIn);
-              setEpicUserDisplay(
-                s.displayName?.trim() || s.accountId?.trim() || null,
-              );
+              setEpicUserDisplay(s.displayName?.trim() || s.accountId?.trim() || null);
             })
           }
           epicUserDisplay={epicUserDisplay}
@@ -247,6 +237,7 @@ export default function InstallWizard() {
           selectedTag={releaseTag}
           onSelect={onVersionSelect}
           onBack={onBack}
+          platform={platform}
         />
       );
     if (s === "confirm")
@@ -264,15 +255,16 @@ export default function InstallWizard() {
         />
       );
     if (s === "progress")
-      return (
-        <ProgressStep t={t} progress={progress} message={progressMessage} />
-      );
+      return <ProgressStep t={t} progress={progress} message={progressMessage} />;
     if (s === "complete") return <CompleteStep t={t} onNext={onComplete} />;
     return null;
   };
 
+  const isWelcome = step === "welcome";
+
   return (
     <div className="install-wizard">
+      {isWelcome && <div className="welcome-bg-pattern" />}
       <StepTransition step={step}>{renderStep}</StepTransition>
     </div>
   );

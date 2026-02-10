@@ -3,6 +3,11 @@ const ja = {
   "language.option.ja": "日本語",
   "language.option.en": "English",
 
+  "theme.label": "テーマ",
+  "theme.system": "システム",
+  "theme.light": "ライト",
+  "theme.dark": "ダーク",
+
   "credit.title": "クレジット",
   "credit.supernewrolesLine": "SuperNewRoles: SuperNewRoles Team / Contributors",
   "credit.amongUsLine": "Among Us: Innersloth LLC",
@@ -273,7 +278,7 @@ const ja = {
   "installFlow.welcomeHint": "まずは「はじめる」を押してSuperNewRolesをインストールしよう!",
   "installFlow.start": "はじめる",
   "installFlow.back": "戻る",
-  "installFlow.platformTitle": "どのバージョンに導入しますか?",
+  "installFlow.platformTitle": "どのフォルダに導入しますか?",
   "installFlow.platformSteam": "Steam",
   "installFlow.platformEpic": "Epic",
   "installFlow.folderPath": "フォルダパス",
@@ -288,7 +293,8 @@ const ja = {
   "installFlow.processing": "処理内容",
   "installFlow.complete": "インストール完了!",
   "installFlow.completeMessage": "SuperNewRolesのインストールが正常に完了しました。",
-  "installFlow.completeHint": "「ランチャーへ」を押すとランチャー画面に移動します。そこからModの起動や設定ができます。",
+  "installFlow.completeHint":
+    "「ランチャーへ」を押すとランチャー画面に移動します。そこからModの起動や設定ができます。",
   "installFlow.goToLauncher": "ランチャーへ",
   "installFlow.next": "次へ",
   "installFlow.epicLoginRequired": "Epicを選択した場合はEpicログインが必要です。",

@@ -1,5 +1,6 @@
-import type { SnrReleaseSummary } from "../../app/types";
+import type { SnrReleaseSummary, GamePlatform } from "../../app/types";
 import type { MessageKey } from "../../i18n";
+import { STEAM_SVG, EPIC_SVG } from "./PlatformStep";
 
 interface VersionStepProps {
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
@@ -7,6 +8,7 @@ interface VersionStepProps {
   selectedTag: string;
   onSelect: (tag: string) => void;
   onBack: () => void;
+  platform: GamePlatform | null;
 }
 
 function formatDate(value: string): string {
@@ -21,15 +23,35 @@ export default function VersionStep({
   selectedTag,
   onSelect,
   onBack,
+  platform,
 }: VersionStepProps) {
   const latest = releases[0];
+
+  const platformName =
+    platform === "steam"
+      ? t("installFlow.platformSteam")
+      : platform === "epic"
+        ? t("installFlow.platformEpic")
+        : "";
+
+  const platformIcon =
+    platform === "steam" ? (
+      <span className="version-platform-icon steam">{STEAM_SVG}</span>
+    ) : platform === "epic" ? (
+      <span className="version-platform-icon epic">{EPIC_SVG}</span>
+    ) : null;
 
   return (
     <div className="install-step install-step-version">
       <button type="button" className="btn-back" onClick={onBack}>
         ← {t("installFlow.back")}
       </button>
-      <h2 className="step-title">{t("installFlow.versionTitle")}</h2>
+      <div className="version-header">
+        {platformIcon}
+        <h2 className="step-title">
+          {t("installFlow.versionTitle")}
+        </h2>
+      </div>
       <div className="version-options">
         {latest && (
           <button

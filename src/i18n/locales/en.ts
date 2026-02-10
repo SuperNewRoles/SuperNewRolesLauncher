@@ -5,6 +5,11 @@ const en: Record<keyof typeof ja, string> = {
   "language.option.ja": "Japanese",
   "language.option.en": "English",
 
+  "theme.label": "Theme",
+  "theme.system": "System",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
+
   "credit.title": "Credits",
   "credit.supernewrolesLine": "SuperNewRoles: SuperNewRoles Team / Contributors",
   "credit.amongUsLine": "Among Us: Innersloth LLC",
@@ -274,7 +279,7 @@ const en: Record<keyof typeof ja, string> = {
   "app.versionFetchFailed": "Failed to get version: {error}",
 
   "installFlow.welcome": "Welcome to SuperNewRoles Launcher!",
-  "installFlow.welcomeHint": "Press \"Start\" to install SuperNewRoles first!",
+  "installFlow.welcomeHint": 'Press "Start" to install SuperNewRoles first!',
   "installFlow.start": "Start",
   "installFlow.back": "Back",
   "installFlow.platformTitle": "Which platform do you want to install to?",
@@ -292,7 +297,8 @@ const en: Record<keyof typeof ja, string> = {
   "installFlow.processing": "Processing",
   "installFlow.complete": "Installation Complete!",
   "installFlow.completeMessage": "SuperNewRoles has been installed successfully.",
-  "installFlow.completeHint": "Press \"Go to Launcher\" to open the launcher screen where you can start the mod and configure settings.",
+  "installFlow.completeHint":
+    'Press "Go to Launcher" to open the launcher screen where you can start the mod and configure settings.',
   "installFlow.goToLauncher": "Go to Launcher",
   "installFlow.next": "Next",
   "installFlow.epicLoginRequired": "Epic login is required when Epic is selected.",
