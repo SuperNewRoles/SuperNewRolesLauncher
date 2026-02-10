@@ -5,8 +5,7 @@ export function CompleteStep({ t, onNext, onBack }: OnboardingStepProps) {
   return (
     <OnboardingLayout
       t={t}
-      title={t("onboarding.finish.title")}
-      image={<div style={{ fontSize: "64px", textAlign: "center" }}>🎉</div>}
+      image={<div className="placeholder-icon">🎉</div>}
       onNext={onNext}
       onBack={onBack}
       isLastStep

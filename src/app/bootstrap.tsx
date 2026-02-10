@@ -1574,8 +1574,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     updateButtons();
 
     try {
-      const shortcutPath = await launchShortcutCreate();
-      launchStatus.textContent = t("launch.shortcutCreated", { path: shortcutPath });
+      //const shortcutPath = await launchShortcutCreate();
+      await launchShortcutCreate();
     } catch (error) {
       launchStatus.textContent = t("launch.shortcutCreateFailed", {
         error: String(error),

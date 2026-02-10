@@ -103,9 +103,40 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     }
   };
 
+  const getStepTitle = (s: OnboardingStep) => {
+    switch (s) {
+      case "welcome":
+        return t("onboarding.welcome.title");
+      case "launch":
+        return t("onboarding.launch.title");
+      case "reporting":
+        return t("onboarding.report.title");
+      case "preset":
+        return t("onboarding.preset.title");
+      case "migration":
+        return t("onboarding.migration.title");
+      case "connect":
+        return t("onboarding.connect.title");
+      case "complete":
+        return t("onboarding.finish.title");
+    }
+  };
+
   return (
     <div className="install-wizard onboarding-wizard">
-      <StepTransition step={step}>{renderStep}</StepTransition>
+      <div className="onboarding-main-container">
+        <div className="onboarding-header">
+          <div className="onboarding-title">{getStepTitle(step)}</div>
+          {step !== "complete" && (
+            <button type="button" className="text-button" onClick={handleSkip}>
+              {t("common.skip")} &gt;
+            </button>
+          )}
+        </div>
+        <div className="onboarding-slide-container">
+          <StepTransition step={step}>{renderStep}</StepTransition>
+        </div>
+      </div>
     </div>
   );
 }

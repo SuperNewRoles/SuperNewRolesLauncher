@@ -13,6 +13,7 @@ export default function StepTransition({ step, children }: StepTransitionProps) 
   const [displayStep, setDisplayStep] = useState<OnboardingStep>(step);
   const [prevStep, setPrevStep] = useState<OnboardingStep | null>(null);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
+  const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
     if (step === displayStep && prevStep === null) return;
@@ -21,14 +22,18 @@ export default function StepTransition({ step, children }: StepTransitionProps) 
     setDirection(isForward ? "forward" : "back");
     setPrevStep(displayStep);
     setDisplayStep(step);
+    setIsAnimating(true);
 
-    const t = setTimeout(() => setPrevStep(null), TRANSITION_MS);
+    const t = setTimeout(() => {
+      setPrevStep(null);
+      setIsAnimating(false);
+    }, TRANSITION_MS);
     return () => clearTimeout(t);
   }, [step]);
 
   return (
     <div
-      className="step-transition-container"
+      className={`step-transition-container${isAnimating ? " is-animating" : ""}`}
       style={{ "--transition-ms": `${TRANSITION_MS}ms` } as React.CSSProperties}
     >
       {prevStep != null && (

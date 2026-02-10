@@ -5,11 +5,9 @@ export function PresetStep({ t, onNext, onBack, onSkip }: OnboardingStepProps) {
   return (
     <OnboardingLayout
       t={t}
-      title={t("onboarding.preset.title")}
-      image={<div style={{ fontSize: "64px", textAlign: "center" }}>💾</div>}
+      image={<div className="placeholder-icon">💾</div>}
       onNext={onNext}
       onBack={onBack}
-      onSkip={onSkip}
     >
       {t("onboarding.preset.body")}
     </OnboardingLayout>

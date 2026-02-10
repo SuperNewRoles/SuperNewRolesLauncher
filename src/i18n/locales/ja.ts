@@ -309,7 +309,7 @@ const ja = {
 
   "onboarding.start": "始める",
   "onboarding.welcome.title": "SuperNewRoles Launcherへようこそ！",
-  "onboarding.welcome.body": "SuperNewRolesの機能を簡単にご紹介します。",
+  "onboarding.welcome.body": "SuperNewRoles Launcherの機能を簡単にご紹介します。",
   "onboarding.launch.title": "起動",
   "onboarding.launch.body": "「Mod起動」ボタンを押してSuperNewRolesを起動しましょう！",
   "onboarding.report.title": "報告センター",

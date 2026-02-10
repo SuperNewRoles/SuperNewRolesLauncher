@@ -313,7 +313,7 @@ const en: Record<keyof typeof ja, string> = {
 
   "onboarding.start": "Start",
   "onboarding.welcome.title": "Welcome to SuperNewRoles Launcher!",
-  "onboarding.welcome.body": "Let's take a quick tour of SuperNewRoles features.",
+  "onboarding.welcome.body": "Let's take a quick tour of SuperNewRoles Launcher features.",
   "onboarding.launch.title": "Launch",
   "onboarding.launch.body": "Click 'Launch Modded' to start SuperNewRoles!",
   "onboarding.report.title": "Report Center",

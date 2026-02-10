@@ -5,11 +5,9 @@ export function LaunchStep({ t, onNext, onBack, onSkip }: OnboardingStepProps) {
   return (
     <OnboardingLayout
       t={t}
-      title={t("onboarding.launch.title")}
-      image={<div style={{ fontSize: "64px", textAlign: "center" }}>🚀</div>}
+      image={<div className="placeholder-icon">🚀</div>}
       onNext={onNext}
       onBack={onBack}
-      onSkip={onSkip}
     >
       {t("onboarding.launch.body")}
     </OnboardingLayout>
