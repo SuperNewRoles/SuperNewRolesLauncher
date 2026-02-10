@@ -1,17 +1,20 @@
 :root {
   --bg-0: #f3f7fb;
   --bg-1: #e6eef8;
+  --bg: var(--bg-0);
   --card: #ffffffd9;
   --card-strong: #ffffff;
   --text: #102034;
   --muted: #50647a;
   --line: #c8d7e8;
   --accent: #0f6abf;
+  --accent-rgb: 15, 106, 191;
   --accent-soft: #e9f4ff;
   --success: #19764c;
   --danger: #ba2f33;
   --warning: #99631c;
   --shadow: 0 18px 40px rgba(22, 44, 77, 0.12);
+  --shadow-card: 0 8px 20px rgba(30, 52, 85, 0.08);
   --input-bg: #fff;
   --input-border: #b6c7da;
   --report-thread-bg: #f8fbff;
@@ -29,91 +32,133 @@
   --badge-success-border: #acd6c0;
   --badge-warn-bg: #fff8e6;
   --badge-warn-border: #e9d39f;
+
+  --body-aura-orange: rgba(255, 140, 0, 0.15);
+  --body-aura-green: rgba(46, 184, 46, 0.15);
+  --body-aura-red: rgba(230, 0, 0, 0.1);
+
+  --welcome-aura-orange: rgba(255, 140, 0, 0.25);
+  --welcome-aura-green: rgba(46, 184, 46, 0.25);
+  --welcome-aura-red: rgba(230, 0, 0, 0.2);
+
+  --platform-steam: #1b2838;
+  --platform-epic: #000;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg-0: #0f1419;
-    --bg-1: #161b22;
-    --card: #21262dd9;
-    --card-strong: #21262d;
-    --text: #e6edf3;
-    --muted: #8b949e;
-    --line: #30363d;
-    --accent: #58a6ff;
-    --accent-soft: #1f6feb33;
+  :root:not([data-theme]) {
+    --bg-0: #0b1020;
+    --bg-1: #0f172a;
+    --bg: var(--bg-0);
+    --card: rgba(20, 31, 51, 0.88);
+    --card-strong: #141f33;
+    --text: #e8eef7;
+    --muted: #a3b3c7;
+    --line: #2a3a55;
+    --accent: #5ab0ff;
+    --accent-rgb: 90, 176, 255;
+    --accent-soft: rgba(90, 176, 255, 0.18);
     --success: #3fb950;
     --danger: #f85149;
     --warning: #d29922;
-    --shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
-    --input-bg: #21262d;
-    --input-border: #30363d;
-    --report-thread-bg: #161b22;
-    --report-thread-border: #21262d;
-    --report-message-bg: #0f1419;
-    --report-message-item-bg: #21262d;
-    --report-message-item-border: #30363d;
-    --report-message-status-bg: #1f6feb1a;
-    --report-message-status-border: #1f6feb33;
-    --confirm-code-bg: #161b22;
-    --progress-bg: #21262d;
-    --badge-bg: #1f6feb1a;
-    --badge-border: #1f6feb4d;
-    --badge-success-bg: #2386361a;
-    --badge-success-border: #3fb9504d;
-    --badge-warn-bg: #d299221a;
-    --badge-warn-border: #d299224d;
+    --shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+    --shadow-card: 0 10px 26px rgba(0, 0, 0, 0.45);
+    --input-bg: #0f172a;
+    --input-border: #2a3a55;
+    --report-thread-bg: #0f172a;
+    --report-thread-border: #22314d;
+    --report-message-bg: #0b1020;
+    --report-message-item-bg: #141f33;
+    --report-message-item-border: #2a3a55;
+    --report-message-status-bg: rgba(90, 176, 255, 0.12);
+    --report-message-status-border: rgba(90, 176, 255, 0.28);
+    --confirm-code-bg: #0f172a;
+    --progress-bg: #0f172a;
+    --badge-bg: rgba(90, 176, 255, 0.12);
+    --badge-border: rgba(90, 176, 255, 0.35);
+    --badge-success-bg: rgba(63, 185, 80, 0.12);
+    --badge-success-border: rgba(63, 185, 80, 0.35);
+    --badge-warn-bg: rgba(210, 153, 34, 0.13);
+    --badge-warn-border: rgba(210, 153, 34, 0.35);
+
+    --body-aura-orange: rgba(255, 140, 0, 0.1);
+    --body-aura-green: rgba(46, 184, 46, 0.1);
+    --body-aura-red: rgba(230, 0, 0, 0.08);
+
+    --welcome-aura-orange: rgba(255, 140, 0, 0.18);
+    --welcome-aura-green: rgba(46, 184, 46, 0.18);
+    --welcome-aura-red: rgba(230, 0, 0, 0.15);
+
+    --platform-steam: #66c0f4;
+    --platform-epic: #fff;
   }
 }
 
 /* 手動テーマ切り替え用 */
 [data-theme="dark"] {
-  --bg-0: #0f1419;
-  --bg-1: #161b22;
-  --card: #21262dd9;
-  --card-strong: #21262d;
-  --text: #e6edf3;
-  --muted: #8b949e;
-  --line: #30363d;
-  --accent: #58a6ff;
-  --accent-soft: #1f6feb33;
+  --bg-0: #0b1020;
+  --bg-1: #0f172a;
+  --bg: var(--bg-0);
+  --card: rgba(20, 31, 51, 0.88);
+  --card-strong: #141f33;
+  --text: #e8eef7;
+  --muted: #a3b3c7;
+  --line: #2a3a55;
+  --accent: #5ab0ff;
+  --accent-rgb: 90, 176, 255;
+  --accent-soft: rgba(90, 176, 255, 0.18);
   --success: #3fb950;
   --danger: #f85149;
   --warning: #d29922;
-  --shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
-  --input-bg: #21262d;
-  --input-border: #30363d;
-  --report-thread-bg: #161b22;
-  --report-thread-border: #21262d;
-  --report-message-bg: #0f1419;
-  --report-message-item-bg: #21262d;
-  --report-message-item-border: #30363d;
-  --report-message-status-bg: #1f6feb1a;
-  --report-message-status-border: #1f6feb33;
-  --confirm-code-bg: #161b22;
-  --progress-bg: #21262d;
-  --badge-bg: #1f6feb1a;
-  --badge-border: #1f6feb4d;
-  --badge-success-bg: #2386361a;
-  --badge-success-border: #3fb9504d;
-  --badge-warn-bg: #d299221a;
-  --badge-warn-border: #d299224d;
+  --shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+  --shadow-card: 0 10px 26px rgba(0, 0, 0, 0.45);
+  --input-bg: #0f172a;
+  --input-border: #2a3a55;
+  --report-thread-bg: #0f172a;
+  --report-thread-border: #22314d;
+  --report-message-bg: #0b1020;
+  --report-message-item-bg: #141f33;
+  --report-message-item-border: #2a3a55;
+  --report-message-status-bg: rgba(90, 176, 255, 0.12);
+  --report-message-status-border: rgba(90, 176, 255, 0.28);
+  --confirm-code-bg: #0f172a;
+  --progress-bg: #0f172a;
+  --badge-bg: rgba(90, 176, 255, 0.12);
+  --badge-border: rgba(90, 176, 255, 0.35);
+  --badge-success-bg: rgba(63, 185, 80, 0.12);
+  --badge-success-border: rgba(63, 185, 80, 0.35);
+  --badge-warn-bg: rgba(210, 153, 34, 0.13);
+  --badge-warn-border: rgba(210, 153, 34, 0.35);
+
+  --body-aura-orange: rgba(255, 140, 0, 0.1);
+  --body-aura-green: rgba(46, 184, 46, 0.1);
+  --body-aura-red: rgba(230, 0, 0, 0.08);
+
+  --welcome-aura-orange: rgba(255, 140, 0, 0.18);
+  --welcome-aura-green: rgba(46, 184, 46, 0.18);
+  --welcome-aura-red: rgba(230, 0, 0, 0.15);
+
+  --platform-steam: #66c0f4;
+  --platform-epic: #fff;
 }
 
 [data-theme="light"] {
   --bg-0: #f3f7fb;
   --bg-1: #e6eef8;
+  --bg: var(--bg-0);
   --card: #ffffffd9;
   --card-strong: #ffffff;
   --text: #102034;
   --muted: #50647a;
   --line: #c8d7e8;
   --accent: #0f6abf;
+  --accent-rgb: 15, 106, 191;
   --accent-soft: #e9f4ff;
   --success: #19764c;
   --danger: #ba2f33;
   --warning: #99631c;
   --shadow: 0 18px 40px rgba(22, 44, 77, 0.12);
+  --shadow-card: 0 8px 20px rgba(30, 52, 85, 0.08);
   --input-bg: #fff;
   --input-border: #b6c7da;
   --report-thread-bg: #f8fbff;
@@ -131,29 +176,17 @@
   --badge-success-border: #acd6c0;
   --badge-warn-bg: #fff8e6;
   --badge-warn-border: #e9d39f;
-}
 
-/* 手動ダークテーマ時の追加スタイル */
-[data-theme="dark"] .welcome-bg-pattern {
-  background-image: radial-gradient(circle at 15% 20%, rgba(255, 140, 0, 0.35) 0%, transparent 45%),
-    radial-gradient(circle at 85% 80%, rgba(46, 184, 46, 0.35) 0%, transparent 45%),
-    radial-gradient(circle at 50% 50%, rgba(230, 0, 0, 0.3) 0%, transparent 60%);
-}
+  --body-aura-orange: rgba(255, 140, 0, 0.15);
+  --body-aura-green: rgba(46, 184, 46, 0.15);
+  --body-aura-red: rgba(230, 0, 0, 0.1);
 
-[data-theme="dark"] .version-platform-icon.steam {
-  color: #66c0f4;
-}
+  --welcome-aura-orange: rgba(255, 140, 0, 0.25);
+  --welcome-aura-green: rgba(46, 184, 46, 0.25);
+  --welcome-aura-red: rgba(230, 0, 0, 0.2);
 
-[data-theme="dark"] .version-platform-icon.epic {
-  color: #fff;
-}
-
-[data-theme="light"] .version-platform-icon.steam {
-  color: #1b2838;
-}
-
-[data-theme="light"] .version-platform-icon.epic {
-  color: #000;
+  --platform-steam: #1b2838;
+  --platform-epic: #000;
 }
 
 * {
@@ -164,9 +197,9 @@ body {
   margin: 0;
   color: var(--text);
   font-family: "M PLUS 1p", "Yu Gothic UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
-  background: radial-gradient(1000px 500px at 8% -8%, rgba(255, 140, 0, 0.15) 10%, transparent 60%),
-    radial-gradient(900px 480px at 100% 0%, rgba(46, 184, 46, 0.15) 8%, transparent 62%),
-    radial-gradient(800px 600px at 50% 100%, rgba(230, 0, 0, 0.1) 0%, transparent 70%),
+  background: radial-gradient(1000px 500px at 8% -8%, var(--body-aura-orange) 10%, transparent 60%),
+    radial-gradient(900px 480px at 100% 0%, var(--body-aura-green) 8%, transparent 62%),
+    radial-gradient(800px 600px at 50% 100%, var(--body-aura-red) 0%, transparent 70%),
     linear-gradient(160deg, var(--bg-0) 0%, var(--bg-1) 100%);
   background-attachment: fixed;
   transition: background 1.0s ease, color 1.0s ease;
@@ -221,7 +254,7 @@ body {
   border-radius: 14px;
   background: var(--card);
   backdrop-filter: blur(2px);
-  box-shadow: 0 8px 20px rgba(30, 52, 85, 0.08);
+  box-shadow: var(--shadow-card);
   padding: 14px;
   display: grid;
   gap: 10px;
@@ -628,23 +661,15 @@ progress {
 .welcome-bg-pattern {
   position: fixed;
   inset: -100px;
-  background-image: radial-gradient(circle at 15% 20%, rgba(255, 140, 0, 0.25) 0%, transparent 45%),
-    radial-gradient(circle at 85% 80%, rgba(46, 184, 46, 0.25) 0%, transparent 45%),
-    radial-gradient(circle at 50% 50%, rgba(230, 0, 0, 0.2) 0%, transparent 60%);
+  background-image: radial-gradient(
+      circle at 15% 20%,
+      var(--welcome-aura-orange) 0%,
+      transparent 45%
+    ), radial-gradient(circle at 85% 80%, var(--welcome-aura-green) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, var(--welcome-aura-red) 0%, transparent 60%);
   pointer-events: none;
   z-index: 0;
   animation: bg-pulse 10s ease-in-out infinite;
-}
-
-@media (prefers-color-scheme: dark) {
-  .welcome-bg-pattern {
-    background-image: radial-gradient(
-        circle at 15% 20%,
-        rgba(255, 140, 0, 0.35) 0%,
-        transparent 45%
-      ), radial-gradient(circle at 85% 80%, rgba(46, 184, 46, 0.35) 0%, transparent 45%),
-      radial-gradient(circle at 50% 50%, rgba(230, 0, 0, 0.3) 0%, transparent 60%);
-  }
 }
 
 @keyframes bg-pulse {
@@ -756,7 +781,7 @@ progress {
 
 .locale-select:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(15, 106, 191, 0.2);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.2);
 }
 
 .btn-primary {
@@ -828,21 +853,11 @@ progress {
 }
 
 .version-platform-icon.steam {
-  color: #1b2838;
+  color: var(--platform-steam);
 }
 
 .version-platform-icon.epic {
-  color: #000;
-}
-
-@media (prefers-color-scheme: dark) {
-  .version-platform-icon.steam {
-    color: #66c0f4;
-  }
-
-  .version-platform-icon.epic {
-    color: #fff;
-  }
+  color: var(--platform-epic);
 }
 
 .platform-grid {
@@ -964,7 +979,7 @@ progress {
 
 .version-card.selected {
   transform: translateX(8px);
-  box-shadow: 0 4px 16px rgba(15, 106, 191, 0.2);
+  box-shadow: 0 4px 16px rgba(var(--accent-rgb), 0.22);
 }
 
 .version-latest {
@@ -985,7 +1000,7 @@ progress {
 
 .version-latest.selected {
   transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 8px 32px rgba(15, 106, 191, 0.25);
+  box-shadow: 0 8px 32px rgba(var(--accent-rgb), 0.28);
 }
 
 .version-latest .version-label {
@@ -1099,7 +1114,7 @@ progress {
   border: 2px solid var(--line);
   border-radius: 20px;
   padding: 32px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-card);
   animation: fade-in-up 0.5s 0.1s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
