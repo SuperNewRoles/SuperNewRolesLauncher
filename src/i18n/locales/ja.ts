@@ -156,6 +156,8 @@ const ja = {
   "releases.optionText": "{tag} - {name} - {date}",
 
   "epic.notLoggedIn": "未ログイン",
+  "epic.loggedInLabel": "ログイン済み",
+  "epic.loginDescription": "WebViewでEpicアカウントにログインしてください",
   "epic.loggedIn": "ログイン済み: {user}",
   "epic.loggedInProfileError": "ログイン済み: {user} (プロフィール取得失敗)",
   "epic.unknownUser": "unknown user",

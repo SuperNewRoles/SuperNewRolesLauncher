@@ -263,7 +263,7 @@ export default function InstallWizard() {
   const isWelcome = step === "welcome";
 
   return (
-    <div className="install-wizard">
+    <div className={`install-wizard ${isWelcome ? "install-wizard-welcome" : ""}`}>
       {isWelcome && <div className="welcome-bg-pattern" />}
       <StepTransition step={step}>{renderStep}</StepTransition>
     </div>

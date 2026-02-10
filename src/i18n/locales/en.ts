@@ -158,6 +158,8 @@ const en: Record<keyof typeof ja, string> = {
   "releases.optionText": "{tag} - {name} - {date}",
 
   "epic.notLoggedIn": "Not logged in",
+  "epic.loggedInLabel": "Logged in",
+  "epic.loginDescription": "Please login to your Epic account via WebView",
   "epic.loggedIn": "Logged in: {user}",
   "epic.loggedInProfileError": "Logged in: {user} (profile fetch failed)",
   "epic.unknownUser": "unknown user",
