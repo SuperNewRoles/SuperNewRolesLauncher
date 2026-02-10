@@ -129,6 +129,7 @@ pub fn run() {
             },
         ))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .on_menu_event(move |app, event| {
@@ -191,6 +192,7 @@ pub fn run() {
             commands::presets::presets_import_archive,
             commands::finder::finder_detect_among_us,
             commands::finder::finder_detect_platform,
+            commands::finder::finder_detect_platforms,
             commands::snr::snr_releases_list,
             commands::snr::snr_install,
             commands::snr::snr_uninstall,

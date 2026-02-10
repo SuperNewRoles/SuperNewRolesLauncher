@@ -272,6 +272,32 @@ const en: Record<keyof typeof ja, string> = {
   "update.failed": "Update failed: {error}{hint}",
 
   "app.versionFetchFailed": "Failed to get version: {error}",
+
+  "installFlow.welcome": "Welcome to SuperNewRoles Launcher!",
+  "installFlow.welcomeHint": "Press \"Start\" to install SuperNewRoles first!",
+  "installFlow.start": "Start",
+  "installFlow.back": "Back",
+  "installFlow.platformTitle": "Which platform do you want to install to?",
+  "installFlow.platformSteam": "Steam",
+  "installFlow.platformEpic": "Epic",
+  "installFlow.folderPath": "Folder path",
+  "installFlow.manualSelect": "Select manually",
+  "installFlow.versionTitle": "Which version do you want to install?",
+  "installFlow.versionLatest": "Latest",
+  "installFlow.versionCustom": "Choose manually",
+  "installFlow.confirmTitle": "Install",
+  "installFlow.selectedContent": "Selected content",
+  "installFlow.install": "Install",
+  "installFlow.installing": "Installing...",
+  "installFlow.processing": "Processing",
+  "installFlow.complete": "Installation Complete!",
+  "installFlow.completeMessage": "SuperNewRoles has been installed successfully.",
+  "installFlow.completeHint": "Press \"Go to Launcher\" to open the launcher screen where you can start the mod and configure settings.",
+  "installFlow.goToLauncher": "Go to Launcher",
+  "installFlow.next": "Next",
+  "installFlow.epicLoginRequired": "Epic login is required when Epic is selected.",
+  "installFlow.epicLogin": "Epic Login",
+  "installFlow.selectFolder": "Select folder",
 };
 
 export default en;

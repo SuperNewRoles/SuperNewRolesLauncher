@@ -8,6 +8,7 @@
     "updater:default",
     "opener:default",
     "opener:allow-open-path",
-    "notification:default"
+    "notification:default",
+    "dialog:default"
   ]
 }

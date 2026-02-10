@@ -268,6 +268,32 @@ const ja = {
   "update.failed": "更新に失敗しました: {error}{hint}",
 
   "app.versionFetchFailed": "取得失敗: {error}",
+
+  "installFlow.welcome": "SuperNewRoles Launcherへようこそ!",
+  "installFlow.welcomeHint": "まずは「はじめる」を押してSuperNewRolesをインストールしよう!",
+  "installFlow.start": "はじめる",
+  "installFlow.back": "戻る",
+  "installFlow.platformTitle": "どのバージョンに導入しますか?",
+  "installFlow.platformSteam": "Steam",
+  "installFlow.platformEpic": "Epic",
+  "installFlow.folderPath": "フォルダパス",
+  "installFlow.manualSelect": "自分で選ぶ",
+  "installFlow.versionTitle": "どのバージョンを導入しますか?",
+  "installFlow.versionLatest": "最新",
+  "installFlow.versionCustom": "自分で選ぶ",
+  "installFlow.confirmTitle": "インストールします",
+  "installFlow.selectedContent": "えらんだ内容",
+  "installFlow.install": "インストール",
+  "installFlow.installing": "インストールしています",
+  "installFlow.processing": "処理内容",
+  "installFlow.complete": "インストール完了!",
+  "installFlow.completeMessage": "SuperNewRolesのインストールが正常に完了しました。",
+  "installFlow.completeHint": "「ランチャーへ」を押すとランチャー画面に移動します。そこからModの起動や設定ができます。",
+  "installFlow.goToLauncher": "ランチャーへ",
+  "installFlow.next": "次へ",
+  "installFlow.epicLoginRequired": "Epicを選択した場合はEpicログインが必要です。",
+  "installFlow.epicLogin": "Epicログイン",
+  "installFlow.selectFolder": "フォルダを選択",
 } as const;
 
 export default ja;

@@ -1,4 +1,4 @@
-﻿import { getVersion } from "@tauri-apps/api/app";
+import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
 import { join } from "@tauri-apps/api/path";
 import {
@@ -88,16 +88,20 @@ import type {
  * フロントエンドの実行本体。
  * 画面描画・イベント結線・Tauri通信をこのモジュールで統合管理する。
  */
-const app = document.querySelector<HTMLDivElement>("#app");
-if (!app) {
-  throw new Error("#app not found");
-}
+export async function runLauncher(
+  container?: HTMLElement | null,
+): Promise<void> {
+  const app =
+    container ?? document.querySelector<HTMLDivElement>("#app");
+  if (!app) {
+    throw new Error("#app not found");
+  }
 
-const currentLocale = resolveInitialLocale();
-const t = createTranslator(currentLocale);
-document.documentElement.lang = currentLocale;
+  const currentLocale = resolveInitialLocale();
+  const t = createTranslator(currentLocale);
+  document.documentElement.lang = currentLocale;
 
-app.innerHTML = renderAppTemplate(currentLocale, t);
+  app.innerHTML = renderAppTemplate(currentLocale, t);
 
 const {
   appVersion,
@@ -1451,6 +1455,7 @@ uninstallButton.addEventListener("click", async () => {
     await refreshPreservedSaveDataStatus();
     await refreshLocalPresets(true);
     await refreshReportingLogSource();
+    window.location.reload();
   } catch (error) {
     installStatus.textContent = t("uninstall.failed", { error: String(error) });
   } finally {
@@ -1890,8 +1895,4 @@ void (async () => {
   updateButtons();
 })();
 
-/**
- * main.ts から呼ばれる初期化フック。
- * 実処理はモジュール評価時に起動済みなので、ここは将来の明示初期化拡張点として残す。
- */
-export async function runApp(): Promise<void> {}
+}
