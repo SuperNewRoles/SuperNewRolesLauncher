@@ -40,8 +40,8 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleDiscord = () => openUrl("https://discord.gg/Cqfwx82ynN");
-  const handleTwitter = () => openUrl("https://x.com/SuperNewRoles");
+  const handleDiscord = () => openUrl("https://supernewroles.com/discord");
+  const handleTwitter = () => openUrl("https://supernewroles.com/twitter");
 
   const handleShortcut = async () => {
     try {
