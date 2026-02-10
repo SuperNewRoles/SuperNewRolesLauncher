@@ -306,6 +306,33 @@ const en: Record<keyof typeof ja, string> = {
   "installFlow.epicLoginRequired": "Epic login is required when Epic is selected.",
   "installFlow.epicLogin": "Epic Login",
   "installFlow.selectFolder": "Select folder",
+
+  "common.skip": "Skip",
+  "common.next": "Next",
+  "common.back": "Back",
+
+  "onboarding.start": "Start",
+  "onboarding.welcome.title": "Welcome to SuperNewRoles Launcher!",
+  "onboarding.welcome.body": "Let's take a quick tour of SuperNewRoles features.",
+  "onboarding.launch.title": "Launch",
+  "onboarding.launch.body": "Click 'Launch Modded' to start SuperNewRoles!",
+  "onboarding.report.title": "Report Center",
+  "onboarding.report.body": "Found a bug? Report it here directly to the developers.",
+  "onboarding.preset.title": "Preset Sharing",
+  "onboarding.preset.body":
+    "Export your game settings to share with friends, or import settings from others.",
+  "onboarding.migration.title": "Data Migration",
+  "onboarding.migration.body":
+    "Transfer your data to another PC. Be careful not to share data with strangers.",
+  "onboarding.connect.title": "Community & Shortcuts",
+  "onboarding.connect.body": "Join the community for updates and create useful shortcuts.",
+  "onboarding.connect.discord": "Join Official Discord",
+  "onboarding.connect.twitter": "Follow Official X (Twitter)",
+  "onboarding.connect.shortcut": "Create Desktop Shortcut",
+  "onboarding.connect.shortcutCreated": "Shortcut created!",
+  "onboarding.finish.title": "All Set!",
+  "onboarding.finish.body": "Let's dive into the world of SuperNewRoles!",
+  "onboarding.replay": "Replay Tutorial",
 };
 
 export default en;

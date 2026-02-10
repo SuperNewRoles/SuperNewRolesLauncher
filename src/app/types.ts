@@ -13,6 +13,7 @@ export interface LauncherSettings {
   profilePath: string;
   closeToTrayOnClose: boolean;
   uiLocale: string;
+  onboardingCompleted: boolean;
 }
 
 export interface LauncherSettingsInput {
@@ -22,6 +23,7 @@ export interface LauncherSettingsInput {
   profilePath?: string;
   closeToTrayOnClose?: boolean;
   uiLocale?: string;
+  onboardingCompleted?: boolean;
 }
 
 export interface SnrReleaseSummary {

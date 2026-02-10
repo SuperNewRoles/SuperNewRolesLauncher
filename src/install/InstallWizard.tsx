@@ -51,6 +51,7 @@ export default function InstallWizard() {
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [detecting, setDetecting] = useState(false);
 
   const [detectedPlatforms, setDetectedPlatforms] = useState<DetectedPlatform[]>([]);
   const [releases, setReleases] = useState<SnrReleaseSummary[]>([]);
@@ -59,6 +60,7 @@ export default function InstallWizard() {
 
   const onStart = useCallback(async () => {
     setError(null);
+    setDetecting(true);
     try {
       const platforms = await finderDetectPlatforms();
       setDetectedPlatforms(platforms);
@@ -70,6 +72,8 @@ export default function InstallWizard() {
       setStep("platform");
     } catch (e) {
       setError(String(e));
+    } finally {
+      setDetecting(false);
     }
   }, []);
 
@@ -199,6 +203,7 @@ export default function InstallWizard() {
           }))}
           theme={theme}
           onThemeChange={handleThemeChange}
+          isDetecting={detecting}
         />
       );
     if (s === "platform")

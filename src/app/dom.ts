@@ -4,7 +4,9 @@
  */
 export interface AppDom {
   appVersion: HTMLSpanElement;
+  replayOnboardingButton: HTMLButtonElement;
   languageSelect: HTMLSelectElement;
+
   amongUsPathInput: HTMLInputElement;
   saveAmongUsPathButton: HTMLButtonElement;
   detectAmongUsPathButton: HTMLButtonElement;
@@ -96,6 +98,7 @@ function mustElement<T extends Element>(selector: string): T {
 export function collectAppDom(): AppDom {
   return {
     appVersion: mustElement<HTMLSpanElement>("#app-version"),
+    replayOnboardingButton: mustElement<HTMLButtonElement>("#replay-onboarding"),
     languageSelect: mustElement<HTMLSelectElement>("#language-select"),
     amongUsPathInput: mustElement<HTMLInputElement>("#among-us-path"),
     saveAmongUsPathButton: mustElement<HTMLButtonElement>("#save-among-us-path"),

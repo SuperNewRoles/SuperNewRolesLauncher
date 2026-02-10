@@ -60,7 +60,9 @@ describe("computeControlState", () => {
       profilePath: "C:/profile",
       closeToTrayOnClose: true,
       uiLocale: "ja",
+      onboardingCompleted: true,
     };
+
     state.profileIsReady = true;
 
     const result = computeControlState(state);
@@ -78,7 +80,9 @@ describe("computeControlState", () => {
       profilePath: "C:/profile",
       closeToTrayOnClose: true,
       uiLocale: "ja",
+      onboardingCompleted: true,
     };
+
     state.gameRunning = true;
     state.profileIsReady = true;
 
@@ -96,7 +100,9 @@ describe("computeControlState", () => {
       profilePath: "C:/profile",
       closeToTrayOnClose: true,
       uiLocale: "ja",
+      onboardingCompleted: true,
     };
+
     state.archivePresets = [{ id: 1, name: "x", hasDataFile: false }];
 
     const result = computeControlState(state);

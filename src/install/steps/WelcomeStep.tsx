@@ -10,6 +10,7 @@ interface WelcomeStepProps {
   localeOptions: { value: LocaleCode; label: string }[];
   theme: ThemePreference;
   onThemeChange: (theme: ThemePreference) => void;
+  isDetecting: boolean;
 }
 
 export default function WelcomeStep({
@@ -20,6 +21,7 @@ export default function WelcomeStep({
   localeOptions,
   theme,
   onThemeChange,
+  isDetecting,
 }: WelcomeStepProps) {
   return (
     <div className="install-step install-step-welcome">
@@ -107,8 +109,15 @@ export default function WelcomeStep({
               ))}
             </select>
           </div>
-          <button type="button" className="btn-primary" onClick={onStart}>
-            {t("installFlow.start")}
+          <button type="button" className="btn-primary" onClick={onStart} disabled={isDetecting}>
+            {isDetecting ? (
+              <div className="btn-loading-content">
+                <span className="spinner" />
+                <span>{t("detect.loading")}</span>
+              </div>
+            ) : (
+              t("installFlow.start")
+            )}
           </button>
         </div>
       </div>

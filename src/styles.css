@@ -1571,3 +1571,146 @@ progress {
     font-size: 14px;
   }
 }
+
+/* Onboarding specific styles */
+.onboarding-wizard {
+  background: var(--bg);
+  /* Ensure it covers everything */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1000;
+}
+
+.onboarding-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 24px;
+  box-sizing: border-box;
+  max-width: 1000px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.onboarding-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.onboarding-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--text);
+}
+
+.onboarding-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  text-align: center;
+  padding: 24px 0;
+  overflow-y: auto;
+}
+
+.onboarding-image-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  animation: fade-in-up 0.5s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.onboarding-description {
+  font-size: 1.2rem;
+  line-height: 1.6;
+  max-width: 600px;
+  color: var(--text);
+  animation: fade-in-up 0.5s 0.1s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.onboarding-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 64px;
+  margin-top: auto;
+  flex-shrink: 0;
+  animation: fade-in-up 0.5s 0.2s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.text-button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 8px 16px;
+  font-weight: bold;
+}
+.text-button:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.onboarding-layout .primary {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.onboarding-layout .primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(var(--accent-rgb), 0.3);
+}
+
+.onboarding-layout .secondary {
+  background: transparent;
+  border: 2px solid var(--line);
+  color: var(--text);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.onboarding-layout .secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Loading Spinner */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.btn-loading-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+}

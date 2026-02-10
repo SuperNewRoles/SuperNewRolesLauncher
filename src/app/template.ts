@@ -28,7 +28,9 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
   <main class="app-shell">
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <h1 style="margin: 0; flex: 1; min-width: 280px;">SuperNewRolesLauncher</h1>
+      <button id="replay-onboarding" type="button" class="ghost" style="font-size: 12px; padding: 4px 8px;">${t("onboarding.replay")}</button>
       <label for="language-select">${t("language.label")}</label>
+
       <select id="language-select" style="padding: 8px; min-width: 140px;">${renderLocaleOptions(locale, t)}</select>
     </div>
 

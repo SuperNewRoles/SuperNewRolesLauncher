@@ -302,6 +302,33 @@ const ja = {
   "installFlow.epicLoginRequired": "Epicを選択した場合はEpicログインが必要です。",
   "installFlow.epicLogin": "Epicログイン",
   "installFlow.selectFolder": "フォルダを選択",
+
+  "common.skip": "スキップ",
+  "common.next": "次へ",
+  "common.back": "戻る",
+
+  "onboarding.start": "始める",
+  "onboarding.welcome.title": "SuperNewRoles Launcherへようこそ！",
+  "onboarding.welcome.body": "SuperNewRolesの機能を簡単にご紹介します。",
+  "onboarding.launch.title": "起動",
+  "onboarding.launch.body": "「Mod起動」ボタンを押してSuperNewRolesを起動しましょう！",
+  "onboarding.report.title": "報告センター",
+  "onboarding.report.body": "バグを見つけたらここから報告できます。開発者に直接届きます。",
+  "onboarding.preset.title": "プリセット共有",
+  "onboarding.preset.body":
+    "ゲーム設定をエクスポートして友達と共有したり、他の人の設定をインポートできます。",
+  "onboarding.migration.title": "データお引越し",
+  "onboarding.migration.body":
+    "他のパソコンへデータを移行できます。知らない人にデータを渡さないよう注意してください。",
+  "onboarding.connect.title": "公式コミュニティ & ショートカット",
+  "onboarding.connect.body": "最新情報をゲットしたり、便利なショートカットを作成しましょう。",
+  "onboarding.connect.discord": "公式Discordに参加",
+  "onboarding.connect.twitter": "公式X(Twitter)をフォロー",
+  "onboarding.connect.shortcut": "デスクトップショートカット作成",
+  "onboarding.connect.shortcutCreated": "ショートカットを作成しました！",
+  "onboarding.finish.title": "準備完了！",
+  "onboarding.finish.body": "さあ、SuperNewRolesの世界へ飛び込みましょう！",
+  "onboarding.replay": "チュートリアルを再生",
 } as const;
 
 export default ja;
