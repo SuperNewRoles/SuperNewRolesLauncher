@@ -60,7 +60,7 @@ export default function VersionStep({
             onClick={() => onSelect(latest.tag)}
           >
             <span className="version-label">{t("installFlow.versionLatest")}</span>
-            <span className="version-tag">{latest.tag}</span>
+            <span className="version-tag">SuperNewRoles v{latest.tag}</span>
           </button>
         )}
         <div className="version-custom-area">

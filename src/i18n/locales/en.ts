@@ -155,7 +155,7 @@ const en: Record<keyof typeof ja, string> = {
   "releases.none": "No available tags",
   "releases.failed": "Failed to fetch SNR tags: {error}",
   "releases.noTitle": "(no title)",
-  "releases.optionText": "{tag} - {name} - {date}",
+  "releases.optionText": "v{tag} - {name} - {date}",
 
   "epic.notLoggedIn": "Not logged in",
   "epic.loggedInLabel": "Logged in",
@@ -292,6 +292,7 @@ const en: Record<keyof typeof ja, string> = {
   "installFlow.versionTitle": "Which version do you want to install?",
   "installFlow.versionLatest": "Latest",
   "installFlow.versionCustom": "Choose manually",
+  "installFlow.versionLabelSNR": "SuperNewRoles version",
   "installFlow.confirmTitle": "Install",
   "installFlow.selectedContent": "Selected content",
   "installFlow.install": "Install",
@@ -306,6 +307,8 @@ const en: Record<keyof typeof ja, string> = {
   "installFlow.epicLoginRequired": "Epic login is required when Epic is selected.",
   "installFlow.epicLogin": "Epic Login",
   "installFlow.selectFolder": "Select folder",
+  "installFlow.invalidAmongUsFolder":
+    "The selected folder is not an Among Us installation folder. Please select a folder containing Among Us.exe.",
 
   "common.skip": "Skip",
   "common.next": "Next",
@@ -328,6 +331,7 @@ const en: Record<keyof typeof ja, string> = {
   "onboarding.connect.body": "Join the community for updates and create useful shortcuts.",
   "onboarding.connect.discord": "Join Official Discord",
   "onboarding.connect.twitter": "Follow Official X (Twitter)",
+  "onboarding.connect.fanbox": "pixiv FANBOX",
   "onboarding.connect.shortcut": "Create Desktop Shortcut",
   "onboarding.connect.shortcutCreated": "Shortcut created!",
   "onboarding.finish.title": "All Set!",

@@ -1,4 +1,6 @@
 import { open } from "@tauri-apps/plugin-dialog";
+import { useState } from "react";
+import { finderDetectPlatform } from "../../app/services/tauriClient";
 import type { GamePlatform } from "../../app/types";
 import type { MessageKey } from "../../i18n";
 import type { DetectedPlatform } from "../types";
@@ -7,7 +9,7 @@ interface PlatformStepProps {
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
   detectedPlatforms: DetectedPlatform[];
   onSelect: (path: string, platform: GamePlatform) => void;
-  onManualSelect: (path: string) => void;
+  onManualSelect: (path: string, platform: GamePlatform) => void;
   onBack: () => void;
   error: string | null;
 }
@@ -32,6 +34,8 @@ export default function PlatformStep({
   onBack,
   error,
 }: PlatformStepProps) {
+  const [localError, setLocalError] = useState<string | null>(null);
+
   const handleManualSelect = async () => {
     try {
       const selected = await open({
@@ -39,7 +43,14 @@ export default function PlatformStep({
         multiple: false,
       });
       if (selected) {
-        onManualSelect(selected);
+        // AmongUsフォルダかどうか検証＆プラットフォーム判定
+        try {
+          const detectedPlatform = await finderDetectPlatform(selected);
+          setLocalError(null);
+          onManualSelect(selected, detectedPlatform);
+        } catch {
+          setLocalError(t("installFlow.invalidAmongUsFolder"));
+        }
       }
     } catch {
       // user cancelled
@@ -89,7 +100,11 @@ export default function PlatformStep({
       <button type="button" className="btn-manual-select" onClick={handleManualSelect}>
         📁 {t("installFlow.manualSelect")}
       </button>
-      {error && <p className="step-error">{error}</p>}
+      {(error || localError) && (
+        <p className="step-error" style={{ textAlign: "center" }}>
+          {localError || error}
+        </p>
+      )}
     </div>
   );
 }

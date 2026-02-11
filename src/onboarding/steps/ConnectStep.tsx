@@ -26,6 +26,78 @@ function XIcon() {
   );
 }
 
+function FanboxIcon() {
+  return (
+    <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+      <path
+        d="M10 10C8 8 6 8 4.5 9.5C4.1 9.9 4.3 10.7 4.9 11C6.6 12 8.6 12.1 10.3 11.5C8.7 13.6 8.1 16 8.1 18.6V22.2C8.1 24.8 10.1 26.9 12.8 27.7C13.4 29 14.7 29.8 16 29.8C17.3 29.8 18.6 29 19.2 27.7C21.9 26.9 23.9 24.8 23.9 22.2V18.6C23.9 16 23.3 13.6 21.7 11.5C23.4 12.1 25.4 12 27.1 11C27.7 10.7 27.9 9.9 27.5 9.5C26 8 24 8 22 10C20.6 7 18.6 5.5 16 5.5C13.4 5.5 11.4 7 10 10Z"
+        fill="#ffffff"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 8L7 6.5L8 3.8L13 5.6Z"
+        fill="#ffffff"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M20 8L25 6.5L24 3.8L19 5.6Z"
+        fill="#ffffff"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M11 20.5C9 21.5 8.3 23.5 8.7 25"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M21 20.5C23 21.5 23.7 23.5 23.3 25"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M13 14L11.4 15L13 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M19 14L20.6 15L19 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14.7 18.4C14.7 19.6 15.6 20.3 16.6 20.3C17.6 20.3 18.5 19.6 18.5 18.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M16.6 20.3V21.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
   const [shortcutStatus, setShortcutStatus] = useState<"idle" | "creating" | "created" | "error">(
     "idle",
@@ -42,6 +114,7 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
 
   const handleDiscord = () => openUrl("https://supernewroles.com/discord");
   const handleTwitter = () => openUrl("https://supernewroles.com/twitter");
+  const handleFanbox = () => openUrl("https://supernewroles.fanbox.cc/");
 
   const handleShortcut = async () => {
     try {
@@ -77,6 +150,12 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
               <XIcon />
             </span>
             <span className="label">X (Twitter)</span>
+          </button>
+          <button type="button" className="connect-btn btn-fanbox" onClick={handleFanbox}>
+            <span className="icon" aria-hidden="true">
+              <FanboxIcon />
+            </span>
+            <span className="label">pixiv FANBOX</span>
           </button>
           <button
             type="button"

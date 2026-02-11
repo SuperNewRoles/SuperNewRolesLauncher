@@ -153,7 +153,7 @@ const ja = {
   "releases.none": "利用可能なタグがありません",
   "releases.failed": "SNRタグ取得失敗: {error}",
   "releases.noTitle": "(タイトルなし)",
-  "releases.optionText": "{tag} - {name} - {date}",
+  "releases.optionText": "v{tag} - {name} - {date}",
 
   "epic.notLoggedIn": "未ログイン",
   "epic.loggedInLabel": "ログイン済み",
@@ -288,6 +288,7 @@ const ja = {
   "installFlow.versionTitle": "どのバージョンを導入しますか?",
   "installFlow.versionLatest": "最新",
   "installFlow.versionCustom": "自分で選ぶ",
+  "installFlow.versionLabelSNR": "SuperNewRoles バージョン",
   "installFlow.confirmTitle": "インストールします",
   "installFlow.selectedContent": "えらんだ内容",
   "installFlow.install": "インストール",
@@ -302,6 +303,8 @@ const ja = {
   "installFlow.epicLoginRequired": "Epicを選択した場合はEpicログインが必要です。",
   "installFlow.epicLogin": "Epicログイン",
   "installFlow.selectFolder": "フォルダを選択",
+  "installFlow.invalidAmongUsFolder":
+    "選択されたフォルダはAmong Usのインストールフォルダではありません。Among Us.exeが存在するフォルダを選択してください。",
 
   "common.skip": "スキップ",
   "common.next": "次へ",
@@ -324,6 +327,7 @@ const ja = {
   "onboarding.connect.body": "最新情報をゲットしたり、便利なショートカットを作成しましょう。",
   "onboarding.connect.discord": "公式Discordに参加",
   "onboarding.connect.twitter": "公式X(Twitter)をフォロー",
+  "onboarding.connect.fanbox": "pixiv FANBOX",
   "onboarding.connect.shortcut": "デスクトップショートカット作成",
   "onboarding.connect.shortcutCreated": "ショートカットを作成しました！",
   "onboarding.finish.title": "準備完了！",

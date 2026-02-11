@@ -1,5 +1,7 @@
+import { cloneElement } from "react";
 import type { GamePlatform } from "../../app/types";
 import type { MessageKey } from "../../i18n";
+import { EPIC_SVG, STEAM_SVG } from "./PlatformStep";
 
 interface ConfirmStepProps {
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
@@ -24,12 +26,30 @@ export default function ConfirmStep({
   onBack,
   error,
 }: ConfirmStepProps) {
-  const platformLabel =
-    platform === "steam"
-      ? t("installFlow.platformSteam")
-      : platform === "epic"
-        ? t("installFlow.platformEpic")
-        : t("common.unset");
+  const iconProps = {
+    width: "1em",
+    height: "1em",
+    style: { display: "block" },
+  };
+
+  const platformContent =
+    platform === "steam" ? (
+      <span
+        style={{ display: "inline-flex", alignItems: "center", gap: "0.15em", lineHeight: "1" }}
+      >
+        {cloneElement(STEAM_SVG, iconProps)}
+        {t("installFlow.platformSteam")}
+      </span>
+    ) : platform === "epic" ? (
+      <span
+        style={{ display: "inline-flex", alignItems: "center", gap: "0.15em", lineHeight: "1" }}
+      >
+        {cloneElement(EPIC_SVG, iconProps)}
+        {t("installFlow.platformEpic")}
+      </span>
+    ) : (
+      t("common.unset")
+    );
 
   return (
     <div className="install-step install-step-confirm">
@@ -39,12 +59,18 @@ export default function ConfirmStep({
       <h2 className="step-title">{t("installFlow.confirmTitle")}</h2>
       <div className="confirm-content">
         <dl className="confirm-list">
-          <dt>{t("installFlow.platformSteam")} / {t("installFlow.platformEpic")}</dt>
-          <dd>{platformLabel}</dd>
+          <dt>
+            {t("installFlow.platformSteam")} / {t("installFlow.platformEpic")}
+          </dt>
+          <dd>{platformContent}</dd>
           <dt>{t("installFlow.folderPath")}</dt>
-          <dd><code>{amongUsPath || t("common.unset")}</code></dd>
-          <dt>SNR {t("installFlow.versionLatest")}</dt>
-          <dd><code>{releaseTag || t("common.unset")}</code></dd>
+          <dd>
+            <code>{amongUsPath || t("common.unset")}</code>
+          </dd>
+          <dt>{t("installFlow.versionLabelSNR")}</dt>
+          <dd>
+            <code>v{releaseTag || t("common.unset")}</code>
+          </dd>
         </dl>
         <label className="confirm-checkbox">
           <input

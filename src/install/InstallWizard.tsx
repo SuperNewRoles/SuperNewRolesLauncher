@@ -86,10 +86,14 @@ export default function InstallWizard() {
     }
   }, []);
 
-  const onManualFolderSelect = useCallback(async (path: string) => {
+  const onManualFolderSelect = useCallback(async (path: string, plat: GamePlatform) => {
     setAmongUsPath(path);
-    setPlatform("steam");
-    setStep("version");
+    setPlatform(plat);
+    if (plat === "epic") {
+      setStep("epic-login");
+    } else {
+      setStep("version");
+    }
   }, []);
 
   const onEpicLoginDone = useCallback(() => {
