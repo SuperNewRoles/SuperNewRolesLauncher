@@ -46,39 +46,20 @@ function Confetti() {
   );
 }
 
-function SuccessRing() {
+function SuccessIcon() {
   return (
-    <div className="success-ring-container">
-      <svg className="success-ring" viewBox="0 0 120 120" width="160" height="160">
-        <circle
-          className="success-ring-bg"
-          cx="60"
-          cy="60"
-          r="54"
-          fill="none"
-          stroke="#e8f5e9"
-          strokeWidth="6"
-        />
-        <circle
-          className="success-ring-progress"
-          cx="60"
-          cy="60"
-          r="54"
-          fill="none"
-          stroke="#19764c"
-          strokeWidth="6"
+    <div className="success-icon-container">
+      <svg className="success-icon" viewBox="0 0 64 64" width="64" height="64" fill="none">
+        <circle cx="32" cy="32" r="30" fill="var(--success)" opacity="0.1" />
+        <circle cx="32" cy="32" r="24" fill="var(--success)" opacity="0.15" />
+        <path
+          d="M20 34L28 42L44 24"
+          stroke="var(--success)"
+          strokeWidth="4"
           strokeLinecap="round"
-          strokeDasharray="339.3"
-          strokeDashoffset="339.3"
+          strokeLinejoin="round"
         />
       </svg>
-      <div className="success-icon-wrapper">
-        <img
-          src="https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/2705.svg"
-          alt="✅"
-          className="success-twemoji"
-        />
-      </div>
     </div>
   );
 }
@@ -98,7 +79,7 @@ export default function CompleteStep({ t, onNext }: CompleteStepProps) {
 
   return (
     <div className="install-step install-step-complete">
-      <SuccessRing />
+      <SuccessIcon />
       <div className={`complete-text-area ${showContent ? "visible" : ""}`}>
         <h2 className="complete-title">{t("installFlow.complete")}</h2>
         <p className="complete-message">{t("installFlow.completeMessage")}</p>
