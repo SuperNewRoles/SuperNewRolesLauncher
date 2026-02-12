@@ -11,8 +11,8 @@ function Confetti() {
     Array.from({ length: 40 }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
-      delay: Math.random() * 1.2,
-      duration: 1.5 + Math.random() * 1.5,
+      delay: Math.random() * 0.8,
+      duration: 1.0 + Math.random() * 1.1,
       size: 6 + Math.random() * 8,
       color: ["#2278c8", "#19764c", "#f59f00", "#e03131", "#7048e8", "#1098ad", "#f06595"][
         Math.floor(Math.random() * 7)
@@ -68,7 +68,7 @@ export default function CompleteStep({ t, onNext }: CompleteStepProps) {
   const [showContent, setShowContent] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowContent(true), 600);
+    const timer = setTimeout(() => setShowContent(true), 320);
     return () => clearTimeout(timer);
   }, []);
 

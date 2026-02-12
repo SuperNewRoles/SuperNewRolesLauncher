@@ -81,6 +81,9 @@ export interface AppDom {
   saveTokenButton: HTMLButtonElement;
   clearTokenButton: HTMLButtonElement;
   officialLinkButtons: HTMLDivElement;
+  themeToggleSystem: HTMLButtonElement;
+  themeToggleLight: HTMLButtonElement;
+  themeToggleDark: HTMLButtonElement;
 }
 
 function mustElement<T extends Element>(selector: string): T {
@@ -176,5 +179,8 @@ export function collectAppDom(): AppDom {
     saveTokenButton: mustElement<HTMLButtonElement>("#save-token"),
     clearTokenButton: mustElement<HTMLButtonElement>("#clear-token"),
     officialLinkButtons: mustElement<HTMLDivElement>("#official-link-buttons"),
+    themeToggleSystem: mustElement<HTMLButtonElement>("#theme-toggle-system"),
+    themeToggleLight: mustElement<HTMLButtonElement>("#theme-toggle-light"),
+    themeToggleDark: mustElement<HTMLButtonElement>("#theme-toggle-dark"),
   };
 }

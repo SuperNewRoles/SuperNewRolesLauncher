@@ -243,16 +243,17 @@ fn preserve_profile_save_data<R: Runtime>(
 
     clean_path(&preserved_path)?;
 
-    if files.is_empty() {
-        return Ok(0);
-    }
-
+    // 0件だった場合でも「前回保持を実行した」状態を識別できるよう、空ディレクトリを残す。
     fs::create_dir_all(&preserved_path).map_err(|e| {
         format!(
             "Failed to create preserved save data directory '{}': {e}",
             preserved_path.display()
         )
     })?;
+
+    if files.is_empty() {
+        return Ok(0);
+    }
 
     for (source_path, relative_path) in &files {
         let relative = PathBuf::from(relative_path);
@@ -426,7 +427,8 @@ pub fn get_preserved_save_data_status<R: Runtime>(
     collect_files_recursive(&preserved_path, &mut files)?;
 
     Ok(PreservedSaveDataStatus {
-        available: !files.is_empty(),
+        // 空でもディレクトリが存在する場合は、保持操作済みとして扱う。
+        available: true,
         files: files.len(),
     })
 }

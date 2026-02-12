@@ -7,6 +7,7 @@ import {
   finderDetectPlatforms,
   settingsUpdate,
   snrInstall,
+  snrPreservedSaveDataStatus,
   snrReleasesList,
 } from "../app/services/tauriClient";
 import { type ThemePreference, applyTheme, getStoredTheme, setStoredTheme } from "../app/theme";
@@ -48,13 +49,14 @@ export default function InstallWizard() {
   const [platform, setPlatform] = useState<GamePlatform | null>(null);
   const [amongUsPath, setAmongUsPath] = useState("");
   const [releaseTag, setReleaseTag] = useState("");
-  const [restoreSaveData, setRestoreSaveData] = useState(false);
+  const [restoreSaveData, setRestoreSaveData] = useState(true);
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const [detectedPlatforms, setDetectedPlatforms] = useState<DetectedPlatform[]>([]);
   const [releases, setReleases] = useState<SnrReleaseSummary[]>([]);
+  const [preservedSaveDataAvailable, setPreservedSaveDataAvailable] = useState(false);
   const [epicLoggedIn, setEpicLoggedIn] = useState(false);
   const [epicUserDisplay, setEpicUserDisplay] = useState<string | null>(null);
 
@@ -66,6 +68,13 @@ export default function InstallWizard() {
       setDetectedPlatforms(platforms);
       const rels = await snrReleasesList();
       setReleases(rels);
+      const preservedSaveDataStatus = await snrPreservedSaveDataStatus().catch(() => ({
+        available: false,
+        files: 0,
+      }));
+      const hasPreservedSaveData = preservedSaveDataStatus.available;
+      setPreservedSaveDataAvailable(hasPreservedSaveData);
+      setRestoreSaveData(hasPreservedSaveData);
       if (rels.length > 0) {
         setReleaseTag(rels[0].tag);
       }
@@ -121,20 +130,21 @@ export default function InstallWizard() {
       await snrInstall({
         tag: releaseTag,
         platform,
-        restorePreservedSaveData: restoreSaveData,
+        restorePreservedSaveData: preservedSaveDataAvailable && restoreSaveData,
       });
       setStep("complete");
     } catch (e) {
       setError(String(e));
       setStep("confirm");
     }
-  }, [platform, amongUsPath, releaseTag, restoreSaveData, t]);
+  }, [platform, amongUsPath, releaseTag, restoreSaveData, preservedSaveDataAvailable, t]);
 
   const onComplete = useCallback(() => {
     setStep("welcome");
     setPlatform(null);
     setAmongUsPath("");
     setReleaseTag("");
+    setRestoreSaveData(true);
     setProgress(0);
     setProgressMessage("");
   }, []);
@@ -255,6 +265,7 @@ export default function InstallWizard() {
           platform={platform}
           amongUsPath={amongUsPath}
           releaseTag={releaseTag}
+          showRestoreSaveDataOption={preservedSaveDataAvailable}
           restoreSaveData={restoreSaveData}
           onRestoreChange={setRestoreSaveData}
           onInstall={onConfirmInstall}

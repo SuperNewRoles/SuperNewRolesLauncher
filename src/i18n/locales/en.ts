@@ -36,6 +36,10 @@ const en: Record<keyof typeof ja, string> = {
   "launcher.preserveCurrentSaveData": "Preserve current 4 files",
   "launcher.launchModded": "Launch Modded",
   "launcher.launchVanilla": "Launch Vanilla",
+  "home.launch": "Launch",
+  "home.launchVanilla": "Launch Vanilla",
+  "home.tab": "Home",
+  "settings.tab": "Settings",
   "launcher.createModdedShortcut": "Create Modded shortcut",
   "launcher.preservedSaveDataAvailable":
     "Preserved save data: {count} file(s) (can restore on install)",
@@ -251,10 +255,10 @@ const en: Record<keyof typeof ja, string> = {
     "This will delete all profile contents and will not preserve save data. Continue?",
 
   "launch.moddedStarting": "Launching Modded...",
-  "launch.moddedSent": "Modded launch request sent.",
+  "launch.moddedSent": "Launching Modded...",
   "launch.moddedFailed": "Modded launch failed: {error}",
   "launch.vanillaStarting": "Launching Vanilla...",
-  "launch.vanillaSent": "Vanilla launch request sent.",
+  "launch.vanillaSent": "Launching Vanilla...",
   "launch.vanillaFailed": "Vanilla launch failed: {error}",
   "launch.shortcutCreating": "Creating shortcut...",
   "launch.shortcutCreated": "Shortcut created: {path}",

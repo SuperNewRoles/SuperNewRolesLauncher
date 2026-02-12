@@ -58,6 +58,12 @@ import {
   snrReleasesList,
   snrUninstall,
 } from "./services/tauriClient";
+import {
+  type ThemePreference,
+  applyTheme,
+  getStoredTheme,
+  setStoredTheme,
+} from "./theme";
 import { computeControlState } from "./state/selectors";
 import { createAppStore } from "./state/store";
 import { renderAppTemplate } from "./template";
@@ -182,7 +188,63 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     saveTokenButton,
     clearTokenButton,
     officialLinkButtons,
+    themeToggleSystem,
+    themeToggleLight,
+    themeToggleDark,
   } = collectAppDom();
+
+  function updateThemeButtons(theme: ThemePreference) {
+    themeToggleSystem.classList.toggle("active", theme === "system");
+    themeToggleLight.classList.toggle("active", theme === "light");
+    themeToggleDark.classList.toggle("active", theme === "dark");
+  }
+
+  const currentTheme = getStoredTheme();
+  updateThemeButtons(currentTheme);
+
+  themeToggleSystem.addEventListener("click", () => {
+    setStoredTheme("system");
+    applyTheme("system");
+    updateThemeButtons("system");
+  });
+  themeToggleLight.addEventListener("click", () => {
+    setStoredTheme("light");
+    applyTheme("light");
+    updateThemeButtons("light");
+  });
+  themeToggleDark.addEventListener("click", () => {
+    setStoredTheme("dark");
+    applyTheme("dark");
+    updateThemeButtons("dark");
+  });
+
+  // タブ切り替え
+  function switchTab(tabId: "home" | "report" | "settings") {
+    document.querySelectorAll(".tab-panel").forEach((el) => el.classList.remove("tab-panel-active"));
+    document.querySelectorAll(".tab-bar-item").forEach((el) => el.classList.remove("tab-bar-item-active"));
+    const panel = document.getElementById(`tab-${tabId}`);
+    const barItem = document.querySelector(`.tab-bar-item[data-tab="${tabId}"]`);
+    panel?.classList.add("tab-panel-active");
+    barItem?.classList.add("tab-bar-item-active");
+    barItem?.setAttribute("aria-selected", "true");
+    document.querySelectorAll(".tab-bar-item:not([data-tab=\"" + tabId + "\"])").forEach((el) =>
+      el.setAttribute("aria-selected", "false"),
+    );
+  }
+
+  document.querySelectorAll(".tab-bar-item").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tabId = (btn as HTMLElement).dataset.tab;
+      if (tabId === "home" || tabId === "report" || tabId === "settings") {
+        switchTab(tabId);
+      }
+    });
+  });
+
+  const reportCenterTabButton = document.querySelector<HTMLButtonElement>("#report-center-tab");
+  reportCenterTabButton?.addEventListener("click", () => {
+    switchTab("report");
+  });
 
   // 通知設定は永続値を先に確定し、store初期値とローカル変数を揃える。
   const initialReportingNotificationEnabled =

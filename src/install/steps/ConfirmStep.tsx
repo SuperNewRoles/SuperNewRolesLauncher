@@ -8,6 +8,7 @@ interface ConfirmStepProps {
   platform: GamePlatform | null;
   amongUsPath: string;
   releaseTag: string;
+  showRestoreSaveDataOption: boolean;
   restoreSaveData: boolean;
   onRestoreChange: (value: boolean) => void;
   onInstall: () => void;
@@ -20,6 +21,7 @@ export default function ConfirmStep({
   platform,
   amongUsPath,
   releaseTag,
+  showRestoreSaveDataOption,
   restoreSaveData,
   onRestoreChange,
   onInstall,
@@ -38,14 +40,14 @@ export default function ConfirmStep({
         style={{ display: "inline-flex", alignItems: "center", gap: "0.15em", lineHeight: "1" }}
       >
         {cloneElement(STEAM_SVG, iconProps)}
-        {t("installFlow.platformSteam")}
+         {t("installFlow.platformSteam")}
       </span>
     ) : platform === "epic" ? (
       <span
         style={{ display: "inline-flex", alignItems: "center", gap: "0.15em", lineHeight: "1" }}
       >
         {cloneElement(EPIC_SVG, iconProps)}
-        {t("installFlow.platformEpic")}
+         {t("installFlow.platformEpic")}
       </span>
     ) : (
       t("common.unset")
@@ -72,14 +74,16 @@ export default function ConfirmStep({
             <code>v{releaseTag || t("common.unset")}</code>
           </dd>
         </dl>
-        <label className="confirm-checkbox">
-          <input
-            type="checkbox"
-            checked={restoreSaveData}
-            onChange={(e) => onRestoreChange(e.target.checked)}
-          />
-          {t("launcher.restoreSavedDataOnInstall")}
-        </label>
+        {showRestoreSaveDataOption && (
+          <label className="confirm-checkbox">
+            <input
+              type="checkbox"
+              checked={restoreSaveData}
+              onChange={(e) => onRestoreChange(e.target.checked)}
+            />
+            {t("launcher.restoreSavedDataOnInstall")}
+          </label>
+        )}
       </div>
       <div className="confirm-actions">
         <button type="button" className="btn-primary" onClick={onInstall}>
