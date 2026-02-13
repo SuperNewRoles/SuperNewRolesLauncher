@@ -1728,6 +1728,8 @@ progress {
 .main-layout {
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
   min-height: 100vh;
   min-height: 100dvh;
   width: 100%;
@@ -1828,24 +1830,82 @@ progress {
 
 .main-content {
   flex: 1;
+  display: flex;
   min-height: 0;
   position: relative;
   overflow: hidden;
 }
 
 .tab-panel {
-  display: none;
   position: absolute;
   inset: 0;
   flex-direction: column;
-  overflow: auto;
+  display: flex;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+#tab-report.tab-panel {
+  transform: translateY(10px);
 }
 
 .tab-panel.tab-panel-active {
-  display: flex;
   position: absolute;
   inset: 0;
+  height: 100%;
   min-height: 0;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+#tab-report.tab-panel.tab-panel-active {
+  transform: translateY(0);
+}
+
+#tab-report.tab-panel:not(.tab-panel-active) .tab-inner {
+  opacity: 0;
+  transform: translateX(14px);
+  pointer-events: none;
+}
+
+#tab-report.tab-panel.tab-report-enter {
+  animation: report-tab-enter 220ms ease-out forwards;
+}
+
+#tab-report.tab-panel.tab-report-enter .tab-inner {
+  animation: report-tab-inner-enter 220ms ease-out forwards;
+}
+
+#tab-report.tab-panel.tab-panel-active .tab-inner {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@keyframes report-tab-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes report-tab-inner-enter {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .tab-inner {
@@ -1856,8 +1916,15 @@ progress {
 }
 
 #tab-report .tab-inner {
-  overflow: auto;
-  max-height: 100%;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#tab-report .tab-report-root {
+  box-sizing: border-box;
+  padding: 0 0 88px;
 }
 
 .tab-settings-scroll {
@@ -1875,7 +1942,10 @@ progress {
   gap: 20px;
   padding: 80px 24px 80px;
   min-height: 0;
-  animation: fade-in-up 0.5s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.home-content-enter {
+  animation: fade-in-up 220ms cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
 .btn-launch-primary {
@@ -2035,8 +2105,12 @@ progress {
 
 .report-center-container {
   position: relative;
+  display: grid;
+  width: 100%;
   height: 100%;
+  min-height: 0;
   overflow: hidden;
+  isolation: isolate;
 }
 
 /* Report List */
@@ -2185,9 +2259,11 @@ progress {
   position: fixed;
   top: 0;
   right: 0;
+  bottom: 0;
+  left: auto;
   width: 420px;
   max-width: 100%;
-  height: 100%;
+  max-height: none;
   background: var(--card-strong);
   border-left: 1px solid var(--line);
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
@@ -2195,7 +2271,7 @@ progress {
   flex-direction: column;
   transform: translateX(100%);
   transition: transform 0.25s ease-out;
-  z-index: 200;
+  z-index: 220;
 }
 
 .report-thread-panel.open {
@@ -2308,19 +2384,11 @@ progress {
   text-align: center;
 }
 
-/* スレッドの最初のメッセージ */
-.report-message-bubble.thread-first-message {
-  align-self: flex-start;
-  background: var(--card-strong);
-  border-color: var(--line);
-  border-left: 3px solid var(--accent);
-  margin-bottom: 16px;
-}
-
 .report-message-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
   margin-bottom: 6px;
   font-size: 12px;
 }
@@ -2332,6 +2400,7 @@ progress {
 
 .report-message-time {
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .report-message-body {

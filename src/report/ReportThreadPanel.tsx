@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ReportMessage, ReportThread } from "../app/types";
 import type { createTranslator } from "../i18n";
 
@@ -33,6 +34,22 @@ export function ReportThreadPanel({
   const [isSending, setIsSending] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
+  const normalizedMessages = useMemo(() => {
+    if (!thread || !thread.firstMessage) {
+      return messages;
+    }
+
+    const firstMessage: ReportMessage = {
+      messageType: "normal",
+      messageId: `${thread.threadId}-first`,
+      createdAt: thread.createdAt,
+      content: thread.firstMessage,
+      sender: undefined,
+    };
+
+    return [firstMessage, ...messages];
+  }, [thread, messages]);
+
   // アニメーション用：DOMがマウントされてからopenクラスを適用
   useEffect(() => {
     if (isOpen) {
@@ -59,7 +76,7 @@ export function ReportThreadPanel({
 
   if (!thread) return null;
 
-  return (
+  const panel = (
     <div
       className={`report-thread-panel ${isVisible ? "open" : ""} ${isFullscreen ? "fullscreen" : ""}`}
       aria-hidden={!isOpen}
@@ -92,20 +109,11 @@ export function ReportThreadPanel({
       <div className="report-thread-panel-content">
         {isLoading ? (
           <div className="report-messages-loading">{t("report.messagesLoading")}</div>
-        ) : messages.length === 0 ? (
+        ) : normalizedMessages.length === 0 ? (
           <div className="report-messages-empty">{t("report.messagesEmpty")}</div>
         ) : (
           <div className="report-messages-list">
-            {/* スレッドの最初のメッセージ（自分扱い） */}
-            {thread.firstMessage && (
-              <div className="report-message-bubble thread-first-message own">
-                <div className="report-message-header">
-                  <span className="report-message-sender">{t("report.firstMessage")}</span>
-                </div>
-                <div className="report-message-body">{thread.firstMessage}</div>
-              </div>
-            )}
-            {messages.map((message) => {
+            {normalizedMessages.map((message) => {
               const isStatus = message.messageType === "status";
               const sender = message.sender || message.messageType;
               const isOwnMessage = !sender.startsWith("github:");
@@ -163,4 +171,10 @@ export function ReportThreadPanel({
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") {
+    return panel;
+  }
+
+  return createPortal(panel, document.body);
 }

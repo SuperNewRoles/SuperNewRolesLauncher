@@ -70,7 +70,7 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
 
       <!-- 報告センタータブ -->
       <section id="tab-report" class="tab-panel" data-tab="report">
-        <div id="report-center-root" class="tab-inner" style="padding: 0; overflow: hidden;"></div>
+        <div id="report-center-root" class="tab-inner tab-report-root"></div>
       </section>
 
       <!-- 設定タブ -->

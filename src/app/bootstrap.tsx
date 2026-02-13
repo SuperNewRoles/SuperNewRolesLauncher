@@ -195,24 +195,62 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   // タブ切り替え
   function switchTab(tabId: "home" | "report" | "settings") {
-    document
-      .querySelectorAll(".tab-panel")
-      .forEach((el) => el.classList.remove("tab-panel-active"));
-    document
-      .querySelectorAll(".tab-bar-item")
-      .forEach((el) => el.classList.remove("tab-bar-item-active"));
-    const panel = document.getElementById(`tab-${tabId}`);
-    const barItem = document.querySelector(`.tab-bar-item[data-tab="${tabId}"]`);
-    panel?.classList.add("tab-panel-active");
-    barItem?.classList.add("tab-bar-item-active");
-    barItem?.setAttribute("aria-selected", "true");
-    document
-      .querySelectorAll('.tab-bar-item:not([data-tab="' + tabId + '"])')
-      .forEach((el) => el.setAttribute("aria-selected", "false"));
+    const reportPanel = document.querySelector<HTMLDivElement>("#tab-report");
+    const homeContent = document.querySelector<HTMLDivElement>("#tab-home .home-content");
+
+    document.querySelectorAll(".tab-panel").forEach((panel) => {
+      panel.classList.toggle("tab-panel-active", (panel as HTMLElement).dataset.tab === tabId);
+    });
+
+    if (reportPanel) {
+      reportPanel.classList.remove("tab-report-enter");
+    }
+
+    if (homeContent) {
+      homeContent.classList.remove("home-content-enter");
+    }
+    document.querySelectorAll(".tab-bar-item").forEach((el) => {
+      const isSelected = (el as HTMLElement).dataset.tab === tabId;
+      el.classList.toggle("tab-bar-item-active", isSelected);
+      el.setAttribute("aria-selected", isSelected ? "true" : "false");
+    });
 
     // Mount/unmount ReportCenter based on tab
     if (tabId === "report") {
       mountReportCenter();
+      if (reportPanel) {
+        requestAnimationFrame(() => {
+          reportPanel.classList.add("tab-report-enter");
+        });
+
+        reportPanel.addEventListener(
+          "animationend",
+          (event) => {
+            if (event.target !== reportPanel || event.animationName !== "report-tab-enter") {
+              return;
+            }
+            reportPanel?.classList.remove("tab-report-enter");
+          },
+          { once: true },
+        );
+      }
+    } else if (tabId === "home") {
+      if (homeContent) {
+        requestAnimationFrame(() => {
+          homeContent.classList.add("home-content-enter");
+        });
+
+        homeContent.addEventListener(
+          "animationend",
+          (event) => {
+            if (event.target !== homeContent) {
+              return;
+            }
+            homeContent.classList.remove("home-content-enter");
+          },
+          { once: true },
+        );
+      }
     } else {
       unmountReportCenter();
     }
