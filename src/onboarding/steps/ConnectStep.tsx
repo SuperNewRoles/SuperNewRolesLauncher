@@ -4,6 +4,17 @@ import { launchShortcutCreate } from "../../app/services/tauriClient";
 import { OnboardingLayout } from "../OnboardingLayout";
 import type { OnboardingStepProps } from "../types";
 
+function formatActionError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  const withoutInvokePrefix = raw.replace(/^Error invoking '[^']+':\s*/u, "");
+  return (
+    withoutInvokePrefix
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .find((line) => line.length > 0) ?? "Operation failed"
+  );
+}
+
 function DiscordIcon() {
   return (
     <svg viewBox="0 0 127.14 96.36" aria-hidden="true" focusable="false">
@@ -102,7 +113,7 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
   const [shortcutStatus, setShortcutStatus] = useState<"idle" | "creating" | "created" | "error">(
     "idle",
   );
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [shortcutErrorMessage, setShortcutErrorMessage] = useState<string | null>(null);
   const [nextDisabled, setNextDisabled] = useState(true);
 
   useEffect(() => {
@@ -119,12 +130,12 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
   const handleShortcut = async () => {
     try {
       setShortcutStatus("creating");
-      setErrorMessage(null);
+      setShortcutErrorMessage(null);
       await launchShortcutCreate();
       setShortcutStatus("created");
     } catch (e) {
       setShortcutStatus("error");
-      setErrorMessage(String(e));
+      setShortcutErrorMessage(formatActionError(e));
     }
   };
 
@@ -138,48 +149,52 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: "16px", alignItems: "center" }}>
         <div>{t("onboarding.connect.body")}</div>
-        <div className="connect-buttons-grid">
-          <button type="button" className="connect-btn btn-discord" onClick={handleDiscord}>
-            <span className="icon" aria-hidden="true">
-              <DiscordIcon />
-            </span>
-            <span className="label">Discord</span>
-          </button>
-          <button type="button" className="connect-btn btn-twitter" onClick={handleTwitter}>
-            <span className="icon" aria-hidden="true">
-              <XIcon />
-            </span>
-            <span className="label">X (Twitter)</span>
-          </button>
-          <button type="button" className="connect-btn btn-fanbox" onClick={handleFanbox}>
-            <span className="icon" aria-hidden="true">
-              <FanboxIcon />
-            </span>
-            <span className="label">pixiv FANBOX</span>
-          </button>
-          <button
-            type="button"
-            className={`connect-btn btn-shortcut ${shortcutStatus === "created" ? "success" : ""}`}
-            onClick={handleShortcut}
-            disabled={shortcutStatus === "creating" || shortcutStatus === "created"}
-          >
-            <span className="icon">
-              {shortcutStatus === "created" ? "✅" : shortcutStatus === "creating" ? "⏳" : "🖥️"}
-            </span>
-            <span className="label">
-              {shortcutStatus === "creating"
-                ? "Creating..."
-                : shortcutStatus === "created"
-                  ? t("onboarding.connect.shortcutCreated")
-                  : t("onboarding.connect.shortcut")}
-            </span>
-          </button>
+        <div className="connect-buttons-section">
+          <div className="connect-buttons-row connect-buttons-row-links">
+            <button type="button" className="connect-btn btn-discord" onClick={handleDiscord}>
+              <span className="icon" aria-hidden="true">
+                <DiscordIcon />
+              </span>
+              <span className="label">Discord</span>
+            </button>
+            <button type="button" className="connect-btn btn-twitter" onClick={handleTwitter}>
+              <span className="icon" aria-hidden="true">
+                <XIcon />
+              </span>
+              <span className="label">X (Twitter)</span>
+            </button>
+            <button type="button" className="connect-btn btn-fanbox" onClick={handleFanbox}>
+              <span className="icon" aria-hidden="true">
+                <FanboxIcon />
+              </span>
+              <span className="label">pixiv FANBOX</span>
+            </button>
+          </div>
+          <div className="connect-buttons-row connect-buttons-row-actions">
+            <button
+              type="button"
+              className={`connect-btn btn-shortcut ${shortcutStatus === "created" ? "success" : ""}`}
+              onClick={handleShortcut}
+              disabled={shortcutStatus === "creating" || shortcutStatus === "created"}
+            >
+              <span className="icon">
+                {shortcutStatus === "created" ? "✅" : shortcutStatus === "creating" ? "⏳" : "🖥️"}
+              </span>
+              <span className="label">
+                {shortcutStatus === "creating"
+                  ? t("onboarding.connect.shortcutCreating")
+                  : shortcutStatus === "created"
+                    ? t("onboarding.connect.shortcutCreated")
+                    : t("onboarding.connect.shortcut")}
+              </span>
+            </button>
+          </div>
         </div>
         {shortcutStatus === "created" && (
           <div className="status-line success">{t("onboarding.connect.shortcutCreated")}</div>
         )}
-        {shortcutStatus === "error" && errorMessage && (
-          <div className="status-line error">{errorMessage}</div>
+        {shortcutStatus === "error" && shortcutErrorMessage && (
+          <div className="status-line error">{shortcutErrorMessage}</div>
         )}
       </div>
     </OnboardingLayout>

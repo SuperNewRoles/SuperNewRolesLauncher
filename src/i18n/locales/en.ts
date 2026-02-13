@@ -40,6 +40,10 @@ const en: Record<keyof typeof ja, string> = {
   "home.launchVanilla": "Launch Vanilla",
   "home.tab": "Home",
   "settings.tab": "Settings",
+  "preset.tab": "Presets",
+  "settings.category.general": "General",
+  "settings.category.migration": "Data Migration",
+  "settings.category.appVersion": "App Version",
   "launcher.createModdedShortcut": "Create Modded shortcut",
   "launcher.preservedSaveDataAvailable":
     "Preserved save data: {count} file(s) (can restore on install)",
@@ -148,10 +152,6 @@ const en: Record<keyof typeof ja, string> = {
 
   "update.title": "App Update",
   "update.check": "Check for updates",
-  "update.tokenLabel": "Private repo test token (optional)",
-  "update.tokenPlaceholder": "ghp_xxx / github_pat_xxx",
-  "update.saveToken": "Save token",
-  "update.clearToken": "Clear token",
 
   "official.openInBrowserAria": "Open {label} in browser",
 
@@ -283,10 +283,6 @@ const en: Record<keyof typeof ja, string> = {
   "launch.gameRunning": "Game is running",
   "launch.gameStopped": "Game is stopped",
 
-  "token.inputRequired": "Enter a token to save.",
-  "token.saved": "Token saved.",
-  "token.cleared": "Saved token removed.",
-
   "update.checking": "Checking for updates...",
   "update.latest": "You are up to date.",
   "update.confirmPrompt": "v{version} is available. Download and install now?",
@@ -295,8 +291,7 @@ const en: Record<keyof typeof ja, string> = {
   "update.downloadingPercent": "Downloading update... {percent}%",
   "update.applying": "Applying update...",
   "update.appliedRestart": "Update applied. Please restart the app.",
-  "update.privateRepoHint": " (private repos require a token)",
-  "update.failed": "Update failed: {error}{hint}",
+  "update.failed": "Update failed: {error}",
 
   "app.versionFetchFailed": "Failed to get version: {error}",
 
@@ -354,6 +349,7 @@ const en: Record<keyof typeof ja, string> = {
   "onboarding.connect.twitter": "Follow Official X (Twitter)",
   "onboarding.connect.fanbox": "pixiv FANBOX",
   "onboarding.connect.shortcut": "Create Desktop Shortcut",
+  "onboarding.connect.shortcutCreating": "Creating shortcut...",
   "onboarding.connect.shortcutCreated": "Shortcut created!",
   "onboarding.finish.title": "All Set!",
   "onboarding.finish.body": "Let's dive into the world of SuperNewRoles!",

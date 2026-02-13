@@ -4,7 +4,6 @@ import type { OfficialLink } from "./types";
  * 機能全体で共有する定数。
  * 複数ファイルから参照されるため、ここに集約して変更点を追いやすくする。
  */
-export const UPDATER_TOKEN_STORAGE_KEY = "updater.githubToken";
 export const REPORTING_NOTIFICATION_STORAGE_KEY = "reporting.notification.enabled";
 
 export const OFFICIAL_LINKS: OfficialLink[] = [

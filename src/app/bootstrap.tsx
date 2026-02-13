@@ -20,11 +20,7 @@ import {
 } from "../i18n";
 import OnboardingWizard from "../onboarding/OnboardingWizard";
 import { ReportCenter } from "../report/ReportCenter";
-import {
-  OFFICIAL_LINKS,
-  REPORTING_NOTIFICATION_STORAGE_KEY,
-  UPDATER_TOKEN_STORAGE_KEY,
-} from "./constants";
+import { OFFICIAL_LINKS, REPORTING_NOTIFICATION_STORAGE_KEY } from "./constants";
 import { collectAppDom } from "./dom";
 import {
   epicLoginCode,
@@ -98,6 +94,23 @@ const REPORT_HOME_NOTIFICATION_FETCH_GAP_MS = 30_000;
 const REPORT_HOME_NOTIFICATION_POLL_INTERVAL_MS = 180_000;
 const LAUNCHER_MINIMIZE_EFFECT_DURATION_MS = 280;
 const LAUNCHER_AUTO_MINIMIZE_WINDOW_MS = 30_000;
+type MainTabId = "home" | "report" | "preset" | "settings";
+type SettingsCategoryId = "general" | "epic" | "migration" | "credit" | "app-version";
+const DEFAULT_SETTINGS_CATEGORY: SettingsCategoryId = "general";
+
+function isMainTabId(value: string | undefined): value is MainTabId {
+  return value === "home" || value === "report" || value === "preset" || value === "settings";
+}
+
+function isSettingsCategoryId(value: string | undefined): value is SettingsCategoryId {
+  return (
+    value === "general" ||
+    value === "epic" ||
+    value === "migration" ||
+    value === "credit" ||
+    value === "app-version"
+  );
+}
 
 export async function runLauncher(container?: HTMLElement | null): Promise<void> {
   const app = container ?? document.querySelector<HTMLDivElement>("#app");
@@ -109,12 +122,18 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   const t = createTranslator(currentLocale);
   document.documentElement.lang = currentLocale;
   const appWindow = getCurrentWindow();
+  try {
+    localStorage.removeItem("updater.githubToken");
+  } catch {
+    // ignore storage failures
+  }
 
   app.innerHTML = renderAppTemplate(currentLocale, t);
   const mainLayout = app.querySelector<HTMLElement>(".main-layout");
 
   const {
     appVersion,
+    settingsAppVersion,
     replayOnboardingButton,
     languageSelect,
 
@@ -167,9 +186,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     epicLoginCodeButton,
     checkUpdateButton,
     updateStatus,
-    githubTokenInput,
-    saveTokenButton,
-    clearTokenButton,
     officialLinkButtons,
     themeToggleSystem,
     themeToggleLight,
@@ -202,7 +218,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   });
 
   // タブ切り替え
-  function switchTab(tabId: "home" | "report" | "settings") {
+  function switchTab(tabId: MainTabId) {
     activeTab = tabId;
 
     const reportPanel = document.querySelector<HTMLDivElement>("#tab-report");
@@ -274,7 +290,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   document.querySelectorAll(".tab-bar-item").forEach((btn) => {
     btn.addEventListener("click", () => {
       const tabId = (btn as HTMLElement).dataset.tab;
-      if (tabId === "home" || tabId === "report" || tabId === "settings") {
+      if (isMainTabId(tabId)) {
         switchTab(tabId);
       }
     });
@@ -285,6 +301,37 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     switchTab("report");
   });
   const reportCenterBadge = document.querySelector<HTMLSpanElement>("#report-center-badge");
+  const settingsCategoryButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-settings-category]"),
+  );
+  const settingsCategoryPanels = Array.from(
+    document.querySelectorAll<HTMLElement>("[data-settings-panel]"),
+  );
+
+  function switchSettingsCategory(category: SettingsCategoryId): void {
+    for (const button of settingsCategoryButtons) {
+      const selected = button.dataset.settingsCategory === category;
+      button.classList.toggle("is-active", selected);
+      button.setAttribute("aria-selected", selected ? "true" : "false");
+    }
+
+    for (const panel of settingsCategoryPanels) {
+      const selected = panel.dataset.settingsPanel === category;
+      panel.classList.toggle("is-active", selected);
+      panel.hidden = !selected;
+      panel.setAttribute("aria-hidden", selected ? "false" : "true");
+    }
+  }
+
+  for (const button of settingsCategoryButtons) {
+    button.addEventListener("click", () => {
+      const category = button.dataset.settingsCategory;
+      if (isSettingsCategoryId(category)) {
+        switchSettingsCategory(category);
+      }
+    });
+  }
+  switchSettingsCategory(DEFAULT_SETTINGS_CATEGORY);
 
   // 通知設定は永続値を先に確定し、store初期値とローカル変数を揃える。
   const initialReportingNotificationEnabled =
@@ -319,7 +366,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   const reportingNotificationEnabled = initialReportingNotificationEnabled;
   let onboardingRoot: Root | null = null;
   let reportCenterRoot: Root | null = null;
-  let activeTab: "home" | "report" | "settings" = "home";
+  let activeTab: MainTabId = "home";
   let reportHomeNotificationLastFetchedAt = 0;
   let reportHomeNotificationFetching = false;
   let reportHomeNotificationPollTimer: number | null = null;
@@ -476,26 +523,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       window.clearInterval(reportHomeNotificationPollTimer);
       reportHomeNotificationPollTimer = null;
     }
-  }
-
-  function normalizeGithubToken(value: string): string {
-    return value.trim();
-  }
-
-  function createUpdaterHeaders(token: string): HeadersInit | undefined {
-    const normalizedToken = normalizeGithubToken(token);
-    if (!normalizedToken) {
-      return undefined;
-    }
-
-    const authorization = /^(bearer|token)\s+/i.test(normalizedToken)
-      ? normalizedToken
-      : `Bearer ${normalizedToken}`;
-
-    return {
-      Authorization: authorization,
-      Accept: "application/octet-stream",
-    };
   }
 
   function formatDate(value: string): string {
@@ -1471,11 +1498,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
   });
 
-  const savedToken = localStorage.getItem(UPDATER_TOKEN_STORAGE_KEY);
-  if (savedToken) {
-    githubTokenInput.value = savedToken;
-  }
-
   void settingsUpdate({ uiLocale: currentLocale }).catch(() => undefined);
 
   replayOnboardingButton.addEventListener("click", () => {
@@ -1502,22 +1524,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   renderArchivePresetList();
   setStatusLine(presetStatus, t("preset.statusReadyToRefresh"));
 
-  saveTokenButton.addEventListener("click", () => {
-    const token = normalizeGithubToken(githubTokenInput.value);
-    if (!token) {
-      updateStatus.textContent = t("token.inputRequired");
-      return;
-    }
-    localStorage.setItem(UPDATER_TOKEN_STORAGE_KEY, token);
-    updateStatus.textContent = t("token.saved");
-  });
-
-  clearTokenButton.addEventListener("click", () => {
-    localStorage.removeItem(UPDATER_TOKEN_STORAGE_KEY);
-    githubTokenInput.value = "";
-    updateStatus.textContent = t("token.cleared");
-  });
-
   checkUpdateButton.addEventListener("click", async () => {
     if (checkingUpdate) {
       return;
@@ -1528,8 +1534,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     updateStatus.textContent = t("update.checking");
 
     try {
-      const headers = createUpdaterHeaders(githubTokenInput.value);
-      const update = await check(headers ? { headers } : undefined);
+      const update = await check();
       if (!update) {
         updateStatus.textContent = t("update.latest");
         return;
@@ -1563,15 +1568,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
           }
           updateStatus.textContent = t("update.applying");
         },
-        headers ? { headers } : undefined,
       );
 
       updateStatus.textContent = t("update.appliedRestart");
     } catch (error) {
-      const hint = normalizeGithubToken(githubTokenInput.value) ? "" : t("update.privateRepoHint");
       updateStatus.textContent = t("update.failed", {
         error: String(error),
-        hint,
       });
     } finally {
       checkingUpdate = false;
@@ -1581,9 +1583,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   void (async () => {
     try {
-      appVersion.textContent = `v${await getVersion()}`;
+      const version = `v${await getVersion()}`;
+      appVersion.textContent = version;
+      settingsAppVersion.textContent = version;
     } catch (error) {
-      appVersion.textContent = t("app.versionFetchFailed", { error: String(error) });
+      const errorMessage = t("app.versionFetchFailed", { error: String(error) });
+      appVersion.textContent = errorMessage;
+      settingsAppVersion.textContent = errorMessage;
     }
   })();
 

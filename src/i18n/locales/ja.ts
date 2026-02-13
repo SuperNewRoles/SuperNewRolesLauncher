@@ -38,6 +38,10 @@ const ja = {
   "home.launchVanilla": "バニラを起動",
   "home.tab": "ホーム",
   "settings.tab": "設定",
+  "preset.tab": "プリセット",
+  "settings.category.general": "一般",
+  "settings.category.migration": "データお引越し",
+  "settings.category.appVersion": "アプリバージョン",
   "launcher.createModdedShortcut": "Mod起動ショートカット作成",
   "launcher.preservedSaveDataAvailable":
     "保持済みセーブデータ: {count}件 (インストール時に復元可能)",
@@ -146,10 +150,6 @@ const ja = {
 
   "update.title": "アプリ更新",
   "update.check": "更新を確認",
-  "update.tokenLabel": "Private repo test token (任意)",
-  "update.tokenPlaceholder": "ghp_xxx / github_pat_xxx",
-  "update.saveToken": "トークン保存",
-  "update.clearToken": "トークン削除",
 
   "official.openInBrowserAria": "{label} をブラウザで開く",
 
@@ -279,10 +279,6 @@ const ja = {
   "launch.gameRunning": "ゲーム実行中",
   "launch.gameStopped": "ゲーム停止中",
 
-  "token.inputRequired": "保存するトークンを入力してください。",
-  "token.saved": "トークンを保存しました。",
-  "token.cleared": "保存済みトークンを削除しました。",
-
   "update.checking": "更新を確認中...",
   "update.latest": "最新バージョンです。",
   "update.confirmPrompt": "v{version} が利用可能です。今すぐダウンロードして適用しますか？",
@@ -291,8 +287,7 @@ const ja = {
   "update.downloadingPercent": "更新をダウンロード中... {percent}%",
   "update.applying": "更新を適用中...",
   "update.appliedRestart": "更新を適用しました。アプリを再起動してください。",
-  "update.privateRepoHint": " (private repo では token の指定が必要です)",
-  "update.failed": "更新に失敗しました: {error}{hint}",
+  "update.failed": "更新に失敗しました: {error}",
 
   "app.versionFetchFailed": "取得失敗: {error}",
 
@@ -350,6 +345,7 @@ const ja = {
   "onboarding.connect.twitter": "公式X(Twitter)をフォロー",
   "onboarding.connect.fanbox": "pixiv FANBOX",
   "onboarding.connect.shortcut": "デスクトップショートカット作成",
+  "onboarding.connect.shortcutCreating": "ショートカットを作成中...",
   "onboarding.connect.shortcutCreated": "ショートカットを作成しました！",
   "onboarding.finish.title": "準備完了！",
   "onboarding.finish.body": "さあ、SuperNewRolesの世界へ飛び込みましょう！",

@@ -1629,12 +1629,20 @@ progress {
 }
 
 /* Connect Step Buttons */
-.connect-buttons-grid {
+.connect-buttons-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  margin-top: 16px;
+}
+
+.connect-buttons-row {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
   justify-content: center;
-  margin-top: 16px;
 }
 
 .connect-btn {
@@ -1667,6 +1675,8 @@ progress {
 .connect-btn .label {
   font-size: 0.9rem;
   font-weight: bold;
+  text-align: center;
+  line-height: 1.2;
 }
 
 .connect-btn:hover {
@@ -1690,6 +1700,10 @@ progress {
 
 .btn-twitter {
   background-color: #000000; /* X Black */
+}
+
+.btn-fanbox {
+  background-color: #ff6b00;
 }
 
 .btn-shortcut {
@@ -1959,6 +1973,110 @@ progress {
   max-height: 100%;
 }
 
+#tab-preset .tab-inner {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.tab-preset-scroll {
+  padding-right: 2px;
+}
+
+.tab-settings-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px 0 96px;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: minmax(210px, 248px) minmax(0, 1fr);
+  gap: 18px;
+  min-height: 100%;
+}
+
+.settings-sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  backdrop-filter: blur(2px);
+  box-shadow: var(--shadow-card);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-category-list {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-category-btn {
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-category-btn:hover {
+  color: var(--text);
+  background: var(--bg-1);
+  border-color: var(--line);
+}
+
+.settings-category-btn.is-active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: rgba(var(--accent-rgb), 0.35);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.18);
+}
+
+.settings-category-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.settings-tutorial-wrap {
+  margin-top: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.settings-tutorial-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.settings-content {
+  min-width: 0;
+}
+
+.settings-category-panel {
+  display: grid;
+  gap: 14px;
+  animation: fade-in-up 180ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.settings-category-panel[hidden] {
+  display: none;
+}
+
+.settings-current-version {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
 /* ホームタブ（元のUI案に準拠） */
 .home-content {
   flex: 1;
@@ -2143,6 +2261,23 @@ progress {
 
   .field-grid.two {
     grid-template-columns: 1fr;
+  }
+
+  .tab-settings-shell {
+    padding-top: 16px;
+  }
+
+  .settings-layout {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .settings-sidebar {
+    position: static;
+  }
+
+  .settings-category-list {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
 
   input,

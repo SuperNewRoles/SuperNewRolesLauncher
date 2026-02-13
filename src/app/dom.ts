@@ -4,6 +4,7 @@
  */
 export interface AppDom {
   appVersion: HTMLSpanElement;
+  settingsAppVersion: HTMLSpanElement;
   replayOnboardingButton: HTMLButtonElement;
   languageSelect: HTMLSelectElement;
 
@@ -56,9 +57,6 @@ export interface AppDom {
   epicLoginCodeButton: HTMLButtonElement;
   checkUpdateButton: HTMLButtonElement;
   updateStatus: HTMLSpanElement;
-  githubTokenInput: HTMLInputElement;
-  saveTokenButton: HTMLButtonElement;
-  clearTokenButton: HTMLButtonElement;
   officialLinkButtons: HTMLDivElement;
   themeToggleSystem: HTMLButtonElement;
   themeToggleLight: HTMLButtonElement;
@@ -80,6 +78,7 @@ function mustElement<T extends Element>(selector: string): T {
 export function collectAppDom(): AppDom {
   return {
     appVersion: mustElement<HTMLSpanElement>("#app-version"),
+    settingsAppVersion: mustElement<HTMLSpanElement>("#settings-app-version"),
     replayOnboardingButton: mustElement<HTMLButtonElement>("#replay-onboarding"),
     languageSelect: mustElement<HTMLSelectElement>("#language-select"),
     amongUsPathInput: mustElement<HTMLInputElement>("#among-us-path"),
@@ -133,9 +132,6 @@ export function collectAppDom(): AppDom {
     epicLoginCodeButton: mustElement<HTMLButtonElement>("#epic-login-code"),
     checkUpdateButton: mustElement<HTMLButtonElement>("#check-update"),
     updateStatus: mustElement<HTMLSpanElement>("#update-status"),
-    githubTokenInput: mustElement<HTMLInputElement>("#github-token"),
-    saveTokenButton: mustElement<HTMLButtonElement>("#save-token"),
-    clearTokenButton: mustElement<HTMLButtonElement>("#clear-token"),
     officialLinkButtons: mustElement<HTMLDivElement>("#official-link-buttons"),
     themeToggleSystem: mustElement<HTMLButtonElement>("#theme-toggle-system"),
     themeToggleLight: mustElement<HTMLButtonElement>("#theme-toggle-light"),
