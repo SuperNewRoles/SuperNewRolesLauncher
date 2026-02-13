@@ -23,7 +23,6 @@ import { ReportCenter } from "../report/ReportCenter";
 import { OFFICIAL_LINKS, REPORTING_NOTIFICATION_STORAGE_KEY } from "./constants";
 import { collectAppDom } from "./dom";
 import {
-  epicLoginCode,
   epicLoginWebview,
   epicLogout,
   epicSessionRestore,
@@ -182,8 +181,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     epicLoginWebviewButton,
     epicLogoutButton,
     epicAuthStatus,
-    epicAuthCodeInput,
-    epicLoginCodeButton,
     checkUpdateButton,
     updateStatus,
     officialLinkButtons,
@@ -365,6 +362,15 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     epicAuthStatusIcon.textContent =
       state === "logged-in" ? "✓" : state === "error" ? "⚠" : "🔐";
   }
+
+  function renderEpicActionButtons(loggedIn: boolean): void {
+    epicLoginWebviewButton.hidden = loggedIn;
+    epicLogoutButton.hidden = !loggedIn;
+    epicLoginWebviewButton.setAttribute("aria-hidden", loggedIn ? "true" : "false");
+    epicLogoutButton.setAttribute("aria-hidden", loggedIn ? "false" : "true");
+  }
+
+  renderEpicActionButtons(false);
 
   // 通知設定は永続値を先に確定し、store初期値とローカル変数を揃える。
   const initialReportingNotificationEnabled =
@@ -687,8 +693,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     launchVanillaButton.disabled = control.launchVanillaButtonDisabled;
     createModdedShortcutButton.disabled = control.createModdedShortcutButtonDisabled;
     epicLoginWebviewButton.disabled = control.epicLoginWebviewButtonDisabled;
-    epicAuthCodeInput.disabled = true;
-    epicLoginCodeButton.disabled = true;
     epicLogoutButton.disabled = control.epicLogoutButtonDisabled;
     detectAmongUsPathButton.disabled = control.detectAmongUsPathButtonDisabled;
     saveAmongUsPathButton.disabled = control.saveAmongUsPathButtonDisabled;
@@ -867,6 +871,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       epicAuthStatus.textContent = t("epic.statusCheckFailed", { error: String(error) });
       setEpicAuthVisualState("error");
     } finally {
+      renderEpicActionButtons(epicLoggedIn);
       updateButtons();
     }
   }
@@ -1512,25 +1517,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       await epicLoginWebview();
     } catch (error) {
       epicAuthStatus.textContent = t("epic.webviewStartFailed", { error: String(error) });
-      setEpicAuthVisualState("error");
-    }
-  });
-
-  epicLoginCodeButton.addEventListener("click", async () => {
-    const code = epicAuthCodeInput.value.trim();
-    if (!code) {
-      epicAuthStatus.textContent = t("epic.codeRequired");
-      return;
-    }
-
-    epicAuthStatus.textContent = t("epic.codeLoginInProgress");
-    setEpicAuthVisualState("logged-out");
-    try {
-      await epicLoginCode(code);
-      epicAuthStatus.textContent = t("epic.loginSuccess");
-      await refreshEpicLoginState();
-    } catch (error) {
-      epicAuthStatus.textContent = t("epic.loginFailed", { error: String(error) });
       setEpicAuthVisualState("error");
     }
   });

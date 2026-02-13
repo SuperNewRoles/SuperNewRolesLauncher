@@ -184,14 +184,10 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                           <p id="epic-auth-status" class="epic-login-info-text" aria-live="polite"></p>
                         </div>
                         <div class="epic-login-form settings-epic-login-actions">
-                          <button id="epic-login-webview" type="button" class="btn-primary btn-login">
+                          <button id="epic-login-webview" type="button" class="btn-primary btn-login" aria-hidden="false">
                             <span class="btn-icon">🌐</span>${t("epic.loginWebview")}
                           </button>
-                          <button id="epic-logout" type="button" class="ghost settings-epic-logout">${t("epic.logout")}</button>
-                        </div>
-                        <div class="row settings-epic-code-row">
-                          <input id="epic-auth-code" type="text" placeholder="${t("epic.authCodePlaceholder")}" style="min-width: 260px;" disabled />
-                          <button id="epic-login-code" type="button" disabled>${t("epic.loginWithCode")}</button>
+                          <button id="epic-logout" type="button" class="ghost settings-epic-logout" hidden aria-hidden="true">${t("epic.logout")}</button>
                         </div>
                       </div>
                     </div>

@@ -193,6 +193,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   color: var(--text);
@@ -2038,7 +2042,7 @@ progress {
 .settings-layout {
   display: grid;
   grid-template-columns: minmax(210px, 248px) minmax(0, 1fr);
-  gap: 18px;
+  gap: 24px;
   min-height: 100%;
 }
 
@@ -2105,6 +2109,7 @@ progress {
 
 .settings-content {
   min-width: 0;
+  padding-left: clamp(8px, 1vw, 14px);
 }
 
 .settings-category-panel {
@@ -2129,11 +2134,12 @@ progress {
 
 .settings-epic-install-step {
   padding-top: 8px;
-  align-items: flex-start;
+  align-items: center;
 }
 
 #settings-panel-epic .epic-login-container {
   max-width: 560px;
+  margin-left: 0;
 }
 
 #settings-panel-epic .epic-login-card {
@@ -2141,7 +2147,7 @@ progress {
 }
 
 .settings-epic-status {
-  margin: 0;
+  margin: 0 0 18px;
   padding: 18px;
 }
 
@@ -2187,16 +2193,6 @@ progress {
 
 .settings-epic-logout {
   min-width: 160px;
-}
-
-.settings-epic-code-row {
-  align-items: center;
-  opacity: 0.65;
-}
-
-.settings-epic-code-row input:disabled,
-.settings-epic-code-row button:disabled {
-  cursor: not-allowed;
 }
 
 /* ホームタブ（元のUI案に準拠） */
@@ -2392,6 +2388,10 @@ progress {
   .settings-layout {
     grid-template-columns: 1fr;
     gap: 14px;
+  }
+
+  .settings-content {
+    padding-left: 0;
   }
 
   .settings-sidebar {

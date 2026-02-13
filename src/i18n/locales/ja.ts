@@ -35,7 +35,7 @@ const ja = {
   "launcher.launchModded": "Mod起動",
   "launcher.launchVanilla": "Vanilla起動",
   "home.launch": "起動",
-  "home.launchVanilla": "バニラを起動",
+  "home.launchVanilla": "Modなしで起動",
   "home.tab": "ホーム",
   "settings.tab": "設定",
   "preset.tab": "プリセット",

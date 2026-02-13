@@ -53,8 +53,6 @@ export interface AppDom {
   epicLoginWebviewButton: HTMLButtonElement;
   epicLogoutButton: HTMLButtonElement;
   epicAuthStatus: HTMLSpanElement;
-  epicAuthCodeInput: HTMLInputElement;
-  epicLoginCodeButton: HTMLButtonElement;
   checkUpdateButton: HTMLButtonElement;
   updateStatus: HTMLSpanElement;
   officialLinkButtons: HTMLDivElement;
@@ -129,8 +127,6 @@ export function collectAppDom(): AppDom {
     epicLoginWebviewButton: mustElement<HTMLButtonElement>("#epic-login-webview"),
     epicLogoutButton: mustElement<HTMLButtonElement>("#epic-logout"),
     epicAuthStatus: mustElement<HTMLSpanElement>("#epic-auth-status"),
-    epicAuthCodeInput: mustElement<HTMLInputElement>("#epic-auth-code"),
-    epicLoginCodeButton: mustElement<HTMLButtonElement>("#epic-login-code"),
     checkUpdateButton: mustElement<HTMLButtonElement>("#check-update"),
     updateStatus: mustElement<HTMLSpanElement>("#update-status"),
     officialLinkButtons: mustElement<HTMLDivElement>("#official-link-buttons"),
