@@ -63,7 +63,9 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
           <span id="launch-status" class="home-launch-status" aria-live="polite"></span>
           <div class="home-buttons-row">
             <button id="launch-vanilla" type="button" class="btn-home-secondary">${t("home.launchVanilla")}</button>
-            <button id="report-center-tab" type="button" class="btn-home-secondary btn-report-center">${t("report.title")}</button>
+            <button id="report-center-tab" type="button" class="btn-home-secondary btn-report-center">${t("report.title")}
+              <span id="report-center-badge" class="report-center-badge"></span>
+            </button>
           </div>
         </div>
       </section>

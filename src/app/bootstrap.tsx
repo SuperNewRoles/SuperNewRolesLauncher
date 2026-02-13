@@ -93,6 +93,9 @@ import type {
  * フロントエンドの実行本体。
  * 画面描画・イベント結線・Tauri通信をこのモジュールで統合管理する。
  */
+const REPORT_HOME_NOTIFICATION_FETCH_GAP_MS = 30_000;
+const REPORT_HOME_NOTIFICATION_POLL_INTERVAL_MS = 180_000;
+
 export async function runLauncher(container?: HTMLElement | null): Promise<void> {
   const app = container ?? document.querySelector<HTMLDivElement>("#app");
   if (!app) {
@@ -195,6 +198,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   // タブ切り替え
   function switchTab(tabId: "home" | "report" | "settings") {
+    activeTab = tabId;
+
     const reportPanel = document.querySelector<HTMLDivElement>("#tab-report");
     const homeContent = document.querySelector<HTMLDivElement>("#tab-home .home-content");
 
@@ -254,6 +259,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     } else {
       unmountReportCenter();
     }
+
+    if (tabId === "home") {
+      startHomeNotificationPolling();
+    } else {
+      stopHomeNotificationPolling();
+    }
   }
 
   document.querySelectorAll(".tab-bar-item").forEach((btn) => {
@@ -269,6 +280,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   reportCenterTabButton?.addEventListener("click", () => {
     switchTab("report");
   });
+  const reportCenterBadge = document.querySelector<HTMLSpanElement>("#report-center-badge");
 
   // 通知設定は永続値を先に確定し、store初期値とローカル変数を揃える。
   const initialReportingNotificationEnabled =
@@ -303,6 +315,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   const reportingNotificationEnabled = initialReportingNotificationEnabled;
   let onboardingRoot: Root | null = null;
   let reportCenterRoot: Root | null = null;
+  let activeTab: "home" | "report" | "settings" = "home";
+  let reportHomeNotificationLastFetchedAt = 0;
+  let reportHomeNotificationFetching = false;
+  let reportHomeNotificationPollTimer: number | null = null;
 
   function mountOnboarding() {
     const containerId = "onboarding-root";
@@ -349,6 +365,61 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     if (reportCenterRoot) {
       reportCenterRoot.unmount();
       reportCenterRoot = null;
+    }
+  }
+
+  function setReportCenterNotificationBadge(hasUnread: boolean): void {
+    if (!reportCenterBadge) {
+      return;
+    }
+
+    reportCenterBadge.textContent = hasUnread ? "!" : "";
+    reportCenterBadge.classList.toggle("is-visible", hasUnread);
+  }
+
+  async function refreshHomeNotificationState(force = false): Promise<void> {
+    const now = Date.now();
+    if (
+      !force &&
+      now - reportHomeNotificationLastFetchedAt < REPORT_HOME_NOTIFICATION_FETCH_GAP_MS
+    ) {
+      return;
+    }
+
+    if (reportHomeNotificationFetching) {
+      return;
+    }
+
+    reportHomeNotificationFetching = true;
+    try {
+      const hasUnread = await reportingNotificationFlagGet();
+      reportHomeNotificationLastFetchedAt = Date.now();
+      setReportCenterNotificationBadge(hasUnread);
+    } catch (error) {
+      console.error("Failed to fetch reporting notification state:", error);
+    } finally {
+      reportHomeNotificationFetching = false;
+    }
+  }
+
+  function startHomeNotificationPolling(): void {
+    if (activeTab !== "home") {
+      return;
+    }
+
+    if (reportHomeNotificationPollTimer === null) {
+      reportHomeNotificationPollTimer = window.setInterval(() => {
+        void refreshHomeNotificationState();
+      }, REPORT_HOME_NOTIFICATION_POLL_INTERVAL_MS);
+    }
+
+    void refreshHomeNotificationState();
+  }
+
+  function stopHomeNotificationPolling(): void {
+    if (reportHomeNotificationPollTimer !== null) {
+      window.clearInterval(reportHomeNotificationPollTimer);
+      reportHomeNotificationPollTimer = null;
     }
   }
 
@@ -1536,5 +1607,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
 
     updateButtons();
+    startHomeNotificationPolling();
   })();
 }

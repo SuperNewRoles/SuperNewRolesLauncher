@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ReportMessage, ReportThread } from "../app/types";
 import type { createTranslator } from "../i18n";
@@ -33,6 +33,7 @@ export function ReportThreadPanel({
   const [replyText, setReplyText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   const normalizedMessages = useMemo(() => {
     if (!thread || !thread.firstMessage) {
@@ -61,6 +62,21 @@ export function ReportThreadPanel({
       setIsVisible(false);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      const container = messagesContainerRef.current;
+      if (!container) {
+        return;
+      }
+
+      container.scrollTop = container.scrollHeight;
+    });
+  }, [isOpen, normalizedMessages.length, isLoading]);
 
   const handleSend = useCallback(async () => {
     if (!replyText.trim()) return;
@@ -106,7 +122,7 @@ export function ReportThreadPanel({
         </div>
       </div>
 
-      <div className="report-thread-panel-content">
+      <div className="report-thread-panel-content" ref={messagesContainerRef}>
         {isLoading ? (
           <div className="report-messages-loading">{t("report.messagesLoading")}</div>
         ) : normalizedMessages.length === 0 ? (

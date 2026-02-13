@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   reportingMessageSend,
   reportingMessagesList,
@@ -13,6 +13,12 @@ import { ReportList } from "./ReportList";
 import { ReportThreadPanel } from "./ReportThreadPanel";
 
 type Translator = ReturnType<typeof createTranslator>;
+
+const REPORT_THREADS_POLL_INTERVAL_MS = 180_000;
+const REPORT_THREADS_REFRESH_GAP_MS = 30_000;
+
+let reportThreadsLastFetchAt = 0;
+let reportThreadsLoading = false;
 
 interface ReportCenterProps {
   t: Translator;
@@ -30,22 +36,41 @@ export function ReportCenter({ t }: ReportCenterProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isNewReportModalOpen, setIsNewReportModalOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>("");
+  const isMountedRef = useRef(false);
 
-  // Load threads
-  const loadThreads = useCallback(async () => {
+  const loadThreads = useCallback(async ({ force = false } = {}) => {
+    const now = Date.now();
+    if (!force && now - reportThreadsLastFetchAt < REPORT_THREADS_REFRESH_GAP_MS) {
+      return;
+    }
+
+    if (reportThreadsLoading) {
+      return;
+    }
+
+    reportThreadsLoading = true;
     setIsLoadingThreads(true);
     try {
       const result = await reportingThreadsList();
-      setThreads(result);
+      reportThreadsLastFetchAt = Date.now();
+      if (isMountedRef.current) {
+        setThreads(result);
+      }
     } catch (e) {
       console.error("Failed to load threads:", e);
     } finally {
-      setIsLoadingThreads(false);
+      reportThreadsLoading = false;
+      reportThreadsLastFetchAt = Math.max(reportThreadsLastFetchAt, Date.now());
+      if (isMountedRef.current) {
+        setIsLoadingThreads(false);
+      }
     }
   }, []);
 
   // Initialize
   useEffect(() => {
+    isMountedRef.current = true;
+
     const init = async () => {
       try {
         const result = await reportingPrepare();
@@ -54,13 +79,29 @@ export function ReportCenter({ t }: ReportCenterProps) {
           if (result.githubId) {
             setCurrentUserId(result.githubId);
           }
-          await loadThreads();
+          await loadThreads({ force: true });
         }
       } catch (e) {
         console.error("Failed to prepare reporting:", e);
       }
     };
     void init();
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [loadThreads]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void loadThreads();
+    }, REPORT_THREADS_POLL_INTERVAL_MS);
+
+    void loadThreads();
+
+    return () => {
+      window.clearInterval(timer);
+    };
   }, [loadThreads]);
 
   // Load messages when thread is selected
@@ -74,11 +115,16 @@ export function ReportCenter({ t }: ReportCenterProps) {
       setIsLoadingMessages(true);
       try {
         const result = await reportingMessagesList(selectedThread.threadId);
+        if (!isMountedRef.current) {
+          return;
+        }
         setMessages(result);
       } catch (e) {
         console.error("Failed to load messages:", e);
       } finally {
-        setIsLoadingMessages(false);
+        if (isMountedRef.current) {
+          setIsLoadingMessages(false);
+        }
       }
     };
 
@@ -86,8 +132,25 @@ export function ReportCenter({ t }: ReportCenterProps) {
   }, [selectedThread]);
 
   const handleThreadSelect = useCallback((thread: ReportThread) => {
-    setSelectedThread(thread);
+    const normalizedThread = thread.unread
+      ? {
+          ...thread,
+          unread: false,
+        }
+      : thread;
+
+    setSelectedThread(normalizedThread);
     setIsPanelOpen(true);
+    setThreads((currentThreads) =>
+      currentThreads.map((item) =>
+        item.threadId === thread.threadId && item.unread
+          ? {
+              ...item,
+              unread: false,
+            }
+          : item,
+      ),
+    );
   }, []);
 
   const handleClosePanel = useCallback(() => {
@@ -121,7 +184,7 @@ export function ReportCenter({ t }: ReportCenterProps) {
       try {
         await reportingReportSend(reportData);
         setStatusMessage(t("report.sent"));
-        await loadThreads();
+        await loadThreads({ force: true });
         setIsNewReportModalOpen(false);
       } catch (e) {
         console.error("Failed to send report:", e);
@@ -139,7 +202,9 @@ export function ReportCenter({ t }: ReportCenterProps) {
         await reportingMessageSend(selectedThread.threadId, content);
         // Reload messages
         const result = await reportingMessagesList(selectedThread.threadId);
-        setMessages(result);
+        if (isMountedRef.current) {
+          setMessages(result);
+        }
       } catch (e) {
         console.error("Failed to send reply:", e);
       }
