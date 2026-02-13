@@ -42,6 +42,28 @@ const ja = {
   "settings.category.general": "一般",
   "settings.category.migration": "データお引越し",
   "settings.category.appVersion": "アプリバージョン",
+  "settings.general.title": "一般設定",
+  "settings.general.reselectAmongUs": "AmongUsのフォルダを選択しなおす",
+  "settings.general.shortcutTitle": "ショートカット",
+  "settings.general.shortcutDescription":
+    "デスクトップにMod起動用のショートカットを作成します。",
+  "settings.general.dangerTitle": "アンインストール",
+  "settings.general.uninstallDescription": "Modファイルを削除します。",
+  "settings.general.supportText": "設定項目が足りない場合はDiscordでお問い合わせください。",
+  "settings.general.supportDiscordLink": "Discordを開く",
+  "settings.general.reselectOverlayTitle": "AmongUsのインストール先を選択",
+  "settings.general.reselectOverlayDescription":
+    "検出されたAmongUsフォルダを選ぶか、手動で指定してください。",
+  "settings.general.reselectOverlayEmpty":
+    "検出された候補がありません。手動選択をお試しください。",
+  "settings.general.reselectOverlayManualSelect": "手動で選択",
+  "settings.general.reselectOverlayClose": "閉じる",
+  "settings.general.uninstallConfirmTitle": "本当に削除しますか？",
+  "settings.general.uninstallConfirmMessage":
+    "SuperNewRolesの展開済みファイルを削除します。続行しますか？",
+  "settings.general.uninstallConfirmPreserveFixed":
+    "設定したプリセットなど、一部のデータは保持されます。",
+  "settings.general.uninstallConfirmAccept": "アンインストールする",
   "launcher.createModdedShortcut": "Mod起動ショートカット作成",
   "launcher.preservedSaveDataAvailable":
     "保持済みセーブデータ: {count}件 (インストール時に復元可能)",

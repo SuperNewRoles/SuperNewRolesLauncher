@@ -110,59 +110,79 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
 
             <div class="settings-content">
               <section id="settings-panel-general" class="settings-category-panel is-active" data-settings-panel="general" role="tabpanel" aria-labelledby="settings-category-general">
-                <section class="card">
-                  <strong>${t("launcher.title")}</strong>
-                  <div class="stack">
-                    <label for="among-us-path">${t("launcher.amongUsPathLabel")}</label>
-                    <div class="row">
-                      <input id="among-us-path" type="text" placeholder="C:\\\\Program Files (x86)\\\\Steam\\\\steamapps\\\\common\\\\Among Us" style="flex: 1; min-width: 0;" />
-                      <button id="save-among-us-path" type="button">${t("launcher.save")}</button>
-                      <button id="detect-among-us-path" type="button">${t("launcher.autoDetect")}</button>
+                <div class="settings-general-layout">
+                  <section class="card settings-general-card">
+                    <strong>${t("settings.general.title")}</strong>
+                    <button id="reselect-among-us-button" type="button" class="settings-general-primary-action">${t("settings.general.reselectAmongUs")}</button>
+                    <div class="settings-general-divider" aria-hidden="true"></div>
+                    <label class="settings-switch-row" for="close-to-tray-on-close">
+                      <span>${t("launcher.closeToTrayOnClose")}</span>
+                      <span class="settings-switch-control">
+                        <input id="close-to-tray-on-close" type="checkbox" />
+                        <span class="settings-switch-slider" aria-hidden="true"></span>
+                      </span>
+                    </label>
+                    <div class="settings-general-action-grid">
+                      <button id="open-among-us-folder" type="button" class="settings-folder-action-button"><span class="settings-folder-action-icon" aria-hidden="true">📁</span><span>${t("launcher.openAmongUsFolder")}</span></button>
+                      <button id="open-profile-folder" type="button" class="settings-folder-action-button"><span class="settings-folder-action-icon" aria-hidden="true">📁</span><span>${t("launcher.openProfileFolder")}</span></button>
                     </div>
-                  </div>
-                  <div class="row" style="flex-wrap: wrap;">
-                    <label for="platform-select">${t("launcher.platformLabel")}</label>
-                    <select id="platform-select"><option value="steam">steam</option><option value="epic">epic</option></select>
-                    <label for="release-select">${t("launcher.releaseTagLabel")}</label>
-                    <select id="release-select" style="min-width: 200px;"></select>
-                    <button id="refresh-releases" type="button">${t("launcher.refreshTags")}</button>
-                  </div>
-                  <div>${t("launcher.profileDestinationLabel")}: <code id="profile-path"></code></div>
-                  <div class="row">
-                    <button id="open-among-us-folder" type="button">${t("launcher.openAmongUsFolder")}</button>
-                    <button id="open-profile-folder" type="button">${t("launcher.openProfileFolder")}</button>
-                  </div>
-                  <label class="row" style="align-items: center; gap: 6px;">
-                    <input id="close-to-tray-on-close" type="checkbox" />
-                    <span>${t("launcher.closeToTrayOnClose")}</span>
-                  </label>
-                </section>
+                    <span id="settings-general-status" class="status-line" aria-live="polite"></span>
+                  </section>
 
-                <section class="card">
-                  <strong>${t("launcher.installSnr")} / ${t("launcher.uninstallMod")}</strong>
-                  <div class="row">
-                    <button id="install-snr" type="button">${t("launcher.installSnr")}</button>
-                    <label class="row" style="align-items: center; gap: 6px;">
-                      <input id="install-restore-save-data" type="checkbox" />
-                      ${t("launcher.restoreSavedDataOnInstall")}
-                    </label>
-                    <progress id="install-progress" value="0" max="100" style="width: 160px;"></progress>
-                  </div>
-                  <div class="row">
-                    <button id="uninstall-snr" type="button">${t("launcher.uninstallMod")}</button>
-                    <label class="row" style="align-items: center; gap: 6px;">
-                      <input id="uninstall-preserve-save-data" type="checkbox" checked />
-                      ${t("launcher.preserveCurrentSaveData")}
-                    </label>
-                  </div>
-                  <div id="preserved-save-data-status" class="muted"></div>
-                  <div class="row">
+                  <section class="card settings-general-card settings-general-shortcut-section">
+                    <strong>${t("settings.general.shortcutTitle")}</strong>
+                    <p class="muted settings-general-shortcut-description">${t("settings.general.shortcutDescription")}</p>
                     <button id="create-modded-shortcut" type="button">${t("launcher.createModdedShortcut")}</button>
-                  </div>
-                  <div id="profile-ready-status" class="muted"></div>
-                  <span id="install-status" class="status-line" aria-live="polite"></span>
-                </section>
+                    <span id="settings-shortcut-status" class="status-line" aria-live="polite"></span>
+                  </section>
+
+                  <section class="card settings-general-card settings-general-danger-zone">
+                    <strong>${t("settings.general.dangerTitle")}</strong>
+                    <p class="muted">${t("settings.general.uninstallDescription")}</p>
+                    <button id="uninstall-snr" type="button" class="settings-danger-button">${t("launcher.uninstallMod")}</button>
+                    <span id="install-status" class="status-line" aria-live="polite"></span>
+                  </section>
+
+                  <section class="card settings-general-card settings-general-support">
+                    <p class="settings-general-support-text">${t("settings.general.supportText")}</p>
+                    <button id="settings-support-discord-link" type="button" class="ghost settings-general-support-link">${t("settings.general.supportDiscordLink")}</button>
+                  </section>
+                </div>
               </section>
+
+              <div id="settings-among-us-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
+                <div id="settings-among-us-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
+                <section class="settings-fullscreen-overlay-panel settings-among-us-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="settings-among-us-overlay-title">
+                  <button id="settings-among-us-overlay-close" type="button" class="settings-fullscreen-overlay-close settings-among-us-overlay-close" aria-label="${t("settings.general.reselectOverlayClose")}">×</button>
+                  <div class="settings-among-us-overlay-content install-step install-step-platform">
+                    <h2 id="settings-among-us-overlay-title" class="step-title">${t("settings.general.reselectOverlayTitle")}</h2>
+                    <p class="muted settings-among-us-overlay-description">${t("settings.general.reselectOverlayDescription")}</p>
+                    <div id="settings-among-us-overlay-error" class="status-line settings-among-us-overlay-error" hidden></div>
+                    <div id="settings-among-us-candidate-list" class="settings-among-us-candidate-list platform-grid"></div>
+                    <button id="settings-among-us-manual-select" type="button" class="btn-manual-select settings-among-us-manual-select-centered">📁 ${t("settings.general.reselectOverlayManualSelect")}</button>
+                    <p id="settings-among-us-candidate-empty" class="muted settings-among-us-candidate-empty" hidden>${t("settings.general.reselectOverlayEmpty")}</p>
+                    <footer class="settings-among-us-overlay-actions">
+                      <button id="settings-among-us-overlay-cancel" type="button" class="ghost settings-among-us-overlay-cancel">${t("settings.general.reselectOverlayClose")}</button>
+                    </footer>
+                  </div>
+                </section>
+              </div>
+
+              <div id="settings-uninstall-confirm-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
+                <div id="settings-uninstall-confirm-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
+                <section class="settings-fullscreen-overlay-panel settings-uninstall-confirm-panel" role="dialog" aria-modal="true" aria-labelledby="settings-uninstall-confirm-title">
+                  <header class="settings-fullscreen-overlay-header">
+                    <h2 id="settings-uninstall-confirm-title">${t("settings.general.uninstallConfirmTitle")}</h2>
+                    <button id="settings-uninstall-confirm-close" type="button" class="settings-fullscreen-overlay-close" aria-label="${t("settings.general.reselectOverlayClose")}">×</button>
+                  </header>
+                  <p>${t("settings.general.uninstallConfirmMessage")}</p>
+                  <p class="settings-uninstall-confirm-note">${t("settings.general.uninstallConfirmPreserveFixed")}</p>
+                  <footer class="settings-fullscreen-overlay-actions">
+                    <button id="settings-uninstall-confirm-cancel" type="button" class="ghost">${t("common.cancel")}</button>
+                    <button id="settings-uninstall-confirm-accept" type="button" class="settings-danger-button">${t("settings.general.uninstallConfirmAccept")}</button>
+                  </footer>
+                </section>
+              </div>
 
               <section id="settings-panel-epic" class="settings-category-panel" data-settings-panel="epic" role="tabpanel" aria-labelledby="settings-category-epic" hidden>
                 <section class="settings-epic-install-wrap">

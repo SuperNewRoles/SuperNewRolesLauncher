@@ -1,4 +1,5 @@
 import { getVersion } from "@tauri-apps/api/app";
+import { open } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { join } from "@tauri-apps/api/path";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -23,12 +24,17 @@ import { ReportCenter } from "../report/ReportCenter";
 import { OFFICIAL_LINKS, REPORTING_NOTIFICATION_STORAGE_KEY } from "./constants";
 import { collectAppDom } from "./dom";
 import {
+  getPlatformIconPath,
+  getPlatformLabelKey,
+  normalizePlatformCandidates,
+} from "./platformSelection";
+import {
   epicLoginWebview,
   epicLogout,
   epicSessionRestore,
   epicStatusGet,
-  finderDetectAmongUs,
   finderDetectPlatform,
+  finderDetectPlatforms,
   launchAutolaunchErrorTake,
   launchGameRunningGet,
   launchModded,
@@ -50,9 +56,7 @@ import {
   settingsGet,
   settingsProfileReady,
   settingsUpdate,
-  snrInstall,
   snrPreservedSaveDataStatus,
-  snrReleasesList,
   snrUninstall,
 } from "./services/tauriClient";
 import { computeControlState } from "./state/selectors";
@@ -93,6 +97,7 @@ const REPORT_HOME_NOTIFICATION_FETCH_GAP_MS = 30_000;
 const REPORT_HOME_NOTIFICATION_POLL_INTERVAL_MS = 180_000;
 const LAUNCHER_MINIMIZE_EFFECT_DURATION_MS = 280;
 const LAUNCHER_AUTO_MINIMIZE_WINDOW_MS = 30_000;
+const SETTINGS_OVERLAY_TRANSITION_MS = 220;
 type MainTabId = "home" | "report" | "preset" | "settings";
 type SettingsCategoryId = "general" | "epic" | "migration" | "credit" | "app-version";
 const DEFAULT_SETTINGS_CATEGORY: SettingsCategoryId = "general";
@@ -136,28 +141,32 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     replayOnboardingButton,
     languageSelect,
 
-    amongUsPathInput,
-    saveAmongUsPathButton,
-    detectAmongUsPathButton,
-    platformSelect,
-    releaseSelect,
-    refreshReleasesButton,
-    profilePath,
+    reselectAmongUsButton,
     openAmongUsFolderButton,
     openProfileFolderButton,
     closeToTrayOnCloseInput,
-    installButton,
-    installRestoreSaveDataCheckbox,
+    settingsGeneralStatus,
+    settingsShortcutStatus,
     uninstallButton,
-    uninstallPreserveSaveDataCheckbox,
-    installProgress,
+    settingsSupportDiscordLinkButton,
+    settingsAmongUsOverlay,
+    settingsAmongUsOverlayBackdrop,
+    settingsAmongUsOverlayCloseButton,
+    settingsAmongUsOverlayCancelButton,
+    settingsAmongUsOverlayError,
+    settingsAmongUsCandidateList,
+    settingsAmongUsCandidateEmpty,
+    settingsAmongUsManualSelectButton,
+    settingsUninstallConfirmOverlay,
+    settingsUninstallConfirmOverlayBackdrop,
+    settingsUninstallConfirmCloseButton,
+    settingsUninstallConfirmCancelButton,
+    settingsUninstallConfirmAcceptButton,
     installStatus,
-    preservedSaveDataStatus,
     launchModdedButton,
     launchVanillaButton,
     createModdedShortcutButton,
     launchStatus,
-    profileReadyStatus,
     migrationExportButton,
     migrationEncryptionEnabledInput,
     migrationExportPasswordInput,
@@ -412,6 +421,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let launcherAutoMinimizePending = false;
   let launcherAutoMinimizeTimer: number | null = null;
   let launcherMinimizing = false;
+  let amongUsOverlayLoading = false;
+  const overlayAnimationTimers = new WeakMap<HTMLDivElement, number>();
+  const overlayCloseTimers = new WeakMap<HTMLDivElement, number>();
 
   function mountOnboarding() {
     const containerId = "onboarding-root";
@@ -581,6 +593,20 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     element.className = tone === "info" ? "status-line" : `status-line ${tone}`;
   }
 
+  function setGeneralStatusLine(
+    message: string,
+    tone: "info" | "error" | "success" | "warn" = "info",
+  ): void {
+    setStatusLine(settingsGeneralStatus, message, tone);
+  }
+
+  function setShortcutStatusLine(
+    message: string,
+    tone: "info" | "error" | "success" | "warn" = "info",
+  ): void {
+    setStatusLine(settingsShortcutStatus, message, tone);
+  }
+
   function renderOfficialLinksInto(container: HTMLDivElement, iconOnly: boolean): void {
     container.replaceChildren();
     for (const link of OFFICIAL_LINKS) {
@@ -612,31 +638,22 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   async function openFolder(pathValue: string | null | undefined, label: string): Promise<void> {
     const target = pathValue?.trim() ?? "";
     if (!target) {
-      installStatus.textContent = t("openFolder.notSet", { label });
+      setGeneralStatusLine(t("openFolder.notSet", { label }), "warn");
       return;
     }
 
     try {
       await openPath(target);
-      installStatus.textContent = t("openFolder.opened", { label });
+      setGeneralStatusLine(t("openFolder.opened", { label }), "success");
     } catch (error) {
-      installStatus.textContent = t("openFolder.failed", {
-        label,
-        error: String(error),
-      });
+      setGeneralStatusLine(
+        t("openFolder.failed", {
+          label,
+          error: String(error),
+        }),
+        "error",
+      );
     }
-  }
-
-  function renderPreservedSaveDataStatus(): void {
-    if (preservedSaveDataAvailable && preservedSaveDataFiles > 0) {
-      preservedSaveDataStatus.textContent = t("launcher.preservedSaveDataAvailable", {
-        count: preservedSaveDataFiles,
-      });
-      return;
-    }
-
-    installRestoreSaveDataCheckbox.checked = false;
-    preservedSaveDataStatus.textContent = t("launcher.preservedSaveDataNone");
   }
 
   async function refreshPreservedSaveDataStatus(): Promise<void> {
@@ -644,14 +661,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       const status = await snrPreservedSaveDataStatus();
       preservedSaveDataAvailable = status.available;
       preservedSaveDataFiles = status.files;
-      renderPreservedSaveDataStatus();
     } catch (error) {
       preservedSaveDataAvailable = false;
       preservedSaveDataFiles = 0;
-      installRestoreSaveDataCheckbox.checked = false;
-      preservedSaveDataStatus.textContent = t("launcher.preservedSaveDataStatusFailed", {
-        error: String(error),
-      });
+      console.warn("Failed to get preserved save data status:", error);
     }
   }
 
@@ -684,21 +697,26 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     // ボタン活性条件は純関数に委譲し、DOM更新だけをここで行う。
     syncStoreSnapshot();
     const control = computeControlState(appStore.snapshot());
+    const amongUsSelectionDisabled =
+      control.detectAmongUsPathButtonDisabled || amongUsOverlayLoading;
 
-    installButton.disabled = control.installButtonDisabled;
-    installRestoreSaveDataCheckbox.disabled = control.installRestoreSaveDataCheckboxDisabled;
     uninstallButton.disabled = control.uninstallButtonDisabled;
-    uninstallPreserveSaveDataCheckbox.disabled = control.uninstallPreserveSaveDataCheckboxDisabled;
+    reselectAmongUsButton.disabled = amongUsSelectionDisabled;
+    settingsAmongUsManualSelectButton.disabled = amongUsSelectionDisabled;
+    for (const candidateButton of settingsAmongUsCandidateList.querySelectorAll<HTMLButtonElement>(
+      ".settings-among-us-candidate-card",
+    )) {
+      candidateButton.disabled = amongUsSelectionDisabled;
+    }
+    settingsSupportDiscordLinkButton.disabled = false;
+    settingsUninstallConfirmAcceptButton.disabled = uninstallInProgress || control.uninstallButtonDisabled;
+    settingsUninstallConfirmCancelButton.disabled = uninstallInProgress;
+    settingsUninstallConfirmCloseButton.disabled = uninstallInProgress;
     launchModdedButton.disabled = control.launchModdedButtonDisabled;
     launchVanillaButton.disabled = control.launchVanillaButtonDisabled;
     createModdedShortcutButton.disabled = control.createModdedShortcutButtonDisabled;
     epicLoginWebviewButton.disabled = control.epicLoginWebviewButtonDisabled;
     epicLogoutButton.disabled = control.epicLogoutButtonDisabled;
-    detectAmongUsPathButton.disabled = control.detectAmongUsPathButtonDisabled;
-    saveAmongUsPathButton.disabled = control.saveAmongUsPathButtonDisabled;
-    refreshReleasesButton.disabled = control.refreshReleasesButtonDisabled;
-    releaseSelect.disabled = control.releaseSelectDisabled;
-    platformSelect.disabled = control.platformSelectDisabled;
     openAmongUsFolderButton.disabled = control.openAmongUsFolderButtonDisabled;
     openProfileFolderButton.disabled = control.openProfileFolderButtonDisabled;
     closeToTrayOnCloseInput.disabled = control.closeToTrayOnCloseInputDisabled;
@@ -768,38 +786,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     if (!settings) {
       return;
     }
-    amongUsPathInput.value = settings.amongUsPath;
-    platformSelect.value = settings.gamePlatform;
-    profilePath.textContent = settings.profilePath || t("common.unset");
     closeToTrayOnCloseInput.checked = settings.closeToTrayOnClose;
-  }
-
-  function renderReleaseOptions(): void {
-    const currentSettings = settings;
-    releaseSelect.innerHTML = "";
-    for (const release of releases) {
-      const option = document.createElement("option");
-      option.value = release.tag;
-      option.textContent = t("releases.optionText", {
-        tag: release.tag,
-        name: release.name || t("releases.noTitle"),
-        date: formatDate(release.publishedAt),
-      });
-      releaseSelect.append(option);
-    }
-
-    if (!currentSettings) {
-      return;
-    }
-
-    if (
-      currentSettings.selectedReleaseTag &&
-      releases.some((release) => release.tag === currentSettings.selectedReleaseTag)
-    ) {
-      releaseSelect.value = currentSettings.selectedReleaseTag;
-    } else if (releases.length > 0) {
-      releaseSelect.value = releases[0].tag;
-    }
   }
 
   async function reloadSettings(): Promise<LauncherSettings> {
@@ -816,30 +803,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   async function refreshProfileReady(): Promise<void> {
     const explicitPath = settings?.profilePath?.trim() ? settings.profilePath : undefined;
     profileIsReady = await settingsProfileReady(explicitPath);
-    profileReadyStatus.textContent = profileIsReady ? t("profile.ready") : t("profile.notReady");
-  }
-
-  async function refreshReleases(): Promise<void> {
-    releasesLoading = true;
-    updateButtons();
-    installStatus.textContent = t("releases.loading");
-
-    try {
-      releases = await snrReleasesList();
-      renderReleaseOptions();
-
-      if (settings && releaseSelect.value && settings.selectedReleaseTag !== releaseSelect.value) {
-        settings = await settingsUpdate({ selectedReleaseTag: releaseSelect.value });
-        renderSettings();
-      }
-
-      installStatus.textContent = releases.length > 0 ? t("releases.done") : t("releases.none");
-    } catch (error) {
-      installStatus.textContent = t("releases.failed", { error: String(error) });
-    } finally {
-      releasesLoading = false;
-      updateButtons();
-    }
   }
 
   async function refreshEpicLoginState(): Promise<void> {
@@ -1058,31 +1021,230 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     return join(settings.amongUsPath, "Among Us.exe");
   }
 
-  saveAmongUsPathButton.addEventListener("click", async () => {
-    const value = amongUsPathInput.value.trim();
-    await saveSettings({ amongUsPath: value });
-    await refreshProfileReady();
-    installStatus.textContent = t("settings.amongUsPathSaved");
+  const discordLink =
+    OFFICIAL_LINKS.find((link) => link.label.toLowerCase() === "discord")?.url ??
+    "https://discord.gg/Cqfwx82ynN";
+
+  function syncOverlayBodyLock(): void {
+    const overlayOpen = !settingsAmongUsOverlay.hidden || !settingsUninstallConfirmOverlay.hidden;
+    document.documentElement.classList.toggle("settings-overlay-open", overlayOpen);
+    document.body.classList.toggle("settings-overlay-open", overlayOpen);
+  }
+
+  function clearOverlayTimer(
+    timerMap: WeakMap<HTMLDivElement, number>,
+    overlay: HTMLDivElement,
+  ): void {
+    const timer = timerMap.get(overlay);
+    if (timer !== undefined) {
+      window.clearTimeout(timer);
+      timerMap.delete(overlay);
+    }
+  }
+
+  function scheduleOverlayAnimationCleanup(overlay: HTMLDivElement): void {
+    clearOverlayTimer(overlayAnimationTimers, overlay);
+    const timer = window.setTimeout(() => {
+      overlay.classList.remove("is-animating");
+      overlayAnimationTimers.delete(overlay);
+    }, SETTINGS_OVERLAY_TRANSITION_MS);
+    overlayAnimationTimers.set(overlay, timer);
+  }
+
+  function openSettingsOverlay(overlay: HTMLDivElement): void {
+    clearOverlayTimer(overlayCloseTimers, overlay);
+
+    document.documentElement.classList.add("settings-overlay-open");
+    document.body.classList.add("settings-overlay-open");
+    overlay.hidden = false;
+    overlay.setAttribute("aria-hidden", "false");
+    overlay.classList.remove("is-closing");
+    overlay.classList.add("is-animating");
+
+    requestAnimationFrame(() => {
+      if (overlay.hidden || overlay.classList.contains("is-closing")) {
+        return;
+      }
+      overlay.classList.add("is-open");
+    });
+
+    scheduleOverlayAnimationCleanup(overlay);
+    syncOverlayBodyLock();
+  }
+
+  function closeSettingsOverlay(overlay: HTMLDivElement, immediate = false): void {
+    clearOverlayTimer(overlayAnimationTimers, overlay);
+    clearOverlayTimer(overlayCloseTimers, overlay);
+
+    if (immediate) {
+      overlay.hidden = true;
+      overlay.setAttribute("aria-hidden", "true");
+      overlay.classList.remove("is-open", "is-closing", "is-animating");
+      syncOverlayBodyLock();
+      return;
+    }
+
+    if (overlay.hidden || overlay.classList.contains("is-closing")) {
+      return;
+    }
+
+    overlay.classList.add("is-closing", "is-animating");
+    overlay.classList.remove("is-open");
+
+    const timer = window.setTimeout(() => {
+      overlay.hidden = true;
+      overlay.setAttribute("aria-hidden", "true");
+      overlay.classList.remove("is-closing", "is-animating");
+      overlayCloseTimers.delete(overlay);
+      syncOverlayBodyLock();
+    }, SETTINGS_OVERLAY_TRANSITION_MS);
+    overlayCloseTimers.set(overlay, timer);
+
+    syncOverlayBodyLock();
+  }
+
+  function setAmongUsOverlayError(
+    message: string | null,
+    tone: "info" | "error" | "success" | "warn" = "error",
+  ): void {
+    if (!message) {
+      settingsAmongUsOverlayError.hidden = true;
+      settingsAmongUsOverlayError.textContent = "";
+      settingsAmongUsOverlayError.className = "status-line settings-among-us-overlay-error";
+      return;
+    }
+    settingsAmongUsOverlayError.hidden = false;
+    setStatusLine(settingsAmongUsOverlayError, message, tone);
+    settingsAmongUsOverlayError.classList.add("settings-among-us-overlay-error");
+  }
+
+  function closeAmongUsOverlay(force = false): void {
+    if (amongUsOverlayLoading && !force) {
+      return;
+    }
+    closeSettingsOverlay(settingsAmongUsOverlay, force);
+  }
+
+  function openAmongUsOverlay(): void {
+    setAmongUsOverlayError(null);
+    openSettingsOverlay(settingsAmongUsOverlay);
+  }
+
+  async function applyAmongUsSelection(path: string, platform: GamePlatform): Promise<void> {
+    amongUsOverlayLoading = true;
     updateButtons();
+    setAmongUsOverlayError(null);
+    try {
+      await saveSettings({
+        amongUsPath: path,
+        gamePlatform: platform,
+      });
+      await refreshProfileReady();
+      setGeneralStatusLine(t("detect.success", { path, platform }), "success");
+      closeAmongUsOverlay(true);
+    } catch (error) {
+      setAmongUsOverlayError(t("detect.failed", { error: String(error) }));
+    } finally {
+      amongUsOverlayLoading = false;
+      updateButtons();
+    }
+  }
+
+  function renderAmongUsCandidates(candidates: { path: string; platform: string }[]): void {
+    settingsAmongUsCandidateList.replaceChildren();
+    const normalizedCandidates = normalizePlatformCandidates(candidates);
+
+    for (const candidate of normalizedCandidates) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "platform-card settings-among-us-candidate-card";
+      button.disabled = amongUsOverlayLoading;
+      const platform = candidate.platform;
+      const iconPath = getPlatformIconPath(platform);
+      const platformName = t(getPlatformLabelKey(platform));
+
+      const icon = document.createElement("span");
+      icon.className = "platform-icon settings-among-us-platform-icon";
+      icon.innerHTML = `<svg viewBox="0 0 24 24" width="80" height="80" fill="currentColor" aria-hidden="true"><path d="${iconPath}" /></svg>`;
+
+      const name = document.createElement("span");
+      name.className = "platform-name";
+      name.textContent = platformName;
+
+      const path = document.createElement("span");
+      path.className = "platform-path";
+      path.textContent = `${t("installFlow.folderPath")}: ${candidate.path}`;
+
+      button.append(icon, name, path);
+      button.addEventListener("click", async () => {
+        await applyAmongUsSelection(candidate.path, platform);
+      });
+      settingsAmongUsCandidateList.append(button);
+    }
+
+    settingsAmongUsCandidateEmpty.hidden = normalizedCandidates.length > 0;
+  }
+
+  async function refreshAmongUsCandidates(): Promise<void> {
+    amongUsOverlayLoading = true;
+    updateButtons();
+    settingsAmongUsCandidateList.replaceChildren();
+    settingsAmongUsCandidateEmpty.hidden = true;
+    setAmongUsOverlayError(t("detect.loading"), "info");
+
+    try {
+      const candidates = await finderDetectPlatforms();
+      setAmongUsOverlayError(null);
+      renderAmongUsCandidates(candidates);
+    } catch (error) {
+      setAmongUsOverlayError(t("detect.failed", { error: String(error) }));
+    } finally {
+      amongUsOverlayLoading = false;
+      updateButtons();
+    }
+  }
+
+  reselectAmongUsButton.addEventListener("click", async () => {
+    openAmongUsOverlay();
+    await refreshAmongUsCandidates();
   });
 
-  detectAmongUsPathButton.addEventListener("click", async () => {
-    detectAmongUsPathButton.disabled = true;
-    installStatus.textContent = t("detect.loading");
+  settingsAmongUsOverlayBackdrop.addEventListener("click", () => {
+    closeAmongUsOverlay();
+  });
+  settingsAmongUsOverlayCloseButton.addEventListener("click", () => {
+    closeAmongUsOverlay();
+  });
+  settingsAmongUsOverlayCancelButton.addEventListener("click", () => {
+    closeAmongUsOverlay();
+  });
+  settingsAmongUsManualSelectButton.addEventListener("click", async () => {
+    if (amongUsOverlayLoading) {
+      return;
+    }
+
     try {
-      const detected = await finderDetectAmongUs();
-      const platform = await finderDetectPlatform(detected);
-      await saveSettings({ amongUsPath: detected, gamePlatform: platform });
-      await refreshProfileReady();
-      installStatus.textContent = t("detect.success", {
-        path: detected,
-        platform,
+      const selected = await open({
+        directory: true,
+        multiple: false,
       });
-    } catch (error) {
-      installStatus.textContent = t("detect.failed", { error: String(error) });
-    } finally {
-      detectAmongUsPathButton.disabled = false;
-      updateButtons();
+      if (!selected || Array.isArray(selected)) {
+        return;
+      }
+
+      try {
+        const platform = await finderDetectPlatform(selected);
+        if (platform !== "steam" && platform !== "epic") {
+          setAmongUsOverlayError(t("installFlow.invalidAmongUsFolder"));
+          return;
+        }
+
+        await applyAmongUsSelection(selected, platform);
+      } catch {
+        setAmongUsOverlayError(t("installFlow.invalidAmongUsFolder"));
+      }
+    } catch {
+      // user cancelled
     }
   });
 
@@ -1097,10 +1259,78 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   closeToTrayOnCloseInput.addEventListener("change", async () => {
     const enabled = closeToTrayOnCloseInput.checked;
     await saveSettings({ closeToTrayOnClose: enabled });
-    installStatus.textContent = t("settings.closeToTrayOnCloseSaved", {
-      state: enabled ? t("common.on") : t("common.off"),
-    });
+    setGeneralStatusLine(
+      t("settings.closeToTrayOnCloseSaved", {
+        state: enabled ? t("common.on") : t("common.off"),
+      }),
+      "success",
+    );
     updateButtons();
+  });
+
+  function closeUninstallConfirmOverlay(force = false): void {
+    if (uninstallInProgress && !force) {
+      return;
+    }
+    closeSettingsOverlay(settingsUninstallConfirmOverlay, force);
+  }
+
+  function openUninstallConfirmOverlay(): void {
+    openSettingsOverlay(settingsUninstallConfirmOverlay);
+  }
+
+  uninstallButton.addEventListener("click", () => {
+    if (!settings || uninstallButton.disabled) {
+      return;
+    }
+    openUninstallConfirmOverlay();
+  });
+
+  settingsUninstallConfirmOverlayBackdrop.addEventListener("click", () => {
+    closeUninstallConfirmOverlay();
+  });
+  settingsUninstallConfirmCloseButton.addEventListener("click", () => {
+    closeUninstallConfirmOverlay();
+  });
+  settingsUninstallConfirmCancelButton.addEventListener("click", () => {
+    closeUninstallConfirmOverlay();
+  });
+  settingsUninstallConfirmAcceptButton.addEventListener("click", async () => {
+    if (!settings || uninstallInProgress) {
+      return;
+    }
+
+    uninstallInProgress = true;
+    updateButtons();
+    installStatus.textContent = t("uninstall.starting");
+
+    try {
+      const result = await snrUninstall(true);
+      installStatus.textContent = t("uninstall.doneWithPreserved", { count: result.preservedFiles });
+      await refreshProfileReady();
+      await refreshPreservedSaveDataStatus();
+      await refreshLocalPresets(true);
+      closeUninstallConfirmOverlay(true);
+      window.location.reload();
+    } catch (error) {
+      installStatus.textContent = t("uninstall.failed", { error: String(error) });
+    } finally {
+      uninstallInProgress = false;
+      updateButtons();
+    }
+  });
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+    if (!settingsUninstallConfirmOverlay.hidden) {
+      closeUninstallConfirmOverlay();
+      return;
+    }
+    if (!settingsAmongUsOverlay.hidden) {
+      closeAmongUsOverlay();
+    }
   });
 
   migrationExportButton.addEventListener("click", async () => {
@@ -1347,100 +1577,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
   });
 
-  platformSelect.addEventListener("change", async () => {
-    const platform = platformSelect.value as GamePlatform;
-    await saveSettings({ gamePlatform: platform });
-    installStatus.textContent = t("settings.platformChanged", { platform });
-    updateButtons();
-  });
-
-  releaseSelect.addEventListener("change", async () => {
-    const tag = releaseSelect.value;
-    await saveSettings({ selectedReleaseTag: tag });
-    installStatus.textContent = t("settings.tagSelected", { tag });
-    updateButtons();
-  });
-
-  refreshReleasesButton.addEventListener("click", async () => {
-    await refreshReleases();
-  });
-
-  installButton.addEventListener("click", async () => {
-    if (!settings) {
-      return;
-    }
-    const tag = settings.selectedReleaseTag.trim();
-    if (!tag) {
-      installStatus.textContent = t("install.tagRequired");
-      return;
-    }
-
-    const restorePreservedSaveData = installRestoreSaveDataCheckbox.checked;
-
-    installInProgress = true;
-    installProgress.value = 0;
-    updateButtons();
-    installStatus.textContent = t("install.starting");
-
-    try {
-      const result = await snrInstall({
-        tag,
-        platform: settings.gamePlatform,
-        restorePreservedSaveData,
-      });
-      installStatus.textContent = restorePreservedSaveData
-        ? t("install.doneWithRestored", {
-            asset: result.assetName,
-            count: result.restoredSaveFiles,
-          })
-        : t("install.done", { asset: result.assetName });
-      await reloadSettings();
-      await refreshProfileReady();
-      await refreshPreservedSaveDataStatus();
-      await refreshLocalPresets(true);
-    } catch (error) {
-      installStatus.textContent = t("install.failed", { error: String(error) });
-    } finally {
-      installInProgress = false;
-      updateButtons();
-    }
-  });
-
-  uninstallButton.addEventListener("click", async () => {
-    if (!settings) {
-      return;
-    }
-
-    const preserveSaveData = uninstallPreserveSaveDataCheckbox.checked;
-    const confirmed = window.confirm(
-      preserveSaveData ? t("uninstall.confirmWithPreserve") : t("uninstall.confirmWithoutPreserve"),
-    );
-    if (!confirmed) {
-      return;
-    }
-
-    uninstallInProgress = true;
-    installProgress.value = 0;
-    updateButtons();
-    installStatus.textContent = t("uninstall.starting");
-
-    try {
-      const result = await snrUninstall(preserveSaveData);
-      installStatus.textContent = preserveSaveData
-        ? t("uninstall.doneWithPreserved", { count: result.preservedFiles })
-        : t("uninstall.done");
-      await refreshProfileReady();
-      await refreshPreservedSaveDataStatus();
-      await refreshLocalPresets(true);
-      window.location.reload();
-    } catch (error) {
-      installStatus.textContent = t("uninstall.failed", { error: String(error) });
-    } finally {
-      uninstallInProgress = false;
-      updateButtons();
-    }
-  });
-
   launchModdedButton.addEventListener("click", async () => {
     if (!settings) {
       return;
@@ -1494,16 +1630,19 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   createModdedShortcutButton.addEventListener("click", async () => {
     creatingShortcut = true;
-    launchStatus.textContent = t("launch.shortcutCreating");
+    setShortcutStatusLine(t("launch.shortcutCreating"));
     updateButtons();
 
     try {
-      //const shortcutPath = await launchShortcutCreate();
-      await launchShortcutCreate();
+      const shortcutPath = await launchShortcutCreate();
+      setShortcutStatusLine(t("launch.shortcutCreated", { path: shortcutPath }), "success");
     } catch (error) {
-      launchStatus.textContent = t("launch.shortcutCreateFailed", {
-        error: String(error),
-      });
+      setShortcutStatusLine(
+        t("launch.shortcutCreateFailed", {
+          error: String(error),
+        }),
+        "error",
+      );
     } finally {
       creatingShortcut = false;
       updateButtons();
@@ -1538,6 +1677,14 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     mountOnboarding();
   });
 
+  settingsSupportDiscordLinkButton.addEventListener("click", async () => {
+    try {
+      await openUrl(discordLink);
+    } catch {
+      window.open(discordLink, "_blank", "noopener,noreferrer");
+    }
+  });
+
   languageSelect.addEventListener("change", async () => {
     const nextLocale = normalizeLocale(languageSelect.value) ?? currentLocale;
     if (nextLocale === currentLocale) {
@@ -1553,7 +1700,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   });
 
   renderOfficialLinks();
-  renderPreservedSaveDataStatus();
   renderLocalPresetList();
   renderArchivePresetList();
   setStatusLine(presetStatus, t("preset.statusReadyToRefresh"));
@@ -1636,7 +1782,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   void listen<InstallProgressPayload>("snr-install-progress", (event) => {
     const payload = event.payload;
-    installProgress.value = Math.max(0, Math.min(100, payload.progress ?? 0));
 
     if (payload.stage === "downloading" && typeof payload.downloaded === "number") {
       if (typeof payload.total === "number" && payload.total > 0) {
@@ -1690,7 +1835,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   });
 
   void (async () => {
-    installProgress.value = 0;
     const loadedSettings = await reloadSettings();
     if (!loadedSettings.onboardingCompleted) {
       mountOnboarding();
@@ -1699,7 +1843,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     await refreshLocalPresets(true);
     await refreshPreservedSaveDataStatus();
-    await refreshReleases();
     await refreshGameRunningState();
     startGameRunningPolling();
 

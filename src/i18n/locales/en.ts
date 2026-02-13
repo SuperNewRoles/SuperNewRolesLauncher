@@ -44,6 +44,29 @@ const en: Record<keyof typeof ja, string> = {
   "settings.category.general": "General",
   "settings.category.migration": "Data Migration",
   "settings.category.appVersion": "App Version",
+  "settings.general.title": "General Settings",
+  "settings.general.reselectAmongUs": "Reselect Among Us",
+  "settings.general.shortcutTitle": "Shortcut",
+  "settings.general.shortcutDescription":
+    "Create a desktop shortcut for launching the modded game.",
+  "settings.general.dangerTitle": "Uninstall",
+  "settings.general.uninstallDescription": "Delete modded files from the current profile.",
+  "settings.general.supportText":
+    "If any setting you need is missing, please contact us on Discord.",
+  "settings.general.supportDiscordLink": "Open Discord",
+  "settings.general.reselectOverlayTitle": "Select Among Us installation",
+  "settings.general.reselectOverlayDescription":
+    "Choose a detected Among Us folder or pick one manually.",
+  "settings.general.reselectOverlayEmpty":
+    "No candidates were detected. Try selecting a folder manually.",
+  "settings.general.reselectOverlayManualSelect": "Select manually",
+  "settings.general.reselectOverlayClose": "Close",
+  "settings.general.uninstallConfirmTitle": "Are you sure you want to delete it?",
+  "settings.general.uninstallConfirmMessage":
+    "This will remove SuperNewRoles files from the profile. Continue?",
+  "settings.general.uninstallConfirmPreserveFixed":
+    "File preserve is enabled (save data will be preserved).",
+  "settings.general.uninstallConfirmAccept": "Uninstall",
   "launcher.createModdedShortcut": "Create Modded shortcut",
   "launcher.preservedSaveDataAvailable":
     "Preserved save data: {count} file(s) (can restore on install)",

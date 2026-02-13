@@ -8,28 +8,32 @@ export interface AppDom {
   replayOnboardingButton: HTMLButtonElement;
   languageSelect: HTMLSelectElement;
 
-  amongUsPathInput: HTMLInputElement;
-  saveAmongUsPathButton: HTMLButtonElement;
-  detectAmongUsPathButton: HTMLButtonElement;
-  platformSelect: HTMLSelectElement;
-  releaseSelect: HTMLSelectElement;
-  refreshReleasesButton: HTMLButtonElement;
-  profilePath: HTMLElement;
+  reselectAmongUsButton: HTMLButtonElement;
   openAmongUsFolderButton: HTMLButtonElement;
   openProfileFolderButton: HTMLButtonElement;
   closeToTrayOnCloseInput: HTMLInputElement;
-  installButton: HTMLButtonElement;
-  installRestoreSaveDataCheckbox: HTMLInputElement;
+  settingsGeneralStatus: HTMLSpanElement;
+  settingsShortcutStatus: HTMLSpanElement;
   uninstallButton: HTMLButtonElement;
-  uninstallPreserveSaveDataCheckbox: HTMLInputElement;
-  installProgress: HTMLProgressElement;
+  settingsSupportDiscordLinkButton: HTMLButtonElement;
+  settingsAmongUsOverlay: HTMLDivElement;
+  settingsAmongUsOverlayBackdrop: HTMLDivElement;
+  settingsAmongUsOverlayCloseButton: HTMLButtonElement;
+  settingsAmongUsOverlayCancelButton: HTMLButtonElement;
+  settingsAmongUsOverlayError: HTMLDivElement;
+  settingsAmongUsCandidateList: HTMLDivElement;
+  settingsAmongUsCandidateEmpty: HTMLParagraphElement;
+  settingsAmongUsManualSelectButton: HTMLButtonElement;
+  settingsUninstallConfirmOverlay: HTMLDivElement;
+  settingsUninstallConfirmOverlayBackdrop: HTMLDivElement;
+  settingsUninstallConfirmCloseButton: HTMLButtonElement;
+  settingsUninstallConfirmCancelButton: HTMLButtonElement;
+  settingsUninstallConfirmAcceptButton: HTMLButtonElement;
   installStatus: HTMLSpanElement;
-  preservedSaveDataStatus: HTMLDivElement;
   launchModdedButton: HTMLButtonElement;
   launchVanillaButton: HTMLButtonElement;
   createModdedShortcutButton: HTMLButtonElement;
   launchStatus: HTMLSpanElement;
-  profileReadyStatus: HTMLDivElement;
   migrationExportButton: HTMLButtonElement;
   migrationEncryptionEnabledInput: HTMLInputElement;
   migrationExportPasswordInput: HTMLInputElement;
@@ -80,30 +84,50 @@ export function collectAppDom(): AppDom {
     settingsAppVersion: mustElement<HTMLSpanElement>("#settings-app-version"),
     replayOnboardingButton: mustElement<HTMLButtonElement>("#replay-onboarding"),
     languageSelect: mustElement<HTMLSelectElement>("#language-select"),
-    amongUsPathInput: mustElement<HTMLInputElement>("#among-us-path"),
-    saveAmongUsPathButton: mustElement<HTMLButtonElement>("#save-among-us-path"),
-    detectAmongUsPathButton: mustElement<HTMLButtonElement>("#detect-among-us-path"),
-    platformSelect: mustElement<HTMLSelectElement>("#platform-select"),
-    releaseSelect: mustElement<HTMLSelectElement>("#release-select"),
-    refreshReleasesButton: mustElement<HTMLButtonElement>("#refresh-releases"),
-    profilePath: mustElement<HTMLElement>("#profile-path"),
+    reselectAmongUsButton: mustElement<HTMLButtonElement>("#reselect-among-us-button"),
     openAmongUsFolderButton: mustElement<HTMLButtonElement>("#open-among-us-folder"),
     openProfileFolderButton: mustElement<HTMLButtonElement>("#open-profile-folder"),
     closeToTrayOnCloseInput: mustElement<HTMLInputElement>("#close-to-tray-on-close"),
-    installButton: mustElement<HTMLButtonElement>("#install-snr"),
-    installRestoreSaveDataCheckbox: mustElement<HTMLInputElement>("#install-restore-save-data"),
+    settingsGeneralStatus: mustElement<HTMLSpanElement>("#settings-general-status"),
+    settingsShortcutStatus: mustElement<HTMLSpanElement>("#settings-shortcut-status"),
     uninstallButton: mustElement<HTMLButtonElement>("#uninstall-snr"),
-    uninstallPreserveSaveDataCheckbox: mustElement<HTMLInputElement>(
-      "#uninstall-preserve-save-data",
+    settingsSupportDiscordLinkButton: mustElement<HTMLButtonElement>(
+      "#settings-support-discord-link",
     ),
-    installProgress: mustElement<HTMLProgressElement>("#install-progress"),
+    settingsAmongUsOverlay: mustElement<HTMLDivElement>("#settings-among-us-overlay"),
+    settingsAmongUsOverlayBackdrop: mustElement<HTMLDivElement>("#settings-among-us-overlay-backdrop"),
+    settingsAmongUsOverlayCloseButton: mustElement<HTMLButtonElement>(
+      "#settings-among-us-overlay-close",
+    ),
+    settingsAmongUsOverlayCancelButton: mustElement<HTMLButtonElement>(
+      "#settings-among-us-overlay-cancel",
+    ),
+    settingsAmongUsOverlayError: mustElement<HTMLDivElement>("#settings-among-us-overlay-error"),
+    settingsAmongUsCandidateList: mustElement<HTMLDivElement>("#settings-among-us-candidate-list"),
+    settingsAmongUsCandidateEmpty: mustElement<HTMLParagraphElement>(
+      "#settings-among-us-candidate-empty",
+    ),
+    settingsAmongUsManualSelectButton: mustElement<HTMLButtonElement>(
+      "#settings-among-us-manual-select",
+    ),
+    settingsUninstallConfirmOverlay: mustElement<HTMLDivElement>("#settings-uninstall-confirm-overlay"),
+    settingsUninstallConfirmOverlayBackdrop: mustElement<HTMLDivElement>(
+      "#settings-uninstall-confirm-overlay-backdrop",
+    ),
+    settingsUninstallConfirmCloseButton: mustElement<HTMLButtonElement>(
+      "#settings-uninstall-confirm-close",
+    ),
+    settingsUninstallConfirmCancelButton: mustElement<HTMLButtonElement>(
+      "#settings-uninstall-confirm-cancel",
+    ),
+    settingsUninstallConfirmAcceptButton: mustElement<HTMLButtonElement>(
+      "#settings-uninstall-confirm-accept",
+    ),
     installStatus: mustElement<HTMLSpanElement>("#install-status"),
-    preservedSaveDataStatus: mustElement<HTMLDivElement>("#preserved-save-data-status"),
     launchModdedButton: mustElement<HTMLButtonElement>("#launch-modded"),
     launchVanillaButton: mustElement<HTMLButtonElement>("#launch-vanilla"),
     createModdedShortcutButton: mustElement<HTMLButtonElement>("#create-modded-shortcut"),
     launchStatus: mustElement<HTMLSpanElement>("#launch-status"),
-    profileReadyStatus: mustElement<HTMLDivElement>("#profile-ready-status"),
     migrationExportButton: mustElement<HTMLButtonElement>("#migration-export"),
     migrationEncryptionEnabledInput: mustElement<HTMLInputElement>("#migration-encryption-enabled"),
     migrationExportPasswordInput: mustElement<HTMLInputElement>("#migration-export-password"),
