@@ -2327,6 +2327,10 @@ body.settings-overlay-open .tab-settings-shell {
   border-color: rgba(239, 68, 68, 0.32);
 }
 
+.settings-general-danger-zone > .muted {
+  margin: 0;
+}
+
 .settings-danger-button {
   border: 1px solid #b91c1c;
   background: linear-gradient(180deg, #ef4444, #dc2626);
@@ -2889,15 +2893,16 @@ body.settings-overlay-open {
 .report-thread-list-vertical {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .report-thread-item-vertical {
   width: 100%;
   text-align: left;
-  padding: 14px 16px;
+  min-height: 64px;
+  padding: 18px 20px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--card-strong);
   cursor: pointer;
   transition: all 0.2s ease;
@@ -2921,28 +2926,28 @@ body.settings-overlay-open {
 .report-thread-item-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: 10px;
+  margin-bottom: 2px;
 }
 
 .report-thread-status {
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .report-thread-title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text);
   flex: 1;
 }
 
 .report-thread-unread-badge {
-  min-width: 16px;
-  height: 16px;
-  padding: 0 5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
   border-radius: 999px;
-  font-size: 11px;
-  line-height: 16px;
+  font-size: 12px;
+  line-height: 18px;
   font-weight: 700;
   color: #fff;
   background: #ef4444;
