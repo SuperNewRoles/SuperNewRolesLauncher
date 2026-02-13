@@ -1,6 +1,7 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
 import { join } from "@tauri-apps/api/path";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   isPermissionGranted,
   requestPermission,
@@ -95,6 +96,8 @@ import type {
  */
 const REPORT_HOME_NOTIFICATION_FETCH_GAP_MS = 30_000;
 const REPORT_HOME_NOTIFICATION_POLL_INTERVAL_MS = 180_000;
+const LAUNCHER_MINIMIZE_EFFECT_DURATION_MS = 280;
+const LAUNCHER_AUTO_MINIMIZE_WINDOW_MS = 30_000;
 
 export async function runLauncher(container?: HTMLElement | null): Promise<void> {
   const app = container ?? document.querySelector<HTMLDivElement>("#app");
@@ -105,8 +108,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   const currentLocale = resolveInitialLocale();
   const t = createTranslator(currentLocale);
   document.documentElement.lang = currentLocale;
+  const appWindow = getCurrentWindow();
 
   app.innerHTML = renderAppTemplate(currentLocale, t);
+  const mainLayout = app.querySelector<HTMLElement>(".main-layout");
 
   const {
     appVersion,
@@ -319,6 +324,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let reportHomeNotificationLastFetchedAt = 0;
   let reportHomeNotificationFetching = false;
   let reportHomeNotificationPollTimer: number | null = null;
+  let launcherAutoMinimizePending = false;
+  let launcherAutoMinimizeTimer: number | null = null;
+  let launcherMinimizing = false;
 
   function mountOnboarding() {
     const containerId = "onboarding-root";
@@ -375,6 +383,54 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     reportCenterBadge.textContent = hasUnread ? "!" : "";
     reportCenterBadge.classList.toggle("is-visible", hasUnread);
+  }
+
+  function clearLauncherAutoMinimizePending(): void {
+    launcherAutoMinimizePending = false;
+    if (launcherAutoMinimizeTimer !== null) {
+      window.clearTimeout(launcherAutoMinimizeTimer);
+      launcherAutoMinimizeTimer = null;
+    }
+  }
+
+  function queueLauncherAutoMinimize(): void {
+    clearLauncherAutoMinimizePending();
+    launcherAutoMinimizePending = true;
+    launcherAutoMinimizeTimer = window.setTimeout(() => {
+      clearLauncherAutoMinimizePending();
+    }, LAUNCHER_AUTO_MINIMIZE_WINDOW_MS);
+  }
+
+  async function minimizeLauncherWindowWithEffect(): Promise<void> {
+    if (launcherMinimizing) {
+      return;
+    }
+    launcherMinimizing = true;
+
+    try {
+      if (mainLayout) {
+        mainLayout.classList.remove("main-layout-minimize-out");
+        // class再付与時に必ずアニメーションを再生する。
+        void mainLayout.offsetWidth;
+        mainLayout.classList.add("main-layout-minimize-out");
+      }
+
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, LAUNCHER_MINIMIZE_EFFECT_DURATION_MS);
+      });
+
+      await appWindow.minimize();
+    } catch (error) {
+      console.warn("Failed to minimize launcher window:", error);
+      // 最小化失敗時でも起動処理は継続させる。
+    } finally {
+      if (mainLayout) {
+        window.setTimeout(() => {
+          mainLayout.classList.remove("main-layout-minimize-out");
+        }, 80);
+      }
+      launcherMinimizing = false;
+    }
   }
 
   async function refreshHomeNotificationState(force = false): Promise<void> {
@@ -597,7 +653,14 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   function applyGameRunningState(running: boolean): void {
+    const runningBefore = gameRunning;
     gameRunning = running;
+
+    if (!runningBefore && gameRunning && launcherAutoMinimizePending) {
+      clearLauncherAutoMinimizePending();
+      void minimizeLauncherWindowWithEffect();
+    }
+
     if (gameRunning) {
       launchStatus.textContent = t("launch.gameRunning");
     } else if (!launchInProgress) {
@@ -1309,6 +1372,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       return;
     }
     launchInProgress = true;
+    queueLauncherAutoMinimize();
     launchStatus.textContent = t("launch.moddedStarting");
     updateButtons();
 
@@ -1321,6 +1385,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       });
       launchStatus.textContent = t("launch.moddedSent");
     } catch (error) {
+      clearLauncherAutoMinimizePending();
       launchStatus.textContent = t("launch.moddedFailed", { error: String(error) });
     } finally {
       launchInProgress = false;
@@ -1333,6 +1398,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       return;
     }
     launchInProgress = true;
+    queueLauncherAutoMinimize();
     launchStatus.textContent = t("launch.vanillaStarting");
     updateButtons();
 
@@ -1344,6 +1410,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       });
       launchStatus.textContent = t("launch.vanillaSent");
     } catch (error) {
+      clearLauncherAutoMinimizePending();
       launchStatus.textContent = t("launch.vanillaFailed", { error: String(error) });
     } finally {
       launchInProgress = false;
