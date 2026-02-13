@@ -142,7 +142,7 @@ pub fn run() {
 
             if event.id() == TRAY_MENU_LAUNCH_ID {
                 let app_handle = app.clone();
-                let bypass = bypass_close_to_tray_for_menu.clone();
+                let _bypass_close_to_tray_for_menu = bypass_close_to_tray_for_menu.clone();
                 tauri::async_runtime::spawn(async move {
                     match commands::launch::launch_modded_from_saved_settings(app_handle.clone()).await {
                         Ok(()) => {

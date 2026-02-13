@@ -70,76 +70,7 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
 
       <!-- 報告センタータブ -->
       <section id="tab-report" class="tab-panel" data-tab="report">
-        <div class="tab-inner card">
-          <div class="report-header">
-            <strong>${t("report.title")}</strong>
-            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-              <span id="report-account-state" class="badge">${t("report.accountStateUnready")}</span>
-              <span id="report-remote-flag" class="badge">${t("report.remoteFlagUnknown")}</span>
-              <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted);">
-                <input id="report-notification-toggle" type="checkbox" />
-                ${t("report.notificationToggle")}
-              </label>
-              <button id="report-refresh" type="button" class="ghost">${t("report.refresh")}</button>
-            </div>
-          </div>
-          <div id="report-notification-state" class="status-line" aria-live="polite"></div>
-          <div class="report-grid">
-            <div class="report-pane">
-              <strong>${t("report.newReport")}</strong>
-              <div class="field-grid two">
-                <div class="stack">
-                  <label for="report-type">${t("report.type")}</label>
-                  <select id="report-type">
-                    <option value="Bug">${t("report.typeOption.bug")}</option>
-                    <option value="Question">${t("report.typeOption.question")}</option>
-                    <option value="Request">${t("report.typeOption.request")}</option>
-                    <option value="Thanks">${t("report.typeOption.thanks")}</option>
-                    <option value="Other">${t("report.typeOption.other")}</option>
-                  </select>
-                </div>
-                <div class="stack">
-                  <label for="report-title">${t("report.titleLabel")}</label>
-                  <input id="report-title" type="text" maxlength="80" />
-                </div>
-              </div>
-              <div id="report-bug-fields" class="field-grid two">
-                <div class="stack">
-                  <label for="report-map">${t("report.map")}</label>
-                  <input id="report-map" type="text" maxlength="40" />
-                </div>
-                <div class="stack">
-                  <label for="report-role">${t("report.role")}</label>
-                  <input id="report-role" type="text" maxlength="60" />
-                </div>
-                <div class="stack" style="grid-column: 1 / -1;">
-                  <label for="report-timing">${t("report.timing")}</label>
-                  <input id="report-timing" type="text" maxlength="100" />
-                </div>
-              </div>
-              <div class="stack">
-                <label for="report-description">${t("report.body")}</label>
-                <textarea id="report-description" placeholder="${t("report.bodyPlaceholder")}"></textarea>
-              </div>
-              <div id="report-log-source" class="muted"></div>
-              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                <button id="report-send" type="button">${t("report.send")}</button>
-                <span id="report-status" class="status-line" aria-live="polite"></span>
-              </div>
-            </div>
-            <div class="report-pane">
-              <strong>${t("report.threads")}</strong>
-              <div id="report-thread-list" class="report-thread-list"></div>
-              <div id="report-thread-status" class="status-line" aria-live="polite"></div>
-              <div id="report-selected-thread" class="muted">${t("report.selectedNone")}</div>
-              <div id="report-message-list" class="report-message-list"></div>
-              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                <input id="report-reply-input" type="text" placeholder="${t("report.replyPlaceholder")}" style="padding: 8px; min-width: 220px; flex: 1;" />
-                <button id="report-send-message" type="button">${t("report.reply")}</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <div id="report-center-root" class="tab-inner" style="padding: 0; overflow: hidden;"></div>
       </section>
 
       <!-- 設定タブ -->

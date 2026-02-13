@@ -125,6 +125,7 @@ export interface ReportingPrepareResult {
   ready: boolean;
   tokenSource: string;
   createdAccount: boolean;
+  githubId?: string;
 }
 
 export interface ReportingSendResult {

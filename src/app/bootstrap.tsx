@@ -18,6 +18,7 @@ import {
   saveLocale,
 } from "../i18n";
 import OnboardingWizard from "../onboarding/OnboardingWizard";
+import { ReportCenter } from "../report/ReportCenter";
 import {
   OFFICIAL_LINKS,
   REPORTING_NOTIFICATION_STORAGE_KEY,
@@ -58,15 +59,10 @@ import {
   snrReleasesList,
   snrUninstall,
 } from "./services/tauriClient";
-import {
-  type ThemePreference,
-  applyTheme,
-  getStoredTheme,
-  setStoredTheme,
-} from "./theme";
 import { computeControlState } from "./state/selectors";
 import { createAppStore } from "./state/store";
 import { renderAppTemplate } from "./template";
+import { type ThemePreference, applyTheme, getStoredTheme, setStoredTheme } from "./theme";
 import type {
   EpicLoginStatus,
   GamePlatform,
@@ -156,27 +152,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     presetImportButton,
     presetArchiveList,
     presetStatus,
-    reportAccountState,
-    reportRemoteFlag,
-    reportRefreshButton,
-    reportNotificationToggle,
-    reportNotificationState,
-    reportTypeSelect,
-    reportTitleInput,
-    reportDescriptionInput,
-    reportMapInput,
-    reportRoleInput,
-    reportTimingInput,
-    reportBugFields,
-    reportLogSource,
-    reportSendButton,
-    reportStatus,
-    reportThreadList,
-    reportThreadStatus,
-    reportSelectedThread,
-    reportMessageList,
-    reportReplyInput,
-    reportSendMessageButton,
     epicLoginWebviewButton,
     epicLogoutButton,
     epicAuthStatus,
@@ -220,16 +195,27 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   // タブ切り替え
   function switchTab(tabId: "home" | "report" | "settings") {
-    document.querySelectorAll(".tab-panel").forEach((el) => el.classList.remove("tab-panel-active"));
-    document.querySelectorAll(".tab-bar-item").forEach((el) => el.classList.remove("tab-bar-item-active"));
+    document
+      .querySelectorAll(".tab-panel")
+      .forEach((el) => el.classList.remove("tab-panel-active"));
+    document
+      .querySelectorAll(".tab-bar-item")
+      .forEach((el) => el.classList.remove("tab-bar-item-active"));
     const panel = document.getElementById(`tab-${tabId}`);
     const barItem = document.querySelector(`.tab-bar-item[data-tab="${tabId}"]`);
     panel?.classList.add("tab-panel-active");
     barItem?.classList.add("tab-bar-item-active");
     barItem?.setAttribute("aria-selected", "true");
-    document.querySelectorAll(".tab-bar-item:not([data-tab=\"" + tabId + "\"])").forEach((el) =>
-      el.setAttribute("aria-selected", "false"),
-    );
+    document
+      .querySelectorAll('.tab-bar-item:not([data-tab="' + tabId + '"])')
+      .forEach((el) => el.setAttribute("aria-selected", "false"));
+
+    // Mount/unmount ReportCenter based on tab
+    if (tabId === "report") {
+      mountReportCenter();
+    } else {
+      unmountReportCenter();
+    }
   }
 
   document.querySelectorAll(".tab-bar-item").forEach((btn) => {
@@ -271,25 +257,14 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let presetImporting = false;
   let localPresets: PresetSummary[] = [];
   let archivePresets: PresetSummary[] = [];
-  let reportingReady = false;
-  let reportPreparing = false;
-  let reportingLoading = false;
-  let reportMessagesLoading = false;
-  let reportSending = false;
-  let reportMessageSending = false;
-  let reportThreads: ReportThread[] = [];
-  let reportMessages: ReportMessage[] = [];
-  let selectedReportThreadId: string | null = null;
-  let reportMessageLoadTicket = 0;
-  let reportingPollTimer: number | null = null;
-  let reportingUnreadBaselineCaptured = false;
-  let knownUnreadThreadIds = new Set<string>();
+
   let preservedSaveDataAvailable = false;
   let preservedSaveDataFiles = 0;
   let gameStatePollTimer: number | null = null;
   let gameStatePolling = false;
-  let reportingNotificationEnabled = initialReportingNotificationEnabled;
+  const reportingNotificationEnabled = initialReportingNotificationEnabled;
   let onboardingRoot: Root | null = null;
+  let reportCenterRoot: Root | null = null;
 
   function mountOnboarding() {
     const containerId = "onboarding-root";
@@ -318,6 +293,25 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     };
 
     onboardingRoot.render(<OnboardingWizard onComplete={handleComplete} />);
+  }
+
+  function mountReportCenter() {
+    const containerId = "report-center-root";
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (!reportCenterRoot) {
+      reportCenterRoot = createRoot(container);
+    }
+
+    reportCenterRoot.render(<ReportCenter t={t} />);
+  }
+
+  function unmountReportCenter() {
+    if (reportCenterRoot) {
+      reportCenterRoot.unmount();
+      reportCenterRoot = null;
+    }
   }
 
   function normalizeGithubToken(value: string): string {
@@ -355,109 +349,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   ): void {
     element.textContent = message;
     element.className = tone === "info" ? "status-line" : `status-line ${tone}`;
-  }
-
-  function renderReportBugFields(): void {
-    reportBugFields.style.display = reportTypeSelect.value === "Bug" ? "grid" : "none";
-  }
-
-  function updateReportingNotificationLabel(): void {
-    if (reportingNotificationEnabled) {
-      setStatusLine(reportNotificationState, t("report.notificationOn"), "success");
-    } else {
-      setStatusLine(reportNotificationState, t("report.notificationOff"), "warn");
-    }
-  }
-
-  function persistReportingNotificationEnabled(): void {
-    localStorage.setItem(
-      REPORTING_NOTIFICATION_STORAGE_KEY,
-      reportingNotificationEnabled ? "1" : "0",
-    );
-    reportNotificationToggle.checked = reportingNotificationEnabled;
-    updateReportingNotificationLabel();
-  }
-
-  async function ensureNotificationPermission(): Promise<boolean> {
-    try {
-      if (await isPermissionGranted()) {
-        return true;
-      }
-      const permission = await requestPermission();
-      return permission === "granted";
-    } catch {
-      return false;
-    }
-  }
-
-  async function sendUnreadWindowsNotification(newUnreadThreads: ReportThread[]): Promise<void> {
-    if (!reportingNotificationEnabled || newUnreadThreads.length === 0) {
-      return;
-    }
-
-    const granted = await ensureNotificationPermission();
-    if (!granted) {
-      reportingNotificationEnabled = false;
-      persistReportingNotificationEnabled();
-      setStatusLine(reportNotificationState, t("report.notificationDisabledNoPermission"), "warn");
-      return;
-    }
-
-    const title =
-      newUnreadThreads.length === 1
-        ? t("report.newUnreadSingle", {
-            title: newUnreadThreads[0].title || t("report.untitled"),
-          })
-        : t("report.newUnreadMulti", { count: newUnreadThreads.length });
-    const sample = newUnreadThreads
-      .slice(0, 2)
-      .map((thread) => thread.title || t("report.noTitle"))
-      .join(" / ");
-
-    try {
-      await sendNotification({ title, body: sample || t("report.notificationFallbackBody") });
-    } catch {
-      // ignore notification errors
-    }
-  }
-
-  function extractUnreadIds(threads: ReportThread[]): Set<string> {
-    return new Set(threads.filter((thread) => thread.unread).map((thread) => thread.threadId));
-  }
-
-  async function updateUnreadDiff(threads: ReportThread[], allowNotify: boolean): Promise<void> {
-    const currentUnread = extractUnreadIds(threads);
-    if (!reportingUnreadBaselineCaptured) {
-      knownUnreadThreadIds = currentUnread;
-      reportingUnreadBaselineCaptured = true;
-      return;
-    }
-
-    const newUnreadIds = [...currentUnread].filter((id) => !knownUnreadThreadIds.has(id));
-    if (allowNotify && newUnreadIds.length > 0) {
-      await sendUnreadWindowsNotification(
-        threads.filter((thread) => newUnreadIds.includes(thread.threadId)),
-      );
-    }
-
-    knownUnreadThreadIds = currentUnread;
-  }
-
-  function stopReportingPolling(): void {
-    if (reportingPollTimer !== null) {
-      window.clearInterval(reportingPollTimer);
-      reportingPollTimer = null;
-    }
-  }
-
-  function startReportingPolling(): void {
-    stopReportingPolling();
-    reportingPollTimer = window.setInterval(() => {
-      if (!reportingReady || reportPreparing || reportingLoading) {
-        return;
-      }
-      void refreshReportingCenter(false, true);
-    }, 60_000);
   }
 
   function renderOfficialLinks(): void {
@@ -550,22 +441,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     appStore.presetImporting.value = presetImporting;
     appStore.localPresets.value = localPresets;
     appStore.archivePresets.value = archivePresets;
-    appStore.reportingReady.value = reportingReady;
-    appStore.reportPreparing.value = reportPreparing;
-    appStore.reportingLoading.value = reportingLoading;
-    appStore.reportMessagesLoading.value = reportMessagesLoading;
-    appStore.reportSending.value = reportSending;
-    appStore.reportMessageSending.value = reportMessageSending;
-    appStore.reportThreads.value = reportThreads;
-    appStore.reportMessages.value = reportMessages;
-    appStore.selectedReportThreadId.value = selectedReportThreadId;
-    appStore.reportMessageLoadTicket.value = reportMessageLoadTicket;
-    appStore.reportingPollTimer.value = reportingPollTimer;
-    appStore.reportingUnreadBaselineCaptured.value = reportingUnreadBaselineCaptured;
-    appStore.knownUnreadThreadIds.value = new Set(knownUnreadThreadIds);
     appStore.preservedSaveDataAvailable.value = preservedSaveDataAvailable;
     appStore.preservedSaveDataFiles.value = preservedSaveDataFiles;
-    appStore.reportingNotificationEnabled.value = reportingNotificationEnabled;
   }
 
   function updateButtons(): void {
@@ -608,17 +485,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     presetSelectAllArchiveButton.disabled = control.presetSelectAllArchiveButtonDisabled;
     presetClearArchiveButton.disabled = control.presetClearArchiveButtonDisabled;
     presetImportButton.disabled = control.presetImportButtonDisabled;
-    reportRefreshButton.disabled = control.reportRefreshButtonDisabled;
-    reportNotificationToggle.disabled = control.reportNotificationToggleDisabled;
-    reportTypeSelect.disabled = control.reportTypeSelectDisabled;
-    reportTitleInput.disabled = control.reportTitleInputDisabled;
-    reportDescriptionInput.disabled = control.reportDescriptionInputDisabled;
-    reportMapInput.disabled = control.reportMapInputDisabled;
-    reportRoleInput.disabled = control.reportRoleInputDisabled;
-    reportTimingInput.disabled = control.reportTimingInputDisabled;
-    reportSendButton.disabled = control.reportSendButtonDisabled;
-    reportReplyInput.disabled = control.reportReplyInputDisabled;
-    reportSendMessageButton.disabled = control.reportSendMessageButtonDisabled;
   }
 
   function applyGameRunningState(running: boolean): void {
@@ -695,97 +561,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
   }
 
-  function renderReportThreads(): void {
-    reportThreadList.replaceChildren();
-
-    if (reportThreads.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "muted";
-      empty.style.padding = "8px";
-      empty.textContent = t("report.threadsEmpty");
-      reportThreadList.append(empty);
-      reportSelectedThread.textContent = t("report.selectedNone");
-      return;
-    }
-
-    for (const thread of reportThreads) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className =
-        selectedReportThreadId === thread.threadId
-          ? "report-thread-item active"
-          : "report-thread-item";
-      button.textContent = t("report.threadItem", {
-        mark: thread.currentStatus.mark || "●",
-        title: thread.title || t("report.noTitle"),
-        unread: thread.unread ? t("report.unreadSuffix") : "",
-      });
-
-      button.addEventListener("click", async () => {
-        selectedReportThreadId = thread.threadId;
-        renderReportThreads();
-        await loadReportMessages(thread.threadId, true);
-        updateButtons();
-      });
-
-      reportThreadList.append(button);
-    }
-
-    const selected = reportThreads.find((thread) => thread.threadId === selectedReportThreadId);
-    reportSelectedThread.textContent = selected
-      ? t("report.selected", { thread: selected.title || selected.threadId })
-      : t("report.selectedNone");
-  }
-
-  function createMessageElement(message: ReportMessage): HTMLDivElement {
-    const wrapper = document.createElement("div");
-    const isStatus = message.messageType === "status";
-    wrapper.className = isStatus ? "report-message status" : "report-message";
-
-    const head = document.createElement("div");
-    head.className = "report-message-head";
-
-    const author = document.createElement("span");
-    const date = document.createElement("span");
-
-    if (isStatus) {
-      author.textContent = t("report.statusUpdate", { mark: message.mark?.trim() || "●" });
-      if (message.color) {
-        author.style.color = message.color;
-      }
-    } else {
-      author.textContent = (message.sender || "unknown").replace("github:", "");
-    }
-
-    date.textContent = formatDate(message.createdAt);
-    head.append(author, date);
-
-    const body = document.createElement("div");
-    body.className = "report-message-body";
-    body.textContent = message.content || "";
-
-    wrapper.append(head, body);
-    return wrapper;
-  }
-
-  function renderReportMessages(): void {
-    reportMessageList.replaceChildren();
-
-    if (reportMessages.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "muted";
-      empty.textContent = t("report.messagesEmpty");
-      reportMessageList.append(empty);
-      return;
-    }
-
-    for (const message of reportMessages) {
-      reportMessageList.append(createMessageElement(message));
-    }
-
-    reportMessageList.scrollTop = reportMessageList.scrollHeight;
-  }
-
   async function reloadSettings(): Promise<LauncherSettings> {
     settings = await settingsGet();
     renderSettings();
@@ -852,22 +627,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       epicAuthStatus.textContent = t("epic.statusCheckFailed", { error: String(error) });
     } finally {
       updateButtons();
-    }
-  }
-
-  async function refreshReportingLogSource(): Promise<void> {
-    try {
-      const info = await reportingLogSourceGet();
-      if (info.exists && info.selectedPath) {
-        reportLogSource.textContent = t("report.logDetected", { path: info.selectedPath });
-      } else {
-        reportLogSource.textContent = t("report.logNotDetected", {
-          profile: info.profileCandidate,
-          game: info.gameCandidate,
-        });
-      }
-    } catch (error) {
-      reportLogSource.textContent = t("report.logSourceFailed", { error: String(error) });
     }
   }
 
@@ -1046,148 +805,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
   }
 
-  async function loadReportMessages(threadId: string, withStatus: boolean): Promise<void> {
-    const normalized = threadId.trim();
-    if (!normalized || !reportingReady) {
-      return;
-    }
-
-    const ticket = ++reportMessageLoadTicket;
-    reportMessagesLoading = true;
-    if (withStatus) {
-      setStatusLine(reportThreadStatus, t("report.messagesLoading"));
-    }
-    updateButtons();
-
-    try {
-      const messages = await reportingMessagesList(normalized);
-
-      if (ticket !== reportMessageLoadTicket) {
-        return;
-      }
-
-      reportMessages = messages;
-      renderReportMessages();
-
-      if (withStatus) {
-        setStatusLine(
-          reportThreadStatus,
-          t("report.messagesLoaded", { count: messages.length }),
-          "success",
-        );
-      }
-    } catch (error) {
-      if (ticket !== reportMessageLoadTicket) {
-        return;
-      }
-      setStatusLine(
-        reportThreadStatus,
-        t("report.messagesLoadFailed", { error: String(error) }),
-        "error",
-      );
-    } finally {
-      if (ticket === reportMessageLoadTicket) {
-        reportMessagesLoading = false;
-        updateButtons();
-      }
-    }
-  }
-
-  async function refreshReportingCenter(manual: boolean, allowNotify: boolean): Promise<void> {
-    if (!reportingReady || reportingLoading) {
-      return;
-    }
-
-    reportingLoading = true;
-    if (manual) {
-      setStatusLine(reportStatus, t("report.threadsRefreshing"));
-    }
-    updateButtons();
-
-    try {
-      // スレッド一覧と通知フラグは独立取得できるため並列で待つ。
-      const [threads, hasNotification] = await Promise.all([
-        reportingThreadsList(),
-        reportingNotificationFlagGet().catch(() => false),
-      ]);
-
-      reportThreads = threads;
-      reportRemoteFlag.textContent = hasNotification
-        ? t("report.remoteFlagUnread")
-        : t("report.remoteFlagNone");
-
-      if (
-        selectedReportThreadId &&
-        !reportThreads.some((thread) => thread.threadId === selectedReportThreadId)
-      ) {
-        selectedReportThreadId = null;
-        reportMessages = [];
-      }
-
-      if (!selectedReportThreadId && reportThreads.length > 0) {
-        selectedReportThreadId = reportThreads[0].threadId;
-      }
-
-      renderReportThreads();
-      await updateUnreadDiff(reportThreads, allowNotify);
-
-      if (selectedReportThreadId) {
-        await loadReportMessages(selectedReportThreadId, false);
-      } else {
-        renderReportMessages();
-      }
-
-      if (manual) {
-        setStatusLine(
-          reportStatus,
-          t("report.threadsRefreshDone", { count: reportThreads.length }),
-          "success",
-        );
-      }
-    } catch (error) {
-      setStatusLine(
-        reportStatus,
-        t("report.threadsRefreshFailed", { error: String(error) }),
-        "error",
-      );
-    } finally {
-      reportingLoading = false;
-      updateButtons();
-    }
-  }
-
-  async function initializeReporting(): Promise<void> {
-    reportPreparing = true;
-    reportingReady = false;
-    updateButtons();
-    setStatusLine(reportStatus, t("report.preparingAccount"));
-
-    try {
-      const result = await reportingPrepare();
-      reportingReady = result.ready;
-      if (result.createdAccount) {
-        reportAccountState.textContent = t("report.accountReadyCreated");
-      } else {
-        reportAccountState.textContent = t("report.accountReady", { source: result.tokenSource });
-      }
-      reportAccountState.className = "badge success";
-
-      await refreshReportingLogSource();
-      await refreshReportingCenter(true, false);
-      startReportingPolling();
-      setStatusLine(reportStatus, t("report.ready"), "success");
-    } catch (error) {
-      reportingReady = false;
-      stopReportingPolling();
-      reportAccountState.textContent = t("report.accountPrepareFailed");
-      reportAccountState.className = "badge warn";
-      setStatusLine(reportStatus, t("report.prepareFailed", { error: String(error) }), "error");
-    } finally {
-      reportPreparing = false;
-      updateButtons();
-    }
-  }
-
   async function gameExePathFromSettings(): Promise<string> {
     if (!settings || !settings.amongUsPath.trim()) {
       throw new Error("Among Us path is not configured");
@@ -1199,7 +816,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     const value = amongUsPathInput.value.trim();
     await saveSettings({ amongUsPath: value });
     await refreshProfileReady();
-    await refreshReportingLogSource();
     installStatus.textContent = t("settings.amongUsPathSaved");
     updateButtons();
   });
@@ -1212,7 +828,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       const platform = await finderDetectPlatform(detected);
       await saveSettings({ amongUsPath: detected, gamePlatform: platform });
       await refreshProfileReady();
-      await refreshReportingLogSource();
       installStatus.textContent = t("detect.success", {
         path: detected,
         platform,
@@ -1311,7 +926,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       );
       await refreshProfileReady();
       await refreshLocalPresets(true);
-      await refreshReportingLogSource();
     } catch (error) {
       setStatusLine(
         migrationStatus,
@@ -1538,7 +1152,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       await refreshProfileReady();
       await refreshPreservedSaveDataStatus();
       await refreshLocalPresets(true);
-      await refreshReportingLogSource();
     } catch (error) {
       installStatus.textContent = t("install.failed", { error: String(error) });
     } finally {
@@ -1573,7 +1186,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       await refreshProfileReady();
       await refreshPreservedSaveDataStatus();
       await refreshLocalPresets(true);
-      await refreshReportingLogSource();
       window.location.reload();
     } catch (error) {
       installStatus.textContent = t("uninstall.failed", { error: String(error) });
@@ -1648,136 +1260,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
   });
 
-  reportTypeSelect.addEventListener("change", () => {
-    renderReportBugFields();
-  });
-
-  reportNotificationToggle.addEventListener("change", async () => {
-    if (reportNotificationToggle.checked) {
-      const granted = await ensureNotificationPermission();
-      if (!granted) {
-        reportingNotificationEnabled = false;
-        persistReportingNotificationEnabled();
-        setStatusLine(reportNotificationState, t("report.permissionRequired"), "warn");
-        return;
-      }
-
-      reportingNotificationEnabled = true;
-      persistReportingNotificationEnabled();
-      setStatusLine(reportNotificationState, t("report.notificationsEnabled"), "success");
-      return;
-    }
-
-    reportingNotificationEnabled = false;
-    persistReportingNotificationEnabled();
-  });
-
-  reportRefreshButton.addEventListener("click", async () => {
-    if (!reportingReady) {
-      await initializeReporting();
-      return;
-    }
-
-    await refreshReportingLogSource();
-    await refreshReportingCenter(true, false);
-  });
-
-  reportSendButton.addEventListener("click", async () => {
-    if (!reportingReady) {
-      setStatusLine(reportStatus, t("report.notReady"), "warn");
-      return;
-    }
-
-    const reportType = reportTypeSelect.value as ReportType;
-    const title = reportTitleInput.value.trim();
-    const description = reportDescriptionInput.value.trim();
-
-    if (!title) {
-      setStatusLine(reportStatus, t("report.titleRequired"), "warn");
-      return;
-    }
-    if (!description) {
-      setStatusLine(reportStatus, t("report.bodyRequired"), "warn");
-      return;
-    }
-
-    const input: SendReportInput = {
-      reportType: reportType,
-      title,
-      description,
-    };
-
-    if (reportType === "Bug") {
-      const map = reportMapInput.value.trim();
-      const role = reportRoleInput.value.trim();
-      const timing = reportTimingInput.value.trim();
-      if (map) {
-        input.map = map;
-      }
-      if (role) {
-        input.role = role;
-      }
-      if (timing) {
-        input.timing = timing;
-      }
-    }
-
-    reportSending = true;
-    updateButtons();
-    setStatusLine(reportStatus, t("report.sending"));
-
-    try {
-      await reportingReportSend(input);
-      setStatusLine(reportStatus, t("report.sent"), "success");
-      reportTitleInput.value = "";
-      reportDescriptionInput.value = "";
-      reportMapInput.value = "";
-      reportRoleInput.value = "";
-      reportTimingInput.value = "";
-      await refreshReportingCenter(true, false);
-    } catch (error) {
-      setStatusLine(reportStatus, t("report.sendFailed", { error: String(error) }), "error");
-    } finally {
-      reportSending = false;
-      updateButtons();
-    }
-  });
-
-  reportSendMessageButton.addEventListener("click", async () => {
-    const threadId = selectedReportThreadId;
-    if (!threadId) {
-      setStatusLine(reportThreadStatus, t("report.threadRequired"), "warn");
-      return;
-    }
-
-    const content = reportReplyInput.value.trim();
-    if (!content) {
-      setStatusLine(reportThreadStatus, t("report.replyRequired"), "warn");
-      return;
-    }
-
-    reportMessageSending = true;
-    updateButtons();
-    setStatusLine(reportThreadStatus, t("report.replySending"));
-
-    try {
-      await reportingMessageSend(threadId, content);
-      reportReplyInput.value = "";
-      setStatusLine(reportThreadStatus, t("report.replySent"), "success");
-      await loadReportMessages(threadId, false);
-      await refreshReportingCenter(false, false);
-    } catch (error) {
-      setStatusLine(
-        reportThreadStatus,
-        t("report.replySendFailed", { error: String(error) }),
-        "error",
-      );
-    } finally {
-      reportMessageSending = false;
-      updateButtons();
-    }
-  });
-
   epicLoginWebviewButton.addEventListener("click", async () => {
     epicAuthStatus.textContent = t("epic.webviewStarting");
     try {
@@ -1840,8 +1322,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   });
 
   renderOfficialLinks();
-  renderReportBugFields();
-  persistReportingNotificationEnabled();
   renderPreservedSaveDataStatus();
   renderLocalPresetList();
   renderArchivePresetList();
@@ -1998,7 +1478,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     await refreshLocalPresets(true);
     await refreshPreservedSaveDataStatus();
     await refreshReleases();
-    await refreshReportingLogSource();
     await refreshGameRunningState();
     startGameRunningPolling();
 
@@ -2018,7 +1497,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       // ignore auto launch error retrieval errors
     }
 
-    await initializeReporting();
     updateButtons();
   })();
 }

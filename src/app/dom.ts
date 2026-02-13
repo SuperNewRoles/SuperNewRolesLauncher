@@ -49,27 +49,6 @@ export interface AppDom {
   presetImportButton: HTMLButtonElement;
   presetArchiveList: HTMLDivElement;
   presetStatus: HTMLDivElement;
-  reportAccountState: HTMLSpanElement;
-  reportRemoteFlag: HTMLSpanElement;
-  reportRefreshButton: HTMLButtonElement;
-  reportNotificationToggle: HTMLInputElement;
-  reportNotificationState: HTMLDivElement;
-  reportTypeSelect: HTMLSelectElement;
-  reportTitleInput: HTMLInputElement;
-  reportDescriptionInput: HTMLTextAreaElement;
-  reportMapInput: HTMLInputElement;
-  reportRoleInput: HTMLInputElement;
-  reportTimingInput: HTMLInputElement;
-  reportBugFields: HTMLDivElement;
-  reportLogSource: HTMLDivElement;
-  reportSendButton: HTMLButtonElement;
-  reportStatus: HTMLSpanElement;
-  reportThreadList: HTMLDivElement;
-  reportThreadStatus: HTMLDivElement;
-  reportSelectedThread: HTMLDivElement;
-  reportMessageList: HTMLDivElement;
-  reportReplyInput: HTMLInputElement;
-  reportSendMessageButton: HTMLButtonElement;
   epicLoginWebviewButton: HTMLButtonElement;
   epicLogoutButton: HTMLButtonElement;
   epicAuthStatus: HTMLSpanElement;
@@ -147,27 +126,6 @@ export function collectAppDom(): AppDom {
     presetImportButton: mustElement<HTMLButtonElement>("#preset-import"),
     presetArchiveList: mustElement<HTMLDivElement>("#preset-archive-list"),
     presetStatus: mustElement<HTMLDivElement>("#preset-status"),
-    reportAccountState: mustElement<HTMLSpanElement>("#report-account-state"),
-    reportRemoteFlag: mustElement<HTMLSpanElement>("#report-remote-flag"),
-    reportRefreshButton: mustElement<HTMLButtonElement>("#report-refresh"),
-    reportNotificationToggle: mustElement<HTMLInputElement>("#report-notification-toggle"),
-    reportNotificationState: mustElement<HTMLDivElement>("#report-notification-state"),
-    reportTypeSelect: mustElement<HTMLSelectElement>("#report-type"),
-    reportTitleInput: mustElement<HTMLInputElement>("#report-title"),
-    reportDescriptionInput: mustElement<HTMLTextAreaElement>("#report-description"),
-    reportMapInput: mustElement<HTMLInputElement>("#report-map"),
-    reportRoleInput: mustElement<HTMLInputElement>("#report-role"),
-    reportTimingInput: mustElement<HTMLInputElement>("#report-timing"),
-    reportBugFields: mustElement<HTMLDivElement>("#report-bug-fields"),
-    reportLogSource: mustElement<HTMLDivElement>("#report-log-source"),
-    reportSendButton: mustElement<HTMLButtonElement>("#report-send"),
-    reportStatus: mustElement<HTMLSpanElement>("#report-status"),
-    reportThreadList: mustElement<HTMLDivElement>("#report-thread-list"),
-    reportThreadStatus: mustElement<HTMLDivElement>("#report-thread-status"),
-    reportSelectedThread: mustElement<HTMLDivElement>("#report-selected-thread"),
-    reportMessageList: mustElement<HTMLDivElement>("#report-message-list"),
-    reportReplyInput: mustElement<HTMLInputElement>("#report-reply-input"),
-    reportSendMessageButton: mustElement<HTMLButtonElement>("#report-send-message"),
     epicLoginWebviewButton: mustElement<HTMLButtonElement>("#epic-login-webview"),
     epicLogoutButton: mustElement<HTMLButtonElement>("#epic-logout"),
     epicAuthStatus: mustElement<HTMLSpanElement>("#epic-auth-status"),

@@ -49,6 +49,7 @@ pub struct LauncherSettings {
     pub profile_path: String,
     pub close_to_tray_on_close: bool,
     pub ui_locale: String,
+    pub onboarding_completed: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -60,6 +61,7 @@ struct LauncherSettingsOnDisk {
     profile_path: Option<String>,
     close_to_tray_on_close: Option<bool>,
     ui_locale: Option<String>,
+    onboarding_completed: Option<bool>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -71,6 +73,7 @@ pub struct LauncherSettingsInput {
     pub profile_path: Option<String>,
     pub close_to_tray_on_close: Option<bool>,
     pub ui_locale: Option<String>,
+    pub onboarding_completed: Option<bool>,
 }
 
 fn normalize_ui_locale(value: &str) -> &'static str {
@@ -105,6 +108,7 @@ fn make_default_settings<R: Runtime>(app: &AppHandle<R>) -> Result<LauncherSetti
         profile_path: profile_path.to_string_lossy().to_string(),
         close_to_tray_on_close: true,
         ui_locale: "ja".to_string(),
+        onboarding_completed: false,
     })
 }
 
@@ -159,6 +163,7 @@ pub fn load_or_init_settings<R: Runtime>(app: &AppHandle<R>) -> Result<LauncherS
             default_settings.profile_path = trimmed.to_string();
         }
     }
+    default_settings.onboarding_completed = on_disk.onboarding_completed.unwrap_or(false);
 
     // 読み込み直後に正規化して再保存し、以降の設定形式を安定化する。
     default_settings = normalize_settings(default_settings);
@@ -189,6 +194,9 @@ pub fn apply_settings_input<R: Runtime>(
     }
     if let Some(ui_locale) = input.ui_locale {
         settings.ui_locale = ui_locale;
+    }
+    if let Some(onboarding_completed) = input.onboarding_completed {
+        settings.onboarding_completed = onboarding_completed;
     }
 
     if settings.profile_path.trim().is_empty() {

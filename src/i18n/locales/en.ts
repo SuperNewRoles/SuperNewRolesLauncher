@@ -74,6 +74,7 @@ const en: Record<keyof typeof ja, string> = {
   "report.bodyPlaceholder": "Describe repro steps and context",
   "report.send": "Send report",
   "report.threads": "Threads / Messages",
+  "report.threadsLoading": "Loading threads...",
   "report.replyPlaceholder": "Reply message",
   "report.reply": "Reply",
   "report.logDetected": "Bug log: {path}",
@@ -114,6 +115,21 @@ const en: Record<keyof typeof ja, string> = {
   "report.replySending": "Sending reply...",
   "report.replySent": "Reply sent",
   "report.replySendFailed": "Failed to send reply: {error}",
+  "report.you": "You",
+  "report.firstMessage": "First Message",
+  "report.statusChanged": 'Status changed to "{status}"',
+
+  // New Report Wizard
+  "report.stepType": "Select Type",
+  "report.stepDetails": "Enter Details",
+  "report.stepConfirm": "Confirm",
+  "report.selectType": "Select report type",
+  "report.enterDetails": "Enter report details",
+  "report.confirmReport": "Confirm your report",
+  "report.titlePlaceholder": "Enter title",
+  "report.mapPlaceholder": "Map name",
+  "report.rolePlaceholder": "Role or feature name",
+  "report.timingPlaceholder": "When did it occur?",
 
   "migration.title": "Data Migration (.snrdata)",
   "migration.export": "Export",
@@ -317,6 +333,7 @@ const en: Record<keyof typeof ja, string> = {
   "common.skip": "Skip",
   "common.next": "Next",
   "common.back": "Back",
+  "common.cancel": "Cancel",
 
   "onboarding.start": "Start",
   "onboarding.welcome.title": "Welcome to SuperNewRoles Launcher!",
