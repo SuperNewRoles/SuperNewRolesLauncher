@@ -687,7 +687,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     launchVanillaButton.disabled = control.launchVanillaButtonDisabled;
     createModdedShortcutButton.disabled = control.createModdedShortcutButtonDisabled;
     epicLoginWebviewButton.disabled = control.epicLoginWebviewButtonDisabled;
-    epicLoginCodeButton.disabled = control.epicLoginCodeButtonDisabled;
+    epicAuthCodeInput.disabled = true;
+    epicLoginCodeButton.disabled = true;
     epicLogoutButton.disabled = control.epicLogoutButtonDisabled;
     detectAmongUsPathButton.disabled = control.detectAmongUsPathButtonDisabled;
     saveAmongUsPathButton.disabled = control.saveAmongUsPathButtonDisabled;
@@ -1571,7 +1572,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   renderArchivePresetList();
   setStatusLine(presetStatus, t("preset.statusReadyToRefresh"));
 
-  checkUpdateButton.addEventListener("click", async () => {
+  async function runUpdateCheck(source: "manual" | "startup"): Promise<void> {
     if (checkingUpdate) {
       return;
     }
@@ -1596,36 +1597,43 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       let downloadedBytes = 0;
       let totalBytes = 0;
 
-      await update.downloadAndInstall(
-        (event) => {
-          if (event.event === "Started") {
-            totalBytes = event.data.contentLength ?? 0;
+      await update.downloadAndInstall((event) => {
+        if (event.event === "Started") {
+          totalBytes = event.data.contentLength ?? 0;
+          updateStatus.textContent = t("update.downloading");
+          return;
+        }
+        if (event.event === "Progress") {
+          downloadedBytes += event.data.chunkLength;
+          if (totalBytes > 0) {
+            const percent = Math.min(100, Math.floor((downloadedBytes / totalBytes) * 100));
+            updateStatus.textContent = t("update.downloadingPercent", { percent });
+          } else {
             updateStatus.textContent = t("update.downloading");
-            return;
           }
-          if (event.event === "Progress") {
-            downloadedBytes += event.data.chunkLength;
-            if (totalBytes > 0) {
-              const percent = Math.min(100, Math.floor((downloadedBytes / totalBytes) * 100));
-              updateStatus.textContent = t("update.downloadingPercent", { percent });
-            } else {
-              updateStatus.textContent = t("update.downloading");
-            }
-            return;
-          }
-          updateStatus.textContent = t("update.applying");
-        },
-      );
+          return;
+        }
+        updateStatus.textContent = t("update.applying");
+      });
 
       updateStatus.textContent = t("update.appliedRestart");
     } catch (error) {
-      updateStatus.textContent = t("update.failed", {
-        error: String(error),
-      });
+      if (source === "manual") {
+        updateStatus.textContent = t("update.failed", {
+          error: String(error),
+        });
+      } else {
+        // 起動時の自動チェック失敗は動作継続を優先してログのみ残す。
+        console.warn("Auto update check failed:", error);
+      }
     } finally {
       checkingUpdate = false;
       checkUpdateButton.disabled = false;
     }
+  }
+
+  checkUpdateButton.addEventListener("click", async () => {
+    await runUpdateCheck("manual");
   });
 
   void (async () => {
@@ -1727,5 +1735,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     updateButtons();
     startHomeNotificationPolling();
+    void runUpdateCheck("startup");
   })();
 }
