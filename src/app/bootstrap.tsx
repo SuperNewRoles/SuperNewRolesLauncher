@@ -187,6 +187,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     checkUpdateButton,
     updateStatus,
     officialLinkButtons,
+    officialLinkIcons,
     themeToggleSystem,
     themeToggleLight,
     themeToggleDark,
@@ -222,6 +223,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     activeTab = tabId;
 
     const reportPanel = document.querySelector<HTMLDivElement>("#tab-report");
+    const settingsPanel = document.querySelector<HTMLDivElement>("#tab-settings");
     const homeContent = document.querySelector<HTMLDivElement>("#tab-home .home-content");
 
     document.querySelectorAll(".tab-panel").forEach((panel) => {
@@ -230,6 +232,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     if (reportPanel) {
       reportPanel.classList.remove("tab-report-enter");
+    }
+    if (settingsPanel) {
+      settingsPanel.classList.remove("tab-settings-enter");
     }
 
     if (homeContent) {
@@ -260,6 +265,22 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
           { once: true },
         );
       }
+    } else if (tabId === "settings" && settingsPanel) {
+      unmountReportCenter();
+      requestAnimationFrame(() => {
+        settingsPanel.classList.add("tab-settings-enter");
+      });
+
+      settingsPanel.addEventListener(
+        "animationend",
+        (event) => {
+          if (event.target !== settingsPanel || event.animationName !== "settings-tab-enter") {
+            return;
+          }
+          settingsPanel.classList.remove("tab-settings-enter");
+        },
+        { once: true },
+      );
     } else {
       unmountReportCenter();
       if (tabId === "home" && homeContent) {
@@ -301,6 +322,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     switchTab("report");
   });
   const reportCenterBadge = document.querySelector<HTMLSpanElement>("#report-center-badge");
+  const epicAuthStatusBox = document.querySelector<HTMLDivElement>("#epic-auth-status-box");
+  const epicAuthStatusIcon = document.querySelector<HTMLDivElement>("#epic-auth-status-icon");
   const settingsCategoryButtons = Array.from(
     document.querySelectorAll<HTMLButtonElement>("[data-settings-category]"),
   );
@@ -332,6 +355,16 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     });
   }
   switchSettingsCategory(DEFAULT_SETTINGS_CATEGORY);
+
+  function setEpicAuthVisualState(state: "logged-out" | "logged-in" | "error"): void {
+    if (!epicAuthStatusBox || !epicAuthStatusIcon) {
+      return;
+    }
+    epicAuthStatusBox.classList.toggle("is-logged-in", state === "logged-in");
+    epicAuthStatusBox.classList.toggle("is-error", state === "error");
+    epicAuthStatusIcon.textContent =
+      state === "logged-in" ? "✓" : state === "error" ? "⚠" : "🔐";
+  }
 
   // 通知設定は永続値を先に確定し、store初期値とローカル変数を揃える。
   const initialReportingNotificationEnabled =
@@ -542,16 +575,16 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     element.className = tone === "info" ? "status-line" : `status-line ${tone}`;
   }
 
-  function renderOfficialLinks(): void {
-    officialLinkButtons.replaceChildren();
-
+  function renderOfficialLinksInto(container: HTMLDivElement, iconOnly: boolean): void {
+    container.replaceChildren();
     for (const link of OFFICIAL_LINKS) {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "pill-link";
+      button.className = iconOnly ? "official-icon-link" : "pill-link";
       button.style.background = link.backgroundColor;
       button.setAttribute("aria-label", t("official.openInBrowserAria", { label: link.label }));
-      button.innerHTML = `${link.iconSvg}<span>${link.label}</span>`;
+      button.title = link.label;
+      button.innerHTML = iconOnly ? link.iconSvg : `${link.iconSvg}<span>${link.label}</span>`;
 
       button.addEventListener("click", async () => {
         try {
@@ -561,8 +594,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         }
       });
 
-      officialLinkButtons.append(button);
+      container.append(button);
     }
+  }
+
+  function renderOfficialLinks(): void {
+    renderOfficialLinksInto(officialLinkIcons, true);
+    renderOfficialLinksInto(officialLinkButtons, false);
   }
 
   async function openFolder(pathValue: string | null | undefined, label: string): Promise<void> {
@@ -806,6 +844,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
       if (!status.loggedIn) {
         epicAuthStatus.textContent = t("epic.notLoggedIn");
+        setEpicAuthVisualState("logged-out");
         return;
       }
 
@@ -817,12 +856,15 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
       if (status.profileError) {
         epicAuthStatus.textContent = t("epic.loggedInProfileError", { user: userLabel });
+        setEpicAuthVisualState("error");
       } else {
         epicAuthStatus.textContent = t("epic.loggedIn", { user: userLabel });
+        setEpicAuthVisualState("logged-in");
       }
     } catch (error) {
       epicLoggedIn = false;
       epicAuthStatus.textContent = t("epic.statusCheckFailed", { error: String(error) });
+      setEpicAuthVisualState("error");
     } finally {
       updateButtons();
     }
@@ -1464,10 +1506,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   epicLoginWebviewButton.addEventListener("click", async () => {
     epicAuthStatus.textContent = t("epic.webviewStarting");
+    setEpicAuthVisualState("logged-out");
     try {
       await epicLoginWebview();
     } catch (error) {
       epicAuthStatus.textContent = t("epic.webviewStartFailed", { error: String(error) });
+      setEpicAuthVisualState("error");
     }
   });
 
@@ -1479,12 +1523,14 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
 
     epicAuthStatus.textContent = t("epic.codeLoginInProgress");
+    setEpicAuthVisualState("logged-out");
     try {
       await epicLoginCode(code);
       epicAuthStatus.textContent = t("epic.loginSuccess");
       await refreshEpicLoginState();
     } catch (error) {
       epicAuthStatus.textContent = t("epic.loginFailed", { error: String(error) });
+      setEpicAuthVisualState("error");
     }
   });
 
@@ -1495,6 +1541,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       await refreshEpicLoginState();
     } catch (error) {
       epicAuthStatus.textContent = t("epic.logoutFailed", { error: String(error) });
+      setEpicAuthVisualState("error");
     }
   });
 

@@ -1819,6 +1819,44 @@ progress {
   flex-wrap: wrap;
 }
 
+.main-official-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 4px;
+}
+
+.official-icon-link {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+}
+
+.official-icon-link:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
+}
+
+.official-icon-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.official-icon-link svg {
+  width: 14px;
+  height: 14px;
+}
+
 .theme-buttons {
   display: flex;
   gap: 4px;
@@ -1918,6 +1956,14 @@ progress {
 
 #tab-report.tab-panel.tab-report-enter .tab-inner {
   animation: report-tab-inner-enter 220ms ease-out forwards;
+}
+
+#tab-settings.tab-panel.tab-settings-enter {
+  animation: settings-tab-enter 260ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+#tab-settings.tab-panel.tab-settings-enter .tab-settings-shell {
+  animation: settings-tab-inner-enter 260ms cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
 #tab-report.tab-panel.tab-panel-active .tab-inner {
@@ -2075,6 +2121,77 @@ progress {
   font-size: 18px;
   font-weight: 700;
   color: var(--text);
+}
+
+.settings-epic-card-shell {
+  max-width: 560px;
+}
+
+.settings-epic-header {
+  margin-bottom: 16px;
+}
+
+.settings-epic-hint {
+  margin: 0 0 18px;
+}
+
+.settings-epic-card {
+  display: grid;
+  gap: 18px;
+  border-radius: 18px;
+  padding: 24px;
+}
+
+.settings-epic-status {
+  margin: 0;
+  padding: 14px;
+}
+
+.settings-epic-status .epic-login-info-icon {
+  margin-bottom: 8px;
+}
+
+.settings-epic-status .epic-login-info-text {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.settings-epic-status.is-logged-in {
+  border-color: rgba(25, 118, 76, 0.3);
+  background: rgba(25, 118, 76, 0.08);
+}
+
+.settings-epic-status.is-logged-in .epic-login-info-text {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.settings-epic-status.is-error {
+  border-color: rgba(186, 47, 51, 0.32);
+  background: rgba(186, 47, 51, 0.08);
+}
+
+.settings-epic-status.is-error .epic-login-info-text {
+  color: var(--danger);
+}
+
+.settings-epic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-epic-actions .btn-login {
+  min-width: 240px;
+}
+
+.settings-epic-logout {
+  min-width: 120px;
+}
+
+.settings-epic-code-row {
+  align-items: center;
 }
 
 /* ホームタブ（元のUI案に準拠） */
@@ -2691,6 +2808,28 @@ progress {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes settings-tab-enter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes settings-tab-inner-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 

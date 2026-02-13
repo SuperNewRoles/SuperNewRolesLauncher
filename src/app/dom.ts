@@ -58,6 +58,7 @@ export interface AppDom {
   checkUpdateButton: HTMLButtonElement;
   updateStatus: HTMLSpanElement;
   officialLinkButtons: HTMLDivElement;
+  officialLinkIcons: HTMLDivElement;
   themeToggleSystem: HTMLButtonElement;
   themeToggleLight: HTMLButtonElement;
   themeToggleDark: HTMLButtonElement;
@@ -133,6 +134,7 @@ export function collectAppDom(): AppDom {
     checkUpdateButton: mustElement<HTMLButtonElement>("#check-update"),
     updateStatus: mustElement<HTMLSpanElement>("#update-status"),
     officialLinkButtons: mustElement<HTMLDivElement>("#official-link-buttons"),
+    officialLinkIcons: mustElement<HTMLDivElement>("#official-link-icons"),
     themeToggleSystem: mustElement<HTMLButtonElement>("#theme-toggle-system"),
     themeToggleLight: mustElement<HTMLButtonElement>("#theme-toggle-light"),
     themeToggleDark: mustElement<HTMLButtonElement>("#theme-toggle-dark"),
