@@ -2524,37 +2524,38 @@ progress {
 .report-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(8, 14, 24, 0.42);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 300;
-  padding: 20px;
-  backdrop-filter: blur(4px);
+  align-items: stretch;
+  justify-content: stretch;
+  z-index: 320;
+  padding: 0;
+  backdrop-filter: blur(3px);
 }
 
 .report-modal {
   background: var(--card-strong);
-  border-radius: 16px;
-  border: 1px solid var(--line);
+  border-radius: 0;
+  border: none;
   box-shadow: var(--shadow);
   width: 100%;
-  max-width: 520px;
-  max-height: 90vh;
+  max-width: none;
+  height: 100%;
+  max-height: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: modal-appear 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  animation: modal-appear 0.22s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @keyframes modal-appear {
   from {
     opacity: 0;
-    transform: scale(0.95) translateY(20px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: translateY(0);
   }
 }
 
@@ -2882,6 +2883,7 @@ progress {
   }
 
   .report-modal {
-    max-height: 95vh;
+    height: 100%;
+    max-height: none;
   }
 }

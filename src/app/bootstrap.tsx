@@ -244,8 +244,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
           { once: true },
         );
       }
-    } else if (tabId === "home") {
-      if (homeContent) {
+    } else {
+      unmountReportCenter();
+      if (tabId === "home" && homeContent) {
         requestAnimationFrame(() => {
           homeContent.classList.add("home-content-enter");
         });
@@ -261,8 +262,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
           { once: true },
         );
       }
-    } else {
-      unmountReportCenter();
     }
 
     if (tabId === "home") {

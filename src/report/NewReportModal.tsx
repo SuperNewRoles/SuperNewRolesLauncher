@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ReportType } from "../app/types";
 import type { createTranslator } from "../i18n";
 
@@ -55,6 +56,23 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
     }
   }, [isSubmitting, resetForm, onClose]);
 
+  useEffect(() => {
+    if (!isOpen || isSubmitting) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        handleClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, isSubmitting, handleClose]);
+
   const handleTypeSelect = useCallback((type: ReportType) => {
     setReportType(type);
     setStep("details");
@@ -98,9 +116,14 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
   const isBug = reportType === "Bug";
   const canProceed = title.trim() && description.trim();
 
-  return (
+  const modal = (
     <div className="report-modal-overlay" onClick={handleClose}>
-      <div className="report-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="report-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
         {/* プログレスバー */}
         <div className="report-wizard-progress">
           <div
@@ -327,4 +350,10 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") {
+    return modal;
+  }
+
+  return createPortal(modal, document.body);
 }

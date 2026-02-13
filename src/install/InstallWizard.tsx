@@ -210,6 +210,7 @@ export default function InstallWizard() {
           locale={locale}
           onLocaleChange={handleLocaleChange}
           onStart={onStart}
+          error={error}
           localeOptions={SUPPORTED_LOCALES.map((code) => ({
             value: code,
             label: t(LOCALE_OPTION_LABEL_KEYS[code]),

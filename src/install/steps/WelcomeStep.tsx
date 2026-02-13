@@ -7,6 +7,7 @@ interface WelcomeStepProps {
   locale: LocaleCode;
   onLocaleChange: (locale: LocaleCode) => void;
   onStart: () => void;
+  error?: string | null;
   localeOptions: { value: LocaleCode; label: string }[];
   theme: ThemePreference;
   onThemeChange: (theme: ThemePreference) => void;
@@ -17,6 +18,7 @@ export default function WelcomeStep({
   locale,
   onLocaleChange,
   onStart,
+  error,
   localeOptions,
   theme,
   onThemeChange,
@@ -110,6 +112,7 @@ export default function WelcomeStep({
           <button type="button" className="btn-primary" onClick={onStart}>
             {t("installFlow.start")}
           </button>
+          {error && <p className="step-error">{error}</p>}
         </div>
       </div>
     </div>

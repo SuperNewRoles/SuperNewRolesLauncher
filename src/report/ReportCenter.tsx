@@ -37,6 +37,14 @@ export function ReportCenter({ t }: ReportCenterProps) {
   const [isNewReportModalOpen, setIsNewReportModalOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>("");
   const isMountedRef = useRef(false);
+  const closePanelTimeoutRef = useRef<number | null>(null);
+
+  const clearClosePanelTimeout = useCallback(() => {
+    if (closePanelTimeoutRef.current !== null) {
+      window.clearTimeout(closePanelTimeoutRef.current);
+      closePanelTimeoutRef.current = null;
+    }
+  }, []);
 
   const loadThreads = useCallback(async ({ force = false } = {}) => {
     const now = Date.now();
@@ -89,8 +97,9 @@ export function ReportCenter({ t }: ReportCenterProps) {
 
     return () => {
       isMountedRef.current = false;
+      clearClosePanelTimeout();
     };
-  }, [loadThreads]);
+  }, [loadThreads, clearClosePanelTimeout]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -131,34 +140,41 @@ export function ReportCenter({ t }: ReportCenterProps) {
     void loadMessages();
   }, [selectedThread]);
 
-  const handleThreadSelect = useCallback((thread: ReportThread) => {
-    const normalizedThread = thread.unread
-      ? {
-          ...thread,
-          unread: false,
-        }
-      : thread;
+  const handleThreadSelect = useCallback(
+    (thread: ReportThread) => {
+      clearClosePanelTimeout();
 
-    setSelectedThread(normalizedThread);
-    setIsPanelOpen(true);
-    setThreads((currentThreads) =>
-      currentThreads.map((item) =>
-        item.threadId === thread.threadId && item.unread
-          ? {
-              ...item,
-              unread: false,
-            }
-          : item,
-      ),
-    );
-  }, []);
+      const normalizedThread = thread.unread
+        ? {
+            ...thread,
+            unread: false,
+          }
+        : thread;
+
+      setSelectedThread(normalizedThread);
+      setIsPanelOpen(true);
+      setThreads((currentThreads) =>
+        currentThreads.map((item) =>
+          item.threadId === thread.threadId && item.unread
+            ? {
+                ...item,
+                unread: false,
+              }
+            : item,
+        ),
+      );
+    },
+    [clearClosePanelTimeout],
+  );
 
   const handleClosePanel = useCallback(() => {
     setIsPanelOpen(false);
-    setTimeout(() => {
+    clearClosePanelTimeout();
+    closePanelTimeoutRef.current = window.setTimeout(() => {
+      closePanelTimeoutRef.current = null;
       setSelectedThread(null);
     }, 300);
-  }, []);
+  }, [clearClosePanelTimeout]);
 
   const handleToggleFullscreen = useCallback(() => {
     setIsFullscreen((prev) => !prev);
