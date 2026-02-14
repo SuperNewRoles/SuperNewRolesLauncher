@@ -1,4 +1,9 @@
-import { type KeyboardEvent, useCallback, useEffect, useState } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import type { ReportType } from "../app/types";
 import type { createTranslator } from "../i18n";
@@ -61,7 +66,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
       return;
     }
 
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === "Escape") {
         handleClose();
       }
@@ -116,14 +121,14 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
   const isBug = reportType === "Bug";
   const canProceed = title.trim() && description.trim();
 
-  const closeOnActivation = (event: KeyboardEvent<HTMLElement>) => {
+  const closeOnActivation = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       handleClose();
     }
   };
 
-  const stopPropagation = (event: KeyboardEvent<HTMLElement>) => {
+  const stopPropagation = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.key === " ") {
       event.preventDefault();
     }
