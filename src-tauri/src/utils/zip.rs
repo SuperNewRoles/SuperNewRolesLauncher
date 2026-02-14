@@ -1,5 +1,31 @@
+use std::collections::HashSet;
 use std::fs::{self, File};
-use std::path::Path;
+use std::io::{BufWriter, Read, Write};
+use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
+
+const ZIP_COPY_BUFFER_SIZE: usize = 256 * 1024;
+const EXTRACT_PROGRESS_MIN_INTERVAL: Duration = Duration::from_millis(120);
+
+fn copy_with_reused_buffer<R: Read, W: Write>(
+    reader: &mut R,
+    writer: &mut W,
+    buffer: &mut [u8],
+) -> std::io::Result<u64> {
+    let mut written = 0_u64;
+
+    loop {
+        let read = reader.read(buffer)?;
+        if read == 0 {
+            break;
+        }
+
+        writer.write_all(&buffer[..read])?;
+        written += read as u64;
+    }
+
+    Ok(written)
+}
 
 pub fn extract_zip<F>(zip_path: &Path, destination: &Path, mut on_progress: F) -> Result<(), String>
 where
@@ -13,6 +39,12 @@ where
         .map_err(|e| format!("Failed to create extraction directory: {e}"))?;
 
     let total = archive.len();
+    let progress_step = (total / 100).max(1);
+    let mut last_reported = 0_usize;
+    let mut last_progress_emitted_at = Instant::now();
+    let mut copy_buffer = vec![0_u8; ZIP_COPY_BUFFER_SIZE];
+    let mut created_dirs = HashSet::<PathBuf>::new();
+    created_dirs.insert(destination.to_path_buf());
     on_progress(0, total);
 
     for i in 0..total {
@@ -29,19 +61,27 @@ where
 
         let output_path = destination.join(enclosed);
         if entry.is_dir() {
-            fs::create_dir_all(&output_path)
-                .map_err(|e| format!("Failed to create directory during extraction: {e}"))?;
+            if created_dirs.insert(output_path.clone()) {
+                fs::create_dir_all(&output_path)
+                    .map_err(|e| format!("Failed to create directory during extraction: {e}"))?;
+            }
         } else {
             if let Some(parent) = output_path.parent() {
-                fs::create_dir_all(parent).map_err(|e| {
-                    format!("Failed to create parent directory during extraction: {e}")
-                })?;
+                if created_dirs.insert(parent.to_path_buf()) {
+                    fs::create_dir_all(parent).map_err(|e| {
+                        format!("Failed to create parent directory during extraction: {e}")
+                    })?;
+                }
             }
 
-            let mut output = File::create(&output_path)
+            let output_file = File::create(&output_path)
                 .map_err(|e| format!("Failed to create extracted file: {e}"))?;
-            std::io::copy(&mut entry, &mut output)
+            let mut output = BufWriter::with_capacity(ZIP_COPY_BUFFER_SIZE, output_file);
+            copy_with_reused_buffer(&mut entry, &mut output, &mut copy_buffer)
                 .map_err(|e| format!("Failed to extract zip entry: {e}"))?;
+            output
+                .flush()
+                .map_err(|e| format!("Failed to flush extracted file output: {e}"))?;
 
             #[cfg(unix)]
             if let Some(mode) = entry.unix_mode() {
@@ -50,7 +90,15 @@ where
             }
         }
 
-        on_progress(i + 1, total);
+        let current = i + 1;
+        let should_emit_progress = current == total
+            || current.saturating_sub(last_reported) >= progress_step
+            || last_progress_emitted_at.elapsed() >= EXTRACT_PROGRESS_MIN_INTERVAL;
+        if should_emit_progress {
+            on_progress(current, total);
+            last_reported = current;
+            last_progress_emitted_at = Instant::now();
+        }
     }
 
     Ok(())

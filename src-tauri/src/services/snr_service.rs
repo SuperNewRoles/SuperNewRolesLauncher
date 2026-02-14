@@ -13,6 +13,31 @@ const RELEASE_BY_TAG_API_URL: &str =
     "https://api.github.com/repos/SuperNewRoles/SuperNewRoles/releases/tags";
 const PRESERVED_SAVE_DATA_DIR: &str = "preserved_save_data";
 
+// インストール全体の進捗(0-100)へ統合するための配分。
+// downloading/extracting は各ステージの 0-100 をこの範囲へ線形変換する。
+const INSTALL_DOWNLOAD_END: f64 = 80.0;
+const INSTALL_EXTRACT_END: f64 = 98.0;
+const INSTALL_RESTORE_END: f64 = 99.0;
+
+fn scale_progress(stage_percent: f64, start: f64, end: f64) -> f64 {
+    let ratio = stage_percent.clamp(0.0, 100.0) / 100.0;
+    start + (end - start) * ratio
+}
+
+fn map_install_progress(stage: &str, stage_percent: f64) -> f64 {
+    let clamped = stage_percent.clamp(0.0, 100.0);
+    match stage {
+        // resolving は短時間のため 0% のまま扱い、download 開始から可視進捗を進める。
+        "resolving" => 0.0,
+        "downloading" => scale_progress(clamped, 0.0, INSTALL_DOWNLOAD_END),
+        "extracting" => scale_progress(clamped, INSTALL_DOWNLOAD_END, INSTALL_EXTRACT_END),
+        "restoring" => scale_progress(clamped, INSTALL_EXTRACT_END, INSTALL_RESTORE_END),
+        "complete" => 100.0,
+        "failed" => 0.0,
+        _ => clamped,
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct GitHubAsset {
     name: String,
@@ -84,6 +109,7 @@ fn emit_progress<R: Runtime>(
     current: Option<usize>,
     entries_total: Option<usize>,
 ) {
+    let progress = map_install_progress(stage, progress);
     let _ = app.emit(
         "snr-install-progress",
         InstallProgressPayload {
@@ -217,16 +243,17 @@ fn preserve_profile_save_data<R: Runtime>(
 
     clean_path(&preserved_path)?;
 
-    if files.is_empty() {
-        return Ok(0);
-    }
-
+    // 0件だった場合でも「前回保持を実行した」状態を識別できるよう、空ディレクトリを残す。
     fs::create_dir_all(&preserved_path).map_err(|e| {
         format!(
             "Failed to create preserved save data directory '{}': {e}",
             preserved_path.display()
         )
     })?;
+
+    if files.is_empty() {
+        return Ok(0);
+    }
 
     for (source_path, relative_path) in &files {
         let relative = PathBuf::from(relative_path);
@@ -400,7 +427,8 @@ pub fn get_preserved_save_data_status<R: Runtime>(
     collect_files_recursive(&preserved_path, &mut files)?;
 
     Ok(PreservedSaveDataStatus {
-        available: !files.is_empty(),
+        // 空でもディレクトリが存在する場合は、保持操作済みとして扱う。
+        available: true,
         files: files.len(),
     })
 }
@@ -601,7 +629,7 @@ async fn install_snr_release_inner<R: Runtime>(
         emit_progress(
             app,
             "restoring",
-            95.0,
+            0.0,
             "Restoring preserved save data...",
             None,
             None,
@@ -613,7 +641,7 @@ async fn install_snr_release_inner<R: Runtime>(
         emit_progress(
             app,
             "restoring",
-            96.0,
+            100.0,
             format!("Restored {restored} preserved save file(s)"),
             None,
             None,

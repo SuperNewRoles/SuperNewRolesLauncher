@@ -4,29 +4,36 @@
  */
 export interface AppDom {
   appVersion: HTMLSpanElement;
+  settingsAppVersion: HTMLSpanElement;
+  replayOnboardingButton: HTMLButtonElement;
   languageSelect: HTMLSelectElement;
-  amongUsPathInput: HTMLInputElement;
-  saveAmongUsPathButton: HTMLButtonElement;
-  detectAmongUsPathButton: HTMLButtonElement;
-  platformSelect: HTMLSelectElement;
-  releaseSelect: HTMLSelectElement;
-  refreshReleasesButton: HTMLButtonElement;
-  profilePath: HTMLElement;
+
+  reselectAmongUsButton: HTMLButtonElement;
   openAmongUsFolderButton: HTMLButtonElement;
   openProfileFolderButton: HTMLButtonElement;
   closeToTrayOnCloseInput: HTMLInputElement;
-  installButton: HTMLButtonElement;
-  installRestoreSaveDataCheckbox: HTMLInputElement;
+  settingsGeneralStatus: HTMLSpanElement;
+  settingsShortcutStatus: HTMLSpanElement;
   uninstallButton: HTMLButtonElement;
-  uninstallPreserveSaveDataCheckbox: HTMLInputElement;
-  installProgress: HTMLProgressElement;
+  settingsSupportDiscordLinkButton: HTMLButtonElement;
+  settingsAmongUsOverlay: HTMLDivElement;
+  settingsAmongUsOverlayBackdrop: HTMLDivElement;
+  settingsAmongUsOverlayCloseButton: HTMLButtonElement;
+  settingsAmongUsOverlayCancelButton: HTMLButtonElement;
+  settingsAmongUsOverlayError: HTMLDivElement;
+  settingsAmongUsCandidateList: HTMLDivElement;
+  settingsAmongUsCandidateEmpty: HTMLParagraphElement;
+  settingsAmongUsManualSelectButton: HTMLButtonElement;
+  settingsUninstallConfirmOverlay: HTMLDivElement;
+  settingsUninstallConfirmOverlayBackdrop: HTMLDivElement;
+  settingsUninstallConfirmCloseButton: HTMLButtonElement;
+  settingsUninstallConfirmCancelButton: HTMLButtonElement;
+  settingsUninstallConfirmAcceptButton: HTMLButtonElement;
   installStatus: HTMLSpanElement;
-  preservedSaveDataStatus: HTMLDivElement;
   launchModdedButton: HTMLButtonElement;
   launchVanillaButton: HTMLButtonElement;
   createModdedShortcutButton: HTMLButtonElement;
   launchStatus: HTMLSpanElement;
-  profileReadyStatus: HTMLDivElement;
   migrationExportButton: HTMLButtonElement;
   migrationEncryptionEnabledInput: HTMLInputElement;
   migrationExportPasswordInput: HTMLInputElement;
@@ -47,38 +54,16 @@ export interface AppDom {
   presetImportButton: HTMLButtonElement;
   presetArchiveList: HTMLDivElement;
   presetStatus: HTMLDivElement;
-  reportAccountState: HTMLSpanElement;
-  reportRemoteFlag: HTMLSpanElement;
-  reportRefreshButton: HTMLButtonElement;
-  reportNotificationToggle: HTMLInputElement;
-  reportNotificationState: HTMLDivElement;
-  reportTypeSelect: HTMLSelectElement;
-  reportTitleInput: HTMLInputElement;
-  reportDescriptionInput: HTMLTextAreaElement;
-  reportMapInput: HTMLInputElement;
-  reportRoleInput: HTMLInputElement;
-  reportTimingInput: HTMLInputElement;
-  reportBugFields: HTMLDivElement;
-  reportLogSource: HTMLDivElement;
-  reportSendButton: HTMLButtonElement;
-  reportStatus: HTMLSpanElement;
-  reportThreadList: HTMLDivElement;
-  reportThreadStatus: HTMLDivElement;
-  reportSelectedThread: HTMLDivElement;
-  reportMessageList: HTMLDivElement;
-  reportReplyInput: HTMLInputElement;
-  reportSendMessageButton: HTMLButtonElement;
   epicLoginWebviewButton: HTMLButtonElement;
   epicLogoutButton: HTMLButtonElement;
   epicAuthStatus: HTMLSpanElement;
-  epicAuthCodeInput: HTMLInputElement;
-  epicLoginCodeButton: HTMLButtonElement;
   checkUpdateButton: HTMLButtonElement;
   updateStatus: HTMLSpanElement;
-  githubTokenInput: HTMLInputElement;
-  saveTokenButton: HTMLButtonElement;
-  clearTokenButton: HTMLButtonElement;
   officialLinkButtons: HTMLDivElement;
+  officialLinkIcons: HTMLDivElement;
+  themeToggleSystem: HTMLButtonElement;
+  themeToggleLight: HTMLButtonElement;
+  themeToggleDark: HTMLButtonElement;
 }
 
 function mustElement<T extends Element>(selector: string): T {
@@ -96,31 +81,57 @@ function mustElement<T extends Element>(selector: string): T {
 export function collectAppDom(): AppDom {
   return {
     appVersion: mustElement<HTMLSpanElement>("#app-version"),
+    settingsAppVersion: mustElement<HTMLSpanElement>("#settings-app-version"),
+    replayOnboardingButton: mustElement<HTMLButtonElement>("#replay-onboarding"),
     languageSelect: mustElement<HTMLSelectElement>("#language-select"),
-    amongUsPathInput: mustElement<HTMLInputElement>("#among-us-path"),
-    saveAmongUsPathButton: mustElement<HTMLButtonElement>("#save-among-us-path"),
-    detectAmongUsPathButton: mustElement<HTMLButtonElement>("#detect-among-us-path"),
-    platformSelect: mustElement<HTMLSelectElement>("#platform-select"),
-    releaseSelect: mustElement<HTMLSelectElement>("#release-select"),
-    refreshReleasesButton: mustElement<HTMLButtonElement>("#refresh-releases"),
-    profilePath: mustElement<HTMLElement>("#profile-path"),
+    reselectAmongUsButton: mustElement<HTMLButtonElement>("#reselect-among-us-button"),
     openAmongUsFolderButton: mustElement<HTMLButtonElement>("#open-among-us-folder"),
     openProfileFolderButton: mustElement<HTMLButtonElement>("#open-profile-folder"),
     closeToTrayOnCloseInput: mustElement<HTMLInputElement>("#close-to-tray-on-close"),
-    installButton: mustElement<HTMLButtonElement>("#install-snr"),
-    installRestoreSaveDataCheckbox: mustElement<HTMLInputElement>("#install-restore-save-data"),
+    settingsGeneralStatus: mustElement<HTMLSpanElement>("#settings-general-status"),
+    settingsShortcutStatus: mustElement<HTMLSpanElement>("#settings-shortcut-status"),
     uninstallButton: mustElement<HTMLButtonElement>("#uninstall-snr"),
-    uninstallPreserveSaveDataCheckbox: mustElement<HTMLInputElement>(
-      "#uninstall-preserve-save-data",
+    settingsSupportDiscordLinkButton: mustElement<HTMLButtonElement>(
+      "#settings-support-discord-link",
     ),
-    installProgress: mustElement<HTMLProgressElement>("#install-progress"),
+    settingsAmongUsOverlay: mustElement<HTMLDivElement>("#settings-among-us-overlay"),
+    settingsAmongUsOverlayBackdrop: mustElement<HTMLDivElement>(
+      "#settings-among-us-overlay-backdrop",
+    ),
+    settingsAmongUsOverlayCloseButton: mustElement<HTMLButtonElement>(
+      "#settings-among-us-overlay-close",
+    ),
+    settingsAmongUsOverlayCancelButton: mustElement<HTMLButtonElement>(
+      "#settings-among-us-overlay-cancel",
+    ),
+    settingsAmongUsOverlayError: mustElement<HTMLDivElement>("#settings-among-us-overlay-error"),
+    settingsAmongUsCandidateList: mustElement<HTMLDivElement>("#settings-among-us-candidate-list"),
+    settingsAmongUsCandidateEmpty: mustElement<HTMLParagraphElement>(
+      "#settings-among-us-candidate-empty",
+    ),
+    settingsAmongUsManualSelectButton: mustElement<HTMLButtonElement>(
+      "#settings-among-us-manual-select",
+    ),
+    settingsUninstallConfirmOverlay: mustElement<HTMLDivElement>(
+      "#settings-uninstall-confirm-overlay",
+    ),
+    settingsUninstallConfirmOverlayBackdrop: mustElement<HTMLDivElement>(
+      "#settings-uninstall-confirm-overlay-backdrop",
+    ),
+    settingsUninstallConfirmCloseButton: mustElement<HTMLButtonElement>(
+      "#settings-uninstall-confirm-close",
+    ),
+    settingsUninstallConfirmCancelButton: mustElement<HTMLButtonElement>(
+      "#settings-uninstall-confirm-cancel",
+    ),
+    settingsUninstallConfirmAcceptButton: mustElement<HTMLButtonElement>(
+      "#settings-uninstall-confirm-accept",
+    ),
     installStatus: mustElement<HTMLSpanElement>("#install-status"),
-    preservedSaveDataStatus: mustElement<HTMLDivElement>("#preserved-save-data-status"),
     launchModdedButton: mustElement<HTMLButtonElement>("#launch-modded"),
     launchVanillaButton: mustElement<HTMLButtonElement>("#launch-vanilla"),
     createModdedShortcutButton: mustElement<HTMLButtonElement>("#create-modded-shortcut"),
     launchStatus: mustElement<HTMLSpanElement>("#launch-status"),
-    profileReadyStatus: mustElement<HTMLDivElement>("#profile-ready-status"),
     migrationExportButton: mustElement<HTMLButtonElement>("#migration-export"),
     migrationEncryptionEnabledInput: mustElement<HTMLInputElement>("#migration-encryption-enabled"),
     migrationExportPasswordInput: mustElement<HTMLInputElement>("#migration-export-password"),
@@ -141,37 +152,15 @@ export function collectAppDom(): AppDom {
     presetImportButton: mustElement<HTMLButtonElement>("#preset-import"),
     presetArchiveList: mustElement<HTMLDivElement>("#preset-archive-list"),
     presetStatus: mustElement<HTMLDivElement>("#preset-status"),
-    reportAccountState: mustElement<HTMLSpanElement>("#report-account-state"),
-    reportRemoteFlag: mustElement<HTMLSpanElement>("#report-remote-flag"),
-    reportRefreshButton: mustElement<HTMLButtonElement>("#report-refresh"),
-    reportNotificationToggle: mustElement<HTMLInputElement>("#report-notification-toggle"),
-    reportNotificationState: mustElement<HTMLDivElement>("#report-notification-state"),
-    reportTypeSelect: mustElement<HTMLSelectElement>("#report-type"),
-    reportTitleInput: mustElement<HTMLInputElement>("#report-title"),
-    reportDescriptionInput: mustElement<HTMLTextAreaElement>("#report-description"),
-    reportMapInput: mustElement<HTMLInputElement>("#report-map"),
-    reportRoleInput: mustElement<HTMLInputElement>("#report-role"),
-    reportTimingInput: mustElement<HTMLInputElement>("#report-timing"),
-    reportBugFields: mustElement<HTMLDivElement>("#report-bug-fields"),
-    reportLogSource: mustElement<HTMLDivElement>("#report-log-source"),
-    reportSendButton: mustElement<HTMLButtonElement>("#report-send"),
-    reportStatus: mustElement<HTMLSpanElement>("#report-status"),
-    reportThreadList: mustElement<HTMLDivElement>("#report-thread-list"),
-    reportThreadStatus: mustElement<HTMLDivElement>("#report-thread-status"),
-    reportSelectedThread: mustElement<HTMLDivElement>("#report-selected-thread"),
-    reportMessageList: mustElement<HTMLDivElement>("#report-message-list"),
-    reportReplyInput: mustElement<HTMLInputElement>("#report-reply-input"),
-    reportSendMessageButton: mustElement<HTMLButtonElement>("#report-send-message"),
     epicLoginWebviewButton: mustElement<HTMLButtonElement>("#epic-login-webview"),
     epicLogoutButton: mustElement<HTMLButtonElement>("#epic-logout"),
     epicAuthStatus: mustElement<HTMLSpanElement>("#epic-auth-status"),
-    epicAuthCodeInput: mustElement<HTMLInputElement>("#epic-auth-code"),
-    epicLoginCodeButton: mustElement<HTMLButtonElement>("#epic-login-code"),
     checkUpdateButton: mustElement<HTMLButtonElement>("#check-update"),
     updateStatus: mustElement<HTMLSpanElement>("#update-status"),
-    githubTokenInput: mustElement<HTMLInputElement>("#github-token"),
-    saveTokenButton: mustElement<HTMLButtonElement>("#save-token"),
-    clearTokenButton: mustElement<HTMLButtonElement>("#clear-token"),
     officialLinkButtons: mustElement<HTMLDivElement>("#official-link-buttons"),
+    officialLinkIcons: mustElement<HTMLDivElement>("#official-link-icons"),
+    themeToggleSystem: mustElement<HTMLButtonElement>("#theme-toggle-system"),
+    themeToggleLight: mustElement<HTMLButtonElement>("#theme-toggle-light"),
+    themeToggleDark: mustElement<HTMLButtonElement>("#theme-toggle-dark"),
   };
 }

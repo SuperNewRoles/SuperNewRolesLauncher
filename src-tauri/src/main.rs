@@ -17,12 +17,13 @@ use tauri::{
 
 const TRAY_ID: &str = "main-tray";
 const TRAY_MENU_SHOW_ID: &str = "tray_show";
+const TRAY_MENU_LAUNCH_ID: &str = "tray_launch";
 const TRAY_MENU_EXIT_ID: &str = "tray_exit";
 
-fn tray_menu_labels(locale: &str) -> (&'static str, &'static str) {
+fn tray_menu_labels(locale: &str) -> (&'static str, &'static str, &'static str) {
     match locale {
-        "en" => ("Show", "Exit"),
-        _ => ("表示", "終了"),
+        "en" => ("Launch SNR AmongUs", "Show", "Exit"),
+        _ => ("SNR AmongUsを起動", "表示", "終了"),
     }
 }
 
@@ -73,11 +74,13 @@ fn setup_tray<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let locale = crate::utils::settings::load_or_init_settings(app)
         .map(|settings| settings.ui_locale)
         .unwrap_or_else(|_| "ja".to_string());
-    let (show_label, exit_label) = tray_menu_labels(&locale);
+    let (launch_label, show_label, exit_label) = tray_menu_labels(&locale);
 
     let show_item = MenuItem::with_id(app, TRAY_MENU_SHOW_ID, show_label, true, None::<&str>)?;
+    let launch_item =
+        MenuItem::with_id(app, TRAY_MENU_LAUNCH_ID, launch_label, true, None::<&str>)?;
     let exit_item = MenuItem::with_id(app, TRAY_MENU_EXIT_ID, exit_label, true, None::<&str>)?;
-    let tray_menu = Menu::with_items(app, &[&show_item, &exit_item])?;
+    let tray_menu = Menu::with_items(app, &[&launch_item, &show_item, &exit_item])?;
 
     let mut tray_builder = TrayIconBuilder::with_id(TRAY_ID)
         .menu(&tray_menu)
@@ -129,11 +132,31 @@ pub fn run() {
             },
         ))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .on_menu_event(move |app, event| {
             if event.id() == TRAY_MENU_SHOW_ID {
                 show_main_window(app);
+                return;
+            }
+
+            if event.id() == TRAY_MENU_LAUNCH_ID {
+                let app_handle = app.clone();
+                let _bypass_close_to_tray_for_menu = bypass_close_to_tray_for_menu.clone();
+                tauri::async_runtime::spawn(async move {
+                    match commands::launch::launch_modded_from_saved_settings(app_handle.clone())
+                        .await
+                    {
+                        Ok(()) => {
+                            // nothing to do
+                        }
+                        Err(error) => {
+                            commands::launch::set_autolaunch_error(error);
+                            show_main_window(&app_handle);
+                        }
+                    }
+                });
                 return;
             }
 
@@ -191,6 +214,7 @@ pub fn run() {
             commands::presets::presets_import_archive,
             commands::finder::finder_detect_among_us,
             commands::finder::finder_detect_platform,
+            commands::finder::finder_detect_platforms,
             commands::snr::snr_releases_list,
             commands::snr::snr_install,
             commands::snr::snr_uninstall,

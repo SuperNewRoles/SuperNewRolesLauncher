@@ -1,0 +1,142 @@
+import { useCallback, useState } from "react";
+import { createTranslator, resolveInitialLocale } from "../i18n";
+import StepTransition from "./StepTransition";
+import { CompleteStep } from "./steps/CompleteStep";
+import { ConnectStep } from "./steps/ConnectStep";
+import { LaunchStep } from "./steps/LaunchStep";
+import { MigrationStep } from "./steps/MigrationStep";
+import { PresetStep } from "./steps/PresetStep";
+import { ReportStep } from "./steps/ReportStep";
+import { WelcomeStep } from "./steps/WelcomeStep";
+import type { OnboardingStep } from "./types";
+
+interface OnboardingWizardProps {
+  onComplete: () => void;
+}
+
+export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
+  const [step, setStep] = useState<OnboardingStep>("welcome");
+  // Note: ideally we should lift locale state up if we want dynamic language switching,
+  // but for now reusing resolveInitialLocale is fine as it respects saved setting.
+  const t = createTranslator(resolveInitialLocale());
+
+  const handleNext = useCallback(() => {
+    switch (step) {
+      case "welcome":
+        setStep("launch");
+        break;
+      case "launch":
+        setStep("reporting");
+        break;
+      case "reporting":
+        setStep("preset");
+        break;
+      case "preset":
+        setStep("migration");
+        break;
+      case "migration":
+        setStep("connect");
+        break;
+      case "connect":
+        setStep("complete");
+        break;
+      case "complete":
+        onComplete();
+        break;
+    }
+  }, [step, onComplete]);
+
+  const handleBack = useCallback(() => {
+    switch (step) {
+      case "launch":
+        setStep("welcome");
+        break;
+      case "reporting":
+        setStep("launch");
+        break;
+      case "preset":
+        setStep("reporting");
+        break;
+      case "migration":
+        setStep("preset");
+        break;
+      case "connect":
+        setStep("migration");
+        break;
+      case "complete":
+        setStep("connect");
+        break;
+      default:
+        break;
+    }
+  }, [step]);
+
+  const handleSkip = useCallback(() => {
+    onComplete();
+  }, [onComplete]);
+
+  const renderStep = (s: OnboardingStep, isExiting: boolean, _direction: "forward" | "back") => {
+    const commonProps = {
+      t,
+      onNext: handleNext,
+      onBack: s === "welcome" ? undefined : handleBack,
+      onSkip: s === "complete" ? undefined : handleSkip,
+    };
+
+    switch (s) {
+      case "welcome":
+        return <WelcomeStep {...commonProps} />;
+      case "launch":
+        return <LaunchStep {...commonProps} />;
+      case "reporting":
+        return <ReportStep {...commonProps} />;
+      case "preset":
+        return <PresetStep {...commonProps} />;
+      case "migration":
+        return <MigrationStep {...commonProps} />;
+      case "connect":
+        return <ConnectStep {...commonProps} />;
+      case "complete":
+        return <CompleteStep {...commonProps} />;
+      default:
+        return null;
+    }
+  };
+
+  const getStepTitle = (s: OnboardingStep) => {
+    switch (s) {
+      case "welcome":
+        return t("onboarding.welcome.title");
+      case "launch":
+        return t("onboarding.launch.title");
+      case "reporting":
+        return t("onboarding.report.title");
+      case "preset":
+        return t("onboarding.preset.title");
+      case "migration":
+        return t("onboarding.migration.title");
+      case "connect":
+        return t("onboarding.connect.title");
+      case "complete":
+        return t("onboarding.finish.title");
+    }
+  };
+
+  return (
+    <div className="install-wizard onboarding-wizard">
+      <div className="onboarding-main-container">
+        <div className="onboarding-header">
+          <div className="onboarding-title">{getStepTitle(step)}</div>
+          {step !== "complete" && (
+            <button type="button" className="text-button" onClick={handleSkip}>
+              {t("common.skip")} &gt;
+            </button>
+          )}
+        </div>
+        <div className="onboarding-slide-container">
+          <StepTransition step={step}>{renderStep}</StepTransition>
+        </div>
+      </div>
+    </div>
+  );
+}

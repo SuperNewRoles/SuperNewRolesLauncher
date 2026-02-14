@@ -1,0 +1,103 @@
+import { useEffect, useState } from "react";
+import type { MessageKey } from "../../i18n";
+
+interface CompleteStepProps {
+  t: (key: MessageKey, params?: Record<string, string | number>) => string;
+  onNext: () => void;
+}
+
+function Confetti() {
+  const [particles] = useState(() =>
+    Array.from({ length: 40 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 0.8,
+      duration: 1.0 + Math.random() * 1.1,
+      size: 6 + Math.random() * 8,
+      color: ["#2278c8", "#19764c", "#f59f00", "#e03131", "#7048e8", "#1098ad", "#f06595"][
+        Math.floor(Math.random() * 7)
+      ],
+      rotation: Math.random() * 360,
+      drift: (Math.random() - 0.5) * 80,
+    })),
+  );
+
+  return (
+    <div className="confetti-container" aria-hidden="true">
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          className="confetti-particle"
+          style={
+            {
+              left: `${p.left}%`,
+              animationDelay: `${p.delay}s`,
+              animationDuration: `${p.duration}s`,
+              width: `${p.size}px`,
+              height: `${p.size * 1.4}px`,
+              backgroundColor: p.color,
+              "--drift": `${p.drift}px`,
+              "--rotation": `${p.rotation}deg`,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
+function SuccessIcon() {
+  return (
+    <div className="success-icon-container">
+      <svg
+        className="success-icon"
+        viewBox="0 0 64 64"
+        width="64"
+        height="64"
+        fill="none"
+        role="img"
+        aria-label="complete icon"
+      >
+        <circle cx="32" cy="32" r="30" fill="var(--success)" opacity="0.1" />
+        <circle cx="32" cy="32" r="24" fill="var(--success)" opacity="0.15" />
+        <path
+          d="M20 34L28 42L44 24"
+          stroke="var(--success)"
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>
+  );
+}
+
+export default function CompleteStep({ t, onNext }: CompleteStepProps) {
+  const [showContent, setShowContent] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowContent(true), 320);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleNext = () => {
+    onNext();
+    window.location.reload();
+  };
+
+  return (
+    <div className="install-step install-step-complete">
+      <SuccessIcon />
+      <div className={`complete-text-area ${showContent ? "visible" : ""}`}>
+        <h2 className="complete-title">{t("installFlow.complete")}</h2>
+        <p className="complete-message">{t("installFlow.completeMessage")}</p>
+        <p className="complete-hint">{t("installFlow.completeHint")}</p>
+      </div>
+      <div className={`complete-actions ${showContent ? "visible" : ""}`}>
+        <button type="button" className="btn-primary" onClick={handleNext}>
+          {t("installFlow.next")}
+        </button>
+      </div>
+    </div>
+  );
+}

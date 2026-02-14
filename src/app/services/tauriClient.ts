@@ -49,6 +49,15 @@ export function finderDetectPlatform(path: string): Promise<GamePlatform> {
   return invoke<GamePlatform>("finder_detect_platform", { path });
 }
 
+export interface DetectedPlatform {
+  path: string;
+  platform: string;
+}
+
+export function finderDetectPlatforms(): Promise<DetectedPlatform[]> {
+  return invoke<DetectedPlatform[]>("finder_detect_platforms");
+}
+
 // SNRインストール関連API
 export function snrReleasesList(): Promise<SnrReleaseSummary[]> {
   return invoke<SnrReleaseSummary[]>("snr_releases_list");

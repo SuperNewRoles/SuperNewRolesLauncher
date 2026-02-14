@@ -16,6 +16,7 @@ static GAME_PROCESS: LazyLock<Mutex<Option<Child>>> = LazyLock::new(|| Mutex::ne
 static LAST_AUTOLAUNCH_ERROR: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
 
 pub const AUTOLAUNCH_MODDED_ARGUMENT: &str = "--autolaunch-modded";
+#[cfg(windows)]
 const MODDED_SHORTCUT_FILE_NAME: &str = "SuperNewRoles Mod Launch.lnk";
 const RUNNING_GAME_PID_FILE_NAME: &str = "running-game.pid";
 
@@ -172,64 +173,94 @@ fn is_pid_running(_pid: u32) -> bool {
 }
 
 #[cfg(windows)]
-fn escape_powershell_single_quoted(value: &str) -> String {
-    value.replace('\'', "''")
+fn path_to_utf16(value: &Path) -> Vec<u16> {
+    use std::os::windows::ffi::OsStrExt;
+
+    value
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect()
 }
 
 #[cfg(windows)]
-fn create_shortcut_with_powershell(
+fn str_to_utf16(value: &str) -> Vec<u16> {
+    value.encode_utf16().chain(std::iter::once(0)).collect()
+}
+
+#[cfg(windows)]
+fn create_shortcut_with_shell_link(
     shortcut_path: &Path,
     target_path: &Path,
     arguments: &str,
     working_directory: &Path,
     description: &str,
 ) -> Result<(), String> {
-    let shortcut_path = escape_powershell_single_quoted(&shortcut_path.to_string_lossy());
-    let target_path = escape_powershell_single_quoted(&target_path.to_string_lossy());
-    let arguments = escape_powershell_single_quoted(arguments);
-    let working_directory = escape_powershell_single_quoted(&working_directory.to_string_lossy());
-    let icon_location = target_path.clone();
-    let description = escape_powershell_single_quoted(description);
+    use windows::core::{Interface, PCWSTR};
+    use windows::Win32::Foundation::RPC_E_CHANGED_MODE;
+    use windows::Win32::System::Com::{
+        CoCreateInstance, CoInitializeEx, CoUninitialize, IPersistFile, CLSCTX_INPROC_SERVER,
+        COINIT_MULTITHREADED,
+    };
+    use windows::Win32::UI::Shell::{IShellLinkW, ShellLink};
 
-    let script = format!(
-        "$ErrorActionPreference = 'Stop'; \
-         $wsh = New-Object -ComObject WScript.Shell; \
-         $shortcut = $wsh.CreateShortcut('{shortcut_path}'); \
-         $shortcut.TargetPath = '{target_path}'; \
-         $shortcut.Arguments = '{arguments}'; \
-         $shortcut.WorkingDirectory = '{working_directory}'; \
-         $shortcut.IconLocation = '{icon_location}'; \
-         $shortcut.Description = '{description}'; \
-         $shortcut.Save();"
-    );
+    let target_utf16 = path_to_utf16(target_path);
+    let arguments_utf16 = str_to_utf16(arguments);
+    let working_directory_utf16 = path_to_utf16(working_directory);
+    let icon_location_utf16 = target_utf16.clone();
+    let description_utf16 = str_to_utf16(description);
+    let shortcut_utf16 = path_to_utf16(shortcut_path);
 
-    let output = Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-Command",
-            &script,
-        ])
-        .output()
-        .map_err(|e| format!("Failed to execute PowerShell for shortcut creation: {e}"))?;
-
-    if output.status.success() {
-        return Ok(());
-    }
-
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let detail = if !stderr.is_empty() {
-        stderr
-    } else if !stdout.is_empty() {
-        stdout
+    let com_init_result = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
+    let needs_uninitialize = if com_init_result.is_ok() {
+        true
+    } else if com_init_result == RPC_E_CHANGED_MODE {
+        // COM is already initialized on this thread in a different apartment model.
+        // In this case we can continue and must not call CoUninitialize here.
+        false
     } else {
-        "No detail".to_string()
+        return Err(format!("Failed to initialize COM: {com_init_result}"));
     };
 
-    Err(format!("PowerShell shortcut creation failed: {detail}"))
+    let result = (|| -> Result<(), String> {
+        let shell_link: IShellLinkW =
+            unsafe { CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER) }
+                .map_err(|e| format!("Failed to create shell link: {e}"))?;
+
+        unsafe {
+            shell_link
+                .SetPath(PCWSTR(target_utf16.as_ptr()))
+                .map_err(|e| format!("Failed to set shortcut target path: {e}"))?;
+            shell_link
+                .SetArguments(PCWSTR(arguments_utf16.as_ptr()))
+                .map_err(|e| format!("Failed to set shortcut arguments: {e}"))?;
+            shell_link
+                .SetWorkingDirectory(PCWSTR(working_directory_utf16.as_ptr()))
+                .map_err(|e| format!("Failed to set shortcut working directory: {e}"))?;
+            shell_link
+                .SetIconLocation(PCWSTR(icon_location_utf16.as_ptr()), 0)
+                .map_err(|e| format!("Failed to set shortcut icon: {e}"))?;
+            shell_link
+                .SetDescription(PCWSTR(description_utf16.as_ptr()))
+                .map_err(|e| format!("Failed to set shortcut description: {e}"))?;
+        }
+
+        let persist_file: IPersistFile = shell_link
+            .cast()
+            .map_err(|e| format!("Failed to access persist file interface: {e}"))?;
+        unsafe {
+            persist_file
+                .Save(PCWSTR(shortcut_utf16.as_ptr()), true)
+                .map_err(|e| format!("Failed to save shortcut file: {e}"))?;
+        }
+        Ok(())
+    })();
+
+    if needs_uninitialize {
+        unsafe { CoUninitialize() };
+    }
+
+    result
 }
 
 pub fn create_modded_launch_shortcut() -> Result<String, String> {
@@ -251,7 +282,7 @@ pub fn create_modded_launch_shortcut() -> Result<String, String> {
             .map_err(|e| format!("Failed to create desktop directory: {e}"))?;
 
         let shortcut_path = desktop_dir.join(MODDED_SHORTCUT_FILE_NAME);
-        create_shortcut_with_powershell(
+        create_shortcut_with_shell_link(
             &shortcut_path,
             &launcher_exe,
             AUTOLAUNCH_MODDED_ARGUMENT,
