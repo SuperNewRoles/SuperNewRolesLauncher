@@ -1,6 +1,6 @@
-import type { SnrReleaseSummary, GamePlatform } from "../../app/types";
+import type { GamePlatform, SnrReleaseSummary } from "../../app/types";
 import type { MessageKey } from "../../i18n";
-import { STEAM_SVG, EPIC_SVG } from "./PlatformStep";
+import { EPIC_SVG, STEAM_SVG } from "./PlatformStep";
 
 interface VersionStepProps {
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
@@ -48,9 +48,7 @@ export default function VersionStep({
       </button>
       <div className="version-header">
         {platformIcon}
-        <h2 className="step-title">
-          {t("installFlow.versionTitle")}
-        </h2>
+        <h2 className="step-title">{t("installFlow.versionTitle")}</h2>
       </div>
       <div className="version-options">
         {latest && (
@@ -64,10 +62,11 @@ export default function VersionStep({
           </button>
         )}
         <div className="version-custom-area">
-          <label className="version-custom-label">
+          <label className="version-custom-label" htmlFor="release-tag-select">
             {t("installFlow.versionCustom")}
           </label>
           <select
+            id="release-tag-select"
             className="version-select"
             value={selectedTag}
             onChange={(e) => onSelect(e.target.value)}

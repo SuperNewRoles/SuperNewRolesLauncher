@@ -62,7 +62,10 @@ export function ReportList({
                     {thread.title || t("report.untitled")}
                   </span>
                   {thread.unread && (
-                    <span className="report-thread-unread-badge" aria-label={t("report.unreadSuffix")}>
+                    <span
+                      className="report-thread-unread-badge"
+                      aria-label={t("report.unreadSuffix")}
+                    >
                       !
                     </span>
                   )}

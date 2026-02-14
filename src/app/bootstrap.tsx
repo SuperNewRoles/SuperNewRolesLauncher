@@ -1,8 +1,8 @@
 import { getVersion } from "@tauri-apps/api/app";
-import { open } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { join } from "@tauri-apps/api/path";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { open } from "@tauri-apps/plugin-dialog";
 import {
   isPermissionGranted,
   requestPermission,
@@ -232,9 +232,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     const settingsPanel = document.querySelector<HTMLDivElement>("#tab-settings");
     const homeContent = document.querySelector<HTMLDivElement>("#tab-home .home-content");
 
-    document.querySelectorAll(".tab-panel").forEach((panel) => {
+    for (const panel of document.querySelectorAll(".tab-panel")) {
       panel.classList.toggle("tab-panel-active", (panel as HTMLElement).dataset.tab === tabId);
-    });
+    }
 
     if (reportPanel) {
       reportPanel.classList.remove("tab-report-enter");
@@ -246,11 +246,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     if (homeContent) {
       homeContent.classList.remove("home-content-enter");
     }
-    document.querySelectorAll(".tab-bar-item").forEach((el) => {
+    for (const el of document.querySelectorAll(".tab-bar-item")) {
       const isSelected = (el as HTMLElement).dataset.tab === tabId;
       el.classList.toggle("tab-bar-item-active", isSelected);
       el.setAttribute("aria-selected", isSelected ? "true" : "false");
-    });
+    }
 
     // Mount/unmount ReportCenter based on tab
     if (tabId === "report") {
@@ -314,14 +314,14 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
   }
 
-  document.querySelectorAll(".tab-bar-item").forEach((btn) => {
+  for (const btn of document.querySelectorAll(".tab-bar-item")) {
     btn.addEventListener("click", () => {
       const tabId = (btn as HTMLElement).dataset.tab;
       if (isMainTabId(tabId)) {
         switchTab(tabId);
       }
     });
-  });
+  }
 
   const reportCenterTabButton = document.querySelector<HTMLButtonElement>("#report-center-tab");
   reportCenterTabButton?.addEventListener("click", () => {
@@ -368,8 +368,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
     epicAuthStatusBox.classList.toggle("is-logged-in", state === "logged-in");
     epicAuthStatusBox.classList.toggle("is-error", state === "error");
-    epicAuthStatusIcon.textContent =
-      state === "logged-in" ? "✓" : state === "error" ? "⚠" : "🔐";
+    epicAuthStatusIcon.textContent = state === "logged-in" ? "✓" : state === "error" ? "⚠" : "🔐";
   }
 
   function renderEpicActionButtons(loggedIn: boolean): void {
@@ -388,14 +387,14 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   const appStore = createAppStore(initialReportingNotificationEnabled);
 
   let settings: LauncherSettings | null = null;
-  let releases: SnrReleaseSummary[] = [];
+  const releases: SnrReleaseSummary[] = [];
   let profileIsReady = false;
   let gameRunning = false;
-  let installInProgress = false;
+  const installInProgress = false;
   let uninstallInProgress = false;
   let launchInProgress = false;
   let creatingShortcut = false;
-  let releasesLoading = false;
+  const releasesLoading = false;
   let checkingUpdate = false;
   let epicLoggedIn = false;
   let migrationExporting = false;
@@ -709,7 +708,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       candidateButton.disabled = amongUsSelectionDisabled;
     }
     settingsSupportDiscordLinkButton.disabled = false;
-    settingsUninstallConfirmAcceptButton.disabled = uninstallInProgress || control.uninstallButtonDisabled;
+    settingsUninstallConfirmAcceptButton.disabled =
+      uninstallInProgress || control.uninstallButtonDisabled;
     settingsUninstallConfirmCancelButton.disabled = uninstallInProgress;
     settingsUninstallConfirmCloseButton.disabled = uninstallInProgress;
     launchModdedButton.disabled = control.launchModdedButtonDisabled;
@@ -1306,7 +1306,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     try {
       const result = await snrUninstall(true);
-      installStatus.textContent = t("uninstall.doneWithPreserved", { count: result.preservedFiles });
+      installStatus.textContent = t("uninstall.doneWithPreserved", {
+        count: result.preservedFiles,
+      });
       await refreshProfileReady();
       await refreshPreservedSaveDataStatus();
       await refreshLocalPresets(true);

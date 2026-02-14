@@ -29,7 +29,7 @@ export default function StepTransition({ step, children }: StepTransitionProps) 
       setIsAnimating(false);
     }, TRANSITION_MS);
     return () => clearTimeout(t);
-  }, [step]);
+  }, [step, displayStep, prevStep]);
 
   return (
     <div

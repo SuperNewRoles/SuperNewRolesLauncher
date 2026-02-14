@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { type KeyboardEvent, useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ReportType } from "../app/types";
 import type { createTranslator } from "../i18n";
@@ -116,13 +116,34 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
   const isBug = reportType === "Bug";
   const canProceed = title.trim() && description.trim();
 
+  const closeOnActivation = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleClose();
+    }
+  };
+
+  const stopPropagation = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === " ") {
+      event.preventDefault();
+    }
+    event.stopPropagation();
+  };
+
   const modal = (
-    <div className="report-modal-overlay" onClick={handleClose}>
-      <div
+    <div
+      className="report-modal-overlay"
+      onClick={handleClose}
+      onKeyDown={closeOnActivation}
+      tabIndex={-1}
+    >
+      <dialog
         className="report-modal"
         onClick={(e) => e.stopPropagation()}
-        role="dialog"
+        onKeyDown={stopPropagation}
+        aria-label={t("report.enterDetails")}
         aria-modal="true"
+        open
       >
         {/* プログレスバー */}
         <div className="report-wizard-progress">
@@ -147,7 +168,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
         </div>
 
         <div className="report-modal-header">
-          <h2>
+          <h2 id="report-modal-title">
             {step === "type" && t("report.selectType")}
             {step === "details" && t("report.enterDetails")}
             {step === "confirm" && t("report.confirmReport")}
@@ -194,8 +215,9 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
           {step === "details" && (
             <>
               <div className="report-form-field">
-                <label>{t("report.titleLabel")}</label>
+                <label htmlFor="report-title-input">{t("report.titleLabel")}</label>
                 <input
+                  id="report-title-input"
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -205,8 +227,9 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
               </div>
 
               <div className="report-form-field">
-                <label>{t("report.body")}</label>
+                <label htmlFor="report-body-input">{t("report.body")}</label>
                 <textarea
+                  id="report-body-input"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={t("report.bodyPlaceholder")}
@@ -220,8 +243,9 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
                 <>
                   <div className="report-form-row">
                     <div className="report-form-field">
-                      <label>{t("report.map")}</label>
+                      <label htmlFor="report-map-input">{t("report.map")}</label>
                       <input
+                        id="report-map-input"
                         type="text"
                         value={map}
                         onChange={(e) => setMap(e.target.value)}
@@ -231,8 +255,9 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
                     </div>
 
                     <div className="report-form-field">
-                      <label>{t("report.role")}</label>
+                      <label htmlFor="report-role-input">{t("report.role")}</label>
                       <input
+                        id="report-role-input"
                         type="text"
                         value={role}
                         onChange={(e) => setRole(e.target.value)}
@@ -243,8 +268,9 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
                   </div>
 
                   <div className="report-form-field">
-                    <label>{t("report.timing")}</label>
+                    <label htmlFor="report-timing-input">{t("report.timing")}</label>
                     <input
+                      id="report-timing-input"
                       type="text"
                       value={timing}
                       onChange={(e) => setTiming(e.target.value)}
@@ -347,7 +373,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
             </button>
           ) : null}
         </div>
-      </div>
+      </dialog>
     </div>
   );
 

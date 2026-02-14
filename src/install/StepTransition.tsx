@@ -6,17 +6,10 @@ const TRANSITION_MS = 420;
 
 interface StepTransitionProps {
   step: InstallStep;
-  children: (
-    step: InstallStep,
-    isExiting: boolean,
-    direction: "forward" | "back",
-  ) => ReactNode;
+  children: (step: InstallStep, isExiting: boolean, direction: "forward" | "back") => ReactNode;
 }
 
-export default function StepTransition({
-  step,
-  children,
-}: StepTransitionProps) {
+export default function StepTransition({ step, children }: StepTransitionProps) {
   const [displayStep, setDisplayStep] = useState<InstallStep>(step);
   const [prevStep, setPrevStep] = useState<InstallStep | null>(null);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
@@ -31,7 +24,7 @@ export default function StepTransition({
 
     const t = setTimeout(() => setPrevStep(null), TRANSITION_MS);
     return () => clearTimeout(t);
-  }, [step]);
+  }, [step, displayStep, prevStep]);
 
   return (
     <div
@@ -46,10 +39,7 @@ export default function StepTransition({
           {children(prevStep, true, direction)}
         </div>
       )}
-      <div
-        className={`step-transition-slide step-enter step-enter-${direction}`}
-        key={displayStep}
-      >
+      <div className={`step-transition-slide step-enter step-enter-${direction}`} key={displayStep}>
         {children(displayStep, false, direction)}
       </div>
     </div>

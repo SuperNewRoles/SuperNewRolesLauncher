@@ -95,7 +95,9 @@ export function collectAppDom(): AppDom {
       "#settings-support-discord-link",
     ),
     settingsAmongUsOverlay: mustElement<HTMLDivElement>("#settings-among-us-overlay"),
-    settingsAmongUsOverlayBackdrop: mustElement<HTMLDivElement>("#settings-among-us-overlay-backdrop"),
+    settingsAmongUsOverlayBackdrop: mustElement<HTMLDivElement>(
+      "#settings-among-us-overlay-backdrop",
+    ),
     settingsAmongUsOverlayCloseButton: mustElement<HTMLButtonElement>(
       "#settings-among-us-overlay-close",
     ),
@@ -110,7 +112,9 @@ export function collectAppDom(): AppDom {
     settingsAmongUsManualSelectButton: mustElement<HTMLButtonElement>(
       "#settings-among-us-manual-select",
     ),
-    settingsUninstallConfirmOverlay: mustElement<HTMLDivElement>("#settings-uninstall-confirm-overlay"),
+    settingsUninstallConfirmOverlay: mustElement<HTMLDivElement>(
+      "#settings-uninstall-confirm-overlay",
+    ),
     settingsUninstallConfirmOverlayBackdrop: mustElement<HTMLDivElement>(
       "#settings-uninstall-confirm-overlay-backdrop",
     ),

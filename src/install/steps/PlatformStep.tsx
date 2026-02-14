@@ -1,10 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { useState } from "react";
-import {
-  getPlatformLabelKey,
-  normalizePlatformCandidates,
-} from "../../app/platformSelection";
 import { EPIC_ICON_PATH, STEAM_ICON_PATH } from "../../app/platformIconPaths";
+import { getPlatformLabelKey, normalizePlatformCandidates } from "../../app/platformSelection";
 import { finderDetectPlatform } from "../../app/services/tauriClient";
 import type { GamePlatform } from "../../app/types";
 import type { MessageKey } from "../../i18n";
@@ -20,13 +17,13 @@ interface PlatformStepProps {
 }
 
 export const STEAM_SVG = (
-  <svg viewBox="0 0 24 24" width={80} height={80} fill="currentColor">
+  <svg viewBox="0 0 24 24" width={80} height={80} fill="currentColor" role="img" aria-label="Steam">
     <path d={STEAM_ICON_PATH} />
   </svg>
 );
 
 export const EPIC_SVG = (
-  <svg viewBox="0 0 24 24" width={80} height={80} fill="currentColor">
+  <svg viewBox="0 0 24 24" width={80} height={80} fill="currentColor" role="img" aria-label="Epic">
     <path d={EPIC_ICON_PATH} />
   </svg>
 );

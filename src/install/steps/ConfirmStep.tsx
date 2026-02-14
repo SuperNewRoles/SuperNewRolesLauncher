@@ -40,14 +40,14 @@ export default function ConfirmStep({
         style={{ display: "inline-flex", alignItems: "center", gap: "0.15em", lineHeight: "1" }}
       >
         {cloneElement(STEAM_SVG, iconProps)}
-         {t("installFlow.platformSteam")}
+        {t("installFlow.platformSteam")}
       </span>
     ) : platform === "epic" ? (
       <span
         style={{ display: "inline-flex", alignItems: "center", gap: "0.15em", lineHeight: "1" }}
       >
         {cloneElement(EPIC_SVG, iconProps)}
-         {t("installFlow.platformEpic")}
+        {t("installFlow.platformEpic")}
       </span>
     ) : (
       t("common.unset")

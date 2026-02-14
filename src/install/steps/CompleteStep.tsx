@@ -49,7 +49,15 @@ function Confetti() {
 function SuccessIcon() {
   return (
     <div className="success-icon-container">
-      <svg className="success-icon" viewBox="0 0 64 64" width="64" height="64" fill="none">
+      <svg
+        className="success-icon"
+        viewBox="0 0 64 64"
+        width="64"
+        height="64"
+        fill="none"
+        role="img"
+        aria-label="complete icon"
+      >
         <circle cx="32" cy="32" r="30" fill="var(--success)" opacity="0.1" />
         <circle cx="32" cy="32" r="24" fill="var(--success)" opacity="0.15" />
         <path

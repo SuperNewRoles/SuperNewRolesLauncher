@@ -187,7 +187,7 @@ export default function InstallWizard() {
         setEpicUserDisplay(s.displayName?.trim() || s.accountId?.trim() || null);
       })
       .catch(() => {});
-  }, [step]);
+  }, []);
 
   const handleLocaleChange = useCallback(async (newLocale: LocaleCode) => {
     setLocale(newLocale);
