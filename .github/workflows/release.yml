@@ -24,6 +24,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Normalize Git line endings
+        run: |
+          git config --local core.autocrlf false
+          git config --local core.eol lf
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
