@@ -2226,8 +2226,14 @@ body.settings-overlay-open .tab-settings-shell {
   gap: 14px;
 }
 
+.settings-general-card > button {
+  justify-self: center;
+  width: fit-content;
+  max-width: 100%;
+}
+
 .settings-general-primary-action {
-  width: 100%;
+  width: fit-content;
   min-height: 46px;
 }
 
