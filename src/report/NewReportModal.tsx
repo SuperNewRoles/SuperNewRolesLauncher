@@ -1,9 +1,4 @@
-import {
-  type KeyboardEvent as ReactKeyboardEvent,
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { type KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ReportType } from "../app/types";
 import type { createTranslator } from "../i18n";
