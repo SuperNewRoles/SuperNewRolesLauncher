@@ -2,7 +2,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
 import { join } from "@tauri-apps/api/path";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { open } from "@tauri-apps/plugin-dialog";
+import { confirm, open } from "@tauri-apps/plugin-dialog";
 import {
   isPermissionGranted,
   requestPermission,
@@ -1726,7 +1726,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         return;
       }
 
-      const shouldInstall = window.confirm(t("update.confirmPrompt", { version: update.version }));
+      const shouldInstall = await confirm(t("update.confirmPrompt", { version: update.version }), {
+        kind: "warning",
+      });
       if (!shouldInstall) {
         updateStatus.textContent = t("update.skipped", { version: update.version });
         return;
