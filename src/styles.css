@@ -43,6 +43,10 @@
 
   --platform-steam: #1b2838;
   --platform-epic: #000;
+  --settings-folder-btn-border: #d2c4a0;
+  --settings-folder-btn-bg-start: #fbf4df;
+  --settings-folder-btn-bg-end: #f4e6be;
+  --settings-folder-btn-text: #5b4820;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -91,6 +95,10 @@
 
     --platform-steam: #66c0f4;
     --platform-epic: #fff;
+    --settings-folder-btn-border: #37527a;
+    --settings-folder-btn-bg-start: #263a58;
+    --settings-folder-btn-bg-end: #1a2d47;
+    --settings-folder-btn-text: #dce9fb;
   }
 }
 
@@ -140,6 +148,10 @@
 
   --platform-steam: #66c0f4;
   --platform-epic: #fff;
+  --settings-folder-btn-border: #37527a;
+  --settings-folder-btn-bg-start: #263a58;
+  --settings-folder-btn-bg-end: #1a2d47;
+  --settings-folder-btn-text: #dce9fb;
 }
 
 [data-theme="light"] {
@@ -187,6 +199,10 @@
 
   --platform-steam: #1b2838;
   --platform-epic: #000;
+  --settings-folder-btn-border: #d2c4a0;
+  --settings-folder-btn-bg-start: #fbf4df;
+  --settings-folder-btn-bg-end: #f4e6be;
+  --settings-folder-btn-text: #5b4820;
 }
 
 * {
@@ -2233,9 +2249,13 @@ body.settings-overlay-open .tab-settings-shell {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid #d2c4a0;
-  background: linear-gradient(180deg, #fbf4df, #f4e6be);
-  color: #5b4820;
+  border: 1px solid var(--settings-folder-btn-border);
+  background: linear-gradient(
+    180deg,
+    var(--settings-folder-btn-bg-start),
+    var(--settings-folder-btn-bg-end)
+  );
+  color: var(--settings-folder-btn-text);
 }
 
 .settings-folder-action-button:hover:not(:disabled) {

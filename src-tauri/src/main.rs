@@ -22,7 +22,7 @@ const TRAY_MENU_EXIT_ID: &str = "tray_exit";
 
 fn tray_menu_labels(locale: &str) -> (&'static str, &'static str, &'static str) {
     match locale {
-        "en" => ( "Launch SNR AmongUs", "Show", "Exit"),
+        "en" => ("Launch SNR AmongUs", "Show", "Exit"),
         _ => ("SNR AmongUsを起動", "表示", "終了"),
     }
 }
@@ -77,7 +77,8 @@ fn setup_tray<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let (launch_label, show_label, exit_label) = tray_menu_labels(&locale);
 
     let show_item = MenuItem::with_id(app, TRAY_MENU_SHOW_ID, show_label, true, None::<&str>)?;
-    let launch_item = MenuItem::with_id(app, TRAY_MENU_LAUNCH_ID, launch_label, true, None::<&str>)?;
+    let launch_item =
+        MenuItem::with_id(app, TRAY_MENU_LAUNCH_ID, launch_label, true, None::<&str>)?;
     let exit_item = MenuItem::with_id(app, TRAY_MENU_EXIT_ID, exit_label, true, None::<&str>)?;
     let tray_menu = Menu::with_items(app, &[&launch_item, &show_item, &exit_item])?;
 
@@ -144,7 +145,9 @@ pub fn run() {
                 let app_handle = app.clone();
                 let _bypass_close_to_tray_for_menu = bypass_close_to_tray_for_menu.clone();
                 tauri::async_runtime::spawn(async move {
-                    match commands::launch::launch_modded_from_saved_settings(app_handle.clone()).await {
+                    match commands::launch::launch_modded_from_saved_settings(app_handle.clone())
+                        .await
+                    {
                         Ok(()) => {
                             // nothing to do
                         }

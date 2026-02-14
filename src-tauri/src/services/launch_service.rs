@@ -198,8 +198,8 @@ fn create_shortcut_with_shell_link(
     use windows::core::{Interface, PCWSTR};
     use windows::Win32::Foundation::RPC_E_CHANGED_MODE;
     use windows::Win32::System::Com::{
-        CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED,
-        IPersistFile,
+        CoCreateInstance, CoInitializeEx, CoUninitialize, IPersistFile, CLSCTX_INPROC_SERVER,
+        COINIT_MULTITHREADED,
     };
     use windows::Win32::UI::Shell::{IShellLinkW, ShellLink};
 
@@ -220,8 +220,9 @@ fn create_shortcut_with_shell_link(
     };
 
     let result = (|| -> Result<(), String> {
-        let shell_link: IShellLinkW = unsafe { CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER) }
-            .map_err(|e| format!("Failed to create shell link: {e}"))?;
+        let shell_link: IShellLinkW =
+            unsafe { CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER) }
+                .map_err(|e| format!("Failed to create shell link: {e}"))?;
 
         unsafe {
             shell_link
