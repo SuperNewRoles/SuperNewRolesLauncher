@@ -214,6 +214,8 @@ fn create_shortcut_with_shell_link(
     let needs_uninitialize = if com_init_result.is_ok() {
         true
     } else if com_init_result == RPC_E_CHANGED_MODE {
+        // COM is already initialized on this thread in a different apartment model.
+        // In this case we can continue and must not call CoUninitialize here.
         false
     } else {
         return Err(format!("Failed to initialize COM: {com_init_result}"));

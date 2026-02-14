@@ -107,9 +107,10 @@ export function ReportThreadPanel({
             type="button"
             className="report-panel-action-btn"
             onClick={onToggleFullscreen}
-            title={isFullscreen ? "縮小" : "全画面"}
+            title={isFullscreen ? "縮小表示に戻す" : "全画面表示にする"}
+            aria-label={isFullscreen ? "縮小表示に戻す" : "全画面表示にする"}
           >
-            {isFullscreen ? "⛶" : "⛶"}
+            {isFullscreen ? "🗗" : "⛶"}
           </button>
           <button
             type="button"
@@ -131,8 +132,9 @@ export function ReportThreadPanel({
           <div className="report-messages-list">
             {normalizedMessages.map((message) => {
               const isStatus = message.messageType === "status";
-              const sender = message.sender || message.messageType;
-              const isOwnMessage = !sender.startsWith("github:");
+              const sender = message.sender;
+              const isOwnMessage = !sender?.startsWith("github:");
+              const senderName = sender?.replace("github:", "") ?? t("report.untitled");
 
               return (
                 <div
@@ -142,7 +144,7 @@ export function ReportThreadPanel({
                   {!isStatus && (
                     <div className="report-message-header">
                       <span className="report-message-sender">
-                        {isOwnMessage ? t("report.you") : sender.replace("github:", "")}
+                        {isOwnMessage ? t("report.you") : senderName}
                       </span>
                       <span className="report-message-time">
                         {new Date(message.createdAt).toLocaleString()}

@@ -34,17 +34,17 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
       <div class="main-header-right">
         <div id="official-link-icons" class="main-official-icons"></div>
         <div class="theme-buttons" style="margin-right: 8px;">
-          <button id="theme-toggle-system" type="button" class="theme-btn" title="${t("theme.system")}">
+          <button id="theme-toggle-system" type="button" class="theme-btn" title="${t("theme.system")}" aria-label="${t("theme.system")}" aria-pressed="false">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
             </svg>
           </button>
-          <button id="theme-toggle-light" type="button" class="theme-btn" title="${t("theme.light")}">
+          <button id="theme-toggle-light" type="button" class="theme-btn" title="${t("theme.light")}" aria-label="${t("theme.light")}" aria-pressed="false">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
             </svg>
           </button>
-          <button id="theme-toggle-dark" type="button" class="theme-btn" title="${t("theme.dark")}">
+          <button id="theme-toggle-dark" type="button" class="theme-btn" title="${t("theme.dark")}" aria-label="${t("theme.dark")}" aria-pressed="false">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
@@ -64,7 +64,7 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
           <div class="home-buttons-row">
             <button id="launch-vanilla" type="button" class="btn-home-secondary">${t("home.launchVanilla")}</button>
             <button id="report-center-tab" type="button" class="btn-home-secondary btn-report-center">${t("report.title")}
-              <span id="report-center-badge" class="report-center-badge"></span>
+              <span id="report-center-badge" class="report-center-badge" aria-hidden="true"></span>
             </button>
           </div>
         </div>

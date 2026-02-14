@@ -203,6 +203,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     themeToggleSystem.classList.toggle("active", theme === "system");
     themeToggleLight.classList.toggle("active", theme === "light");
     themeToggleDark.classList.toggle("active", theme === "dark");
+    themeToggleSystem.setAttribute("aria-pressed", theme === "system" ? "true" : "false");
+    themeToggleLight.setAttribute("aria-pressed", theme === "light" ? "true" : "false");
+    themeToggleDark.setAttribute("aria-pressed", theme === "dark" ? "true" : "false");
   }
 
   const currentTheme = getStoredTheme();
@@ -438,16 +441,17 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
 
     const handleComplete = async () => {
-      await settingsUpdate({ onboardingCompleted: true });
-      if (settings) {
-        settings = { ...settings, onboardingCompleted: true };
+      try {
+        settings = await settingsUpdate({ onboardingCompleted: true });
+      } catch (error) {
+        console.warn("Failed to persist onboarding completion:", error);
+      } finally {
+        if (onboardingRoot) {
+          onboardingRoot.unmount();
+          onboardingRoot = null;
+        }
+        container?.remove();
       }
-
-      if (onboardingRoot) {
-        onboardingRoot.unmount();
-        onboardingRoot = null;
-      }
-      container?.remove();
     };
 
     onboardingRoot.render(<OnboardingWizard onComplete={handleComplete} />);

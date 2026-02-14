@@ -16,9 +16,7 @@ type Translator = ReturnType<typeof createTranslator>;
 
 const REPORT_THREADS_POLL_INTERVAL_MS = 180_000;
 const REPORT_THREADS_REFRESH_GAP_MS = 30_000;
-
-let reportThreadsLastFetchAt = 0;
-let reportThreadsLoading = false;
+const PANEL_CLOSE_ANIMATION_MS = 300;
 
 interface ReportCenterProps {
   t: Translator;
@@ -38,6 +36,8 @@ export function ReportCenter({ t }: ReportCenterProps) {
   const [statusMessage, setStatusMessage] = useState<string>("");
   const isMountedRef = useRef(false);
   const closePanelTimeoutRef = useRef<number | null>(null);
+  const reportThreadsLastFetchAtRef = useRef(0);
+  const reportThreadsLoadingRef = useRef(false);
 
   const clearClosePanelTimeout = useCallback(() => {
     if (closePanelTimeoutRef.current !== null) {
@@ -48,27 +48,30 @@ export function ReportCenter({ t }: ReportCenterProps) {
 
   const loadThreads = useCallback(async ({ force = false } = {}) => {
     const now = Date.now();
-    if (!force && now - reportThreadsLastFetchAt < REPORT_THREADS_REFRESH_GAP_MS) {
+    if (!force && now - reportThreadsLastFetchAtRef.current < REPORT_THREADS_REFRESH_GAP_MS) {
       return;
     }
 
-    if (reportThreadsLoading) {
+    if (reportThreadsLoadingRef.current) {
       return;
     }
 
-    reportThreadsLoading = true;
+    reportThreadsLoadingRef.current = true;
     setIsLoadingThreads(true);
     try {
       const result = await reportingThreadsList();
-      reportThreadsLastFetchAt = Date.now();
+      reportThreadsLastFetchAtRef.current = Date.now();
       if (isMountedRef.current) {
         setThreads(result);
       }
     } catch (e) {
       console.error("Failed to load threads:", e);
     } finally {
-      reportThreadsLoading = false;
-      reportThreadsLastFetchAt = Math.max(reportThreadsLastFetchAt, Date.now());
+      reportThreadsLoadingRef.current = false;
+      reportThreadsLastFetchAtRef.current = Math.max(
+        reportThreadsLastFetchAtRef.current,
+        Date.now(),
+      );
       if (isMountedRef.current) {
         setIsLoadingThreads(false);
       }
@@ -173,7 +176,7 @@ export function ReportCenter({ t }: ReportCenterProps) {
     closePanelTimeoutRef.current = window.setTimeout(() => {
       closePanelTimeoutRef.current = null;
       setSelectedThread(null);
-    }, 300);
+    }, PANEL_CLOSE_ANIMATION_MS);
   }, [clearClosePanelTimeout]);
 
   const handleToggleFullscreen = useCallback(() => {

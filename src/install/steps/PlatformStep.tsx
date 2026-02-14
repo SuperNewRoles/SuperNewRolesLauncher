@@ -40,23 +40,28 @@ export default function PlatformStep({
   const candidates = normalizePlatformCandidates(detectedPlatforms);
 
   const handleManualSelect = async () => {
+    let selectedPath: string | string[] | null;
     try {
-      const selected = await open({
+      selectedPath = await open({
         directory: true,
         multiple: false,
       });
-      if (selected) {
-        // AmongUsフォルダかどうか検証＆プラットフォーム判定
-        try {
-          const detectedPlatform = await finderDetectPlatform(selected);
-          setLocalError(null);
-          onManualSelect(selected, detectedPlatform);
-        } catch {
-          setLocalError(t("installFlow.invalidAmongUsFolder"));
-        }
-      }
+    } catch (error) {
+      console.error("Failed to open folder picker:", error);
+      return;
+    }
+
+    if (!selectedPath || Array.isArray(selectedPath)) {
+      // User cancelled the picker.
+      return;
+    }
+
+    try {
+      const detectedPlatform = await finderDetectPlatform(selectedPath);
+      setLocalError(null);
+      onManualSelect(selectedPath, detectedPlatform);
     } catch {
-      // user cancelled
+      setLocalError(t("installFlow.invalidAmongUsFolder"));
     }
   };
 

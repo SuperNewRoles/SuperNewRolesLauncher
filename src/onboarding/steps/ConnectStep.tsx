@@ -4,6 +4,8 @@ import { launchShortcutCreate } from "../../app/services/tauriClient";
 import { OnboardingLayout } from "../OnboardingLayout";
 import type { OnboardingStepProps } from "../types";
 
+const NEXT_BUTTON_UNLOCK_DELAY_MS = 500;
+
 function formatActionError(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error);
   const withoutInvokePrefix = raw.replace(/^Error invoking '[^']+':\s*/u, "");
@@ -117,10 +119,11 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
   const [nextDisabled, setNextDisabled] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    // Keep this step visible briefly to avoid accidental immediate skip.
+    const timer = window.setTimeout(() => {
       setNextDisabled(false);
-    }, 500);
-    return () => clearTimeout(timer);
+    }, NEXT_BUTTON_UNLOCK_DELAY_MS);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const handleDiscord = () => openUrl("https://supernewroles.com/discord");
