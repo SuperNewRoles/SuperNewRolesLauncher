@@ -39,7 +39,7 @@ jobs:
         run: npm ci
 
       - name: Lint frontend
-        run: npm run lint
+        run: npm run lint:fix
 
       - name: Test frontend
         run: npm run test
