@@ -542,7 +542,7 @@ pub fn list_presets_from_save_data_dir(
         presets.push(PresetEntrySummary {
             id,
             name: display_name,
-            has_data_file: preset_file_path(&save_data_dir, id).is_file(),
+            has_data_file: preset_file_path(save_data_dir, id).is_file(),
         });
     }
 
