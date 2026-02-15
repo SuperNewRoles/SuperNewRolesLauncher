@@ -17,6 +17,7 @@ describe("renderAppTemplate (settings general)", () => {
     expect(html).toContain('id="uninstall-snr"');
     expect(html).toContain('id="install-status"');
     expect(html).toContain('id="report-tab-badge"');
+    expect(html).toContain('id="announce-tab-badge"');
     expect(html).toContain('id="tab-announce"');
     expect(html).toContain('id="announce-center-root"');
     expect(html).toContain('data-tab="announce"');

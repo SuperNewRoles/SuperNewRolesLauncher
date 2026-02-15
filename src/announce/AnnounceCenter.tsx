@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
+import { ANNOUNCE_BADGE_READ_CREATED_AT_STORAGE_KEY } from "../app/constants";
 import type { LocaleCode } from "../i18n";
 import type { createTranslator } from "../i18n";
 import { announceGetArticle, announceListArticles } from "./announceApi";
@@ -15,6 +16,8 @@ type Translator = ReturnType<typeof createTranslator>;
 interface AnnounceCenterProps {
   locale: LocaleCode;
   t: Translator;
+  onArticlesUpdated?: (items: AnnounceArticleMinimal[]) => void;
+  onArticleSelectedByUser?: (article: AnnounceArticleMinimal) => void;
 }
 
 function formatDateTime(value: string, locale: LocaleCode): string {
@@ -25,7 +28,31 @@ function formatDateTime(value: string, locale: LocaleCode): string {
   return parsed.toLocaleString(locale);
 }
 
-export function AnnounceCenter({ locale, t }: AnnounceCenterProps) {
+function parseAnnounceCreatedAt(value: string): number {
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function getAnnounceReadCreatedAt(): number | null {
+  try {
+    const value = localStorage.getItem(ANNOUNCE_BADGE_READ_CREATED_AT_STORAGE_KEY);
+    if (!value) {
+      return null;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export function AnnounceCenter({
+  locale,
+  t,
+  onArticlesUpdated,
+  onArticleSelectedByUser,
+}: AnnounceCenterProps) {
+  const readCreatedAt = getAnnounceReadCreatedAt();
   const [items, setItems] = useState<AnnounceArticleMinimal[]>([]);
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<AnnounceArticle | null>(null);
@@ -102,6 +129,7 @@ export function AnnounceCenter({ locale, t }: AnnounceCenterProps) {
 
         const nextItems = response.items;
         setItems(nextItems);
+        onArticlesUpdated?.(nextItems);
 
         if (nextItems.length === 0) {
           setSelectedArticleId(null);
@@ -140,7 +168,7 @@ export function AnnounceCenter({ locale, t }: AnnounceCenterProps) {
         }
       }
     },
-    [loadDetail, locale, t],
+    [loadDetail, locale, onArticlesUpdated, t],
   );
 
   useEffect(() => {
@@ -159,14 +187,19 @@ export function AnnounceCenter({ locale, t }: AnnounceCenterProps) {
   }, [refreshArticles]);
 
   const handleSelectArticle = useCallback(
-    (articleId: string): void => {
+    (item: AnnounceArticleMinimal): void => {
+      const articleId = item.id;
       setSelectedArticleId(articleId);
       selectedArticleIdRef.current = articleId;
       setStatusMessage("");
+      onArticleSelectedByUser?.(item);
       void loadDetail(articleId);
     },
-    [loadDetail],
+    [loadDetail, onArticleSelectedByUser],
   );
+
+  const listHeaderMessage = loadingList ? t("announce.loadingList") : statusMessage;
+  const detailStatusMessage = loadingDetail ? t("announce.loadingDetail") : "";
 
   return (
     <div className="announce-center-container">
@@ -174,23 +207,26 @@ export function AnnounceCenter({ locale, t }: AnnounceCenterProps) {
         <section className="announce-list-pane">
           <header className="announce-list-header">
             <h2 className="announce-pane-title">{t("announce.tab")}</h2>
-            <button
-              type="button"
-              className="announce-refresh-button"
-              onClick={() => {
-                void refreshArticles(true);
-              }}
-              disabled={loadingList || loadingDetail}
-            >
-              {t("announce.refresh")}
-            </button>
+            <div className="announce-list-header-tools">
+              {listHeaderMessage ? (
+                <div className="announce-list-header-status" aria-live="polite">
+                  {listHeaderMessage}
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className="announce-refresh-button"
+                onClick={() => {
+                  void refreshArticles(true);
+                }}
+                disabled={loadingList || loadingDetail}
+              >
+                {t("announce.refresh")}
+              </button>
+            </div>
           </header>
 
-          {statusMessage ? <div className="announce-status-line">{statusMessage}</div> : null}
           {listError ? <div className="announce-error-line">{listError}</div> : null}
-          {loadingList && items.length === 0 ? (
-            <div className="announce-list-empty">{t("announce.loadingList")}</div>
-          ) : null}
           {!loadingList && items.length === 0 ? (
             <div className="announce-list-empty">{t("announce.empty")}</div>
           ) : null}
@@ -199,17 +235,26 @@ export function AnnounceCenter({ locale, t }: AnnounceCenterProps) {
             <div className="announce-list" role="listbox" aria-label={t("announce.tab")}>
               {items.map((item) => {
                 const selected = item.id === selectedArticleId;
+                const itemCreatedAt = parseAnnounceCreatedAt(item.created_at);
+                const unread = readCreatedAt === null || itemCreatedAt > readCreatedAt;
                 return (
                   <button
                     key={item.id}
                     type="button"
                     className={`announce-list-item${selected ? " is-active" : ""}`}
                     onClick={() => {
-                      handleSelectArticle(item.id);
+                      handleSelectArticle(item);
                     }}
                     aria-selected={selected ? "true" : "false"}
                   >
-                    <div className="announce-list-item-title">{item.title}</div>
+                    <div className="announce-list-item-heading">
+                      <div className="announce-list-item-title">{item.title}</div>
+                      {unread ? (
+                        <span className="announce-list-unread-badge" aria-hidden="true">
+                          !
+                        </span>
+                      ) : null}
+                    </div>
                     <div className="announce-list-item-meta">
                       {t("announce.updatedAt")}: {formatDateTime(item.updated_at, locale)}
                     </div>
@@ -234,25 +279,23 @@ export function AnnounceCenter({ locale, t }: AnnounceCenterProps) {
         </section>
 
         <section className="announce-detail-pane">
+          <div
+            className={`announce-detail-pane-status${detailStatusMessage ? " is-visible" : ""}`}
+            aria-live="polite"
+          >
+            {detailStatusMessage}
+          </div>
           {!selectedArticle ? (
-            <div className="announce-detail-empty">
-              {loadingDetail ? t("announce.loadingDetail") : t("announce.selectPrompt")}
-            </div>
+            <div className="announce-detail-empty">{t("announce.selectPrompt")}</div>
           ) : (
             <>
               <header className="announce-detail-header">
                 <h2 className="announce-detail-title">{selectedArticle.title}</h2>
-                <div className="announce-detail-meta">
-                  <span>
-                    {t("announce.requestedLang")}: {selectedArticle.requested_lang}
-                  </span>
-                  <span>
-                    {t("announce.servedLang")}: {selectedArticle.lang}
-                  </span>
-                  {selectedArticle.is_fallback ? (
+                {selectedArticle.is_fallback ? (
+                  <div className="announce-detail-meta">
                     <span className="announce-fallback-chip">{t("announce.fallback")}</span>
-                  ) : null}
-                </div>
+                  </div>
+                ) : null}
                 <div className="announce-detail-meta">
                   <span>
                     {t("announce.createdAt")}: {formatDateTime(selectedArticle.created_at, locale)}
@@ -274,19 +317,9 @@ export function AnnounceCenter({ locale, t }: AnnounceCenterProps) {
                     ))}
                   </div>
                 ) : null}
-                <button
-                  type="button"
-                  className="announce-open-original"
-                  onClick={() => {
-                    void openExternal(selectedArticle.url);
-                  }}
-                >
-                  {t("announce.openOriginal")}
-                </button>
               </header>
 
               {detailError ? <div className="announce-error-line">{detailError}</div> : null}
-              {loadingDetail ? <div className="announce-status-line">{t("announce.loadingDetail")}</div> : null}
 
               <div className="announce-detail-body">
                 <ReactMarkdown

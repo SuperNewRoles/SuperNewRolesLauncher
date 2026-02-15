@@ -152,7 +152,6 @@ const en: Record<keyof typeof ja, string> = {
   "announce.loadingDetail": "Loading announcement details...",
   "announce.empty": "No announcements available",
   "announce.selectPrompt": "Select an announcement",
-  "announce.openOriginal": "Open original article",
   "announce.requestedLang": "Requested language",
   "announce.servedLang": "Served language",
   "announce.fallback": "Fallback",
@@ -283,6 +282,8 @@ const en: Record<keyof typeof ja, string> = {
   "migration.unencrypted": "unencrypted",
 
   "preset.title": "Preset Sharing (.snrpresets)",
+  "preset.importActionSubtitle": "Inspect archive",
+  "preset.exportActionSubtitle": "Refresh local list",
   "preset.refreshLocal": "Refresh local list",
   "preset.selectAll": "Select all",
   "preset.clearSelection": "Clear selection",

@@ -85,17 +85,17 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
         <div class="tab-inner tab-settings-scroll tab-preset-scroll preset-remake-root">
           <div class="preset-remake-launch-grid">
             <button id="preset-open-import" type="button" class="settings-migration-action preset-remake-primary">
-              <span class="settings-migration-action-icon" aria-hidden="true">↓</span>
+              <span class="settings-migration-action-icon" aria-hidden="true">📥</span>
               <span class="settings-migration-action-text">
                 <span class="settings-migration-action-title">${t("preset.importSelected")}</span>
-                <span class="settings-migration-action-subtitle">${t("preset.inspectArchive")}</span>
+                <span class="settings-migration-action-subtitle">${t("preset.importActionSubtitle")}</span>
               </span>
             </button>
             <button id="preset-open-export" type="button" class="settings-migration-action preset-remake-primary">
-              <span class="settings-migration-action-icon" aria-hidden="true">↑</span>
+              <span class="settings-migration-action-icon" aria-hidden="true">📤</span>
               <span class="settings-migration-action-text">
                 <span class="settings-migration-action-title">${t("preset.exportSelected")}</span>
-                <span class="settings-migration-action-subtitle">${t("preset.refreshLocal")}</span>
+                <span class="settings-migration-action-subtitle">${t("preset.exportActionSubtitle")}</span>
               </span>
             </button>
           </div>
@@ -111,27 +111,27 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
             </header>
 
             <section id="preset-overlay-import-screen" class="preset-overlay-screen" hidden>
-              <div class="row preset-remake-row">
+              <div class="row preset-remake-row preset-remake-path-row">
                 <input id="preset-import-path" class="preset-remake-path" type="text" placeholder="${t("preset.importPathPlaceholder")}" />
                 <button id="preset-inspect" type="button">${t("preset.inspectArchive")}</button>
               </div>
-              <div class="row preset-remake-row">
+              <div class="row preset-remake-row preset-selection-toolbar">
                 <button id="preset-select-all-archive" type="button">${t("preset.selectAll")}</button>
                 <button id="preset-clear-archive" type="button">${t("preset.clearSelection")}</button>
               </div>
-              <div id="preset-archive-list" class="preset-overlay-list"></div>
+              <div id="preset-archive-list" class="preset-overlay-list preset-selection-list"></div>
               <footer class="settings-fullscreen-overlay-actions preset-overlay-actions">
                 <button id="preset-import" type="button">${t("preset.importSelected")}</button>
               </footer>
             </section>
 
             <section id="preset-overlay-export-screen" class="preset-overlay-screen" hidden>
-              <div class="row preset-remake-row">
+              <div class="row preset-remake-row preset-selection-toolbar">
                 <button id="preset-refresh" type="button">${t("preset.refreshLocal")}</button>
                 <button id="preset-select-all-local" type="button">${t("preset.selectAll")}</button>
                 <button id="preset-clear-local" type="button">${t("preset.clearSelection")}</button>
               </div>
-              <div id="preset-local-list" class="preset-overlay-list"></div>
+              <div id="preset-local-list" class="preset-overlay-list preset-selection-list"></div>
               <footer class="settings-fullscreen-overlay-actions preset-overlay-actions">
                 <button id="preset-export" type="button">${t("preset.exportSelected")}</button>
               </footer>
@@ -314,14 +314,14 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                   <strong>${t("migration.title")}</strong>
                   <div class="settings-migration-action-stack">
                     <button id="migration-export" type="button" class="settings-migration-action settings-migration-action-export">
-                      <span class="settings-migration-action-icon" aria-hidden="true">↑</span>
+                      <span class="settings-migration-action-icon" aria-hidden="true">🧳</span>
                       <span class="settings-migration-action-text">
                         <span class="settings-migration-action-title">${t("migration.export")}</span>
                         <span class="settings-migration-action-subtitle">${t("migration.overlay.exportActionHint")}</span>
                       </span>
                     </button>
                     <button id="migration-import" type="button" class="settings-migration-action settings-migration-action-import">
-                      <span class="settings-migration-action-icon" aria-hidden="true">↓</span>
+                      <span class="settings-migration-action-icon" aria-hidden="true">📦</span>
                       <span class="settings-migration-action-text">
                         <span class="settings-migration-action-title">${t("migration.import")}</span>
                         <span class="settings-migration-action-subtitle">${t("migration.overlay.importActionHint")}</span>
@@ -370,7 +370,10 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
         ${t("report.title")}
         <span id="report-tab-badge" class="report-center-badge report-tab-badge" aria-hidden="true"></span>
       </button>
-      <button type="button" class="tab-bar-item" data-tab="announce" role="tab" aria-selected="false">${t("announce.tab")}</button>
+      <button type="button" class="tab-bar-item tab-bar-item-announce" data-tab="announce" role="tab" aria-selected="false">
+        ${t("announce.tab")}
+        <span id="announce-tab-badge" class="report-center-badge announce-tab-badge" aria-hidden="true"></span>
+      </button>
       <button type="button" class="tab-bar-item" data-tab="preset" role="tab" aria-selected="false">${t("preset.tab")}</button>
       <button type="button" class="tab-bar-item" data-tab="settings" role="tab" aria-selected="false">${t("settings.tab")}</button>
     </nav>

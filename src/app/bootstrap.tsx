@@ -19,10 +19,16 @@ import {
   resolveInitialLocale,
   saveLocale,
 } from "../i18n";
+import { announceListArticles } from "../announce/announceApi";
 import { AnnounceCenter } from "../announce/AnnounceCenter";
+import type { AnnounceArticleMinimal } from "../announce/types";
 import OnboardingWizard from "../onboarding/OnboardingWizard";
 import { ReportCenter } from "../report/ReportCenter";
-import { OFFICIAL_LINKS, REPORTING_NOTIFICATION_STORAGE_KEY } from "./constants";
+import {
+  ANNOUNCE_BADGE_READ_CREATED_AT_STORAGE_KEY,
+  OFFICIAL_LINKS,
+  REPORTING_NOTIFICATION_STORAGE_KEY,
+} from "./constants";
 import { collectAppDom } from "./dom";
 import {
   getPlatformIconPath,
@@ -95,6 +101,8 @@ import type {
  */
 const REPORT_HOME_NOTIFICATION_FETCH_GAP_MS = 30_000;
 const REPORT_HOME_NOTIFICATION_POLL_INTERVAL_MS = 180_000;
+const ANNOUNCE_BADGE_FETCH_GAP_MS = 30_000;
+const ANNOUNCE_BADGE_POLL_INTERVAL_MS = 300_000;
 const LAUNCHER_MINIMIZE_EFFECT_DURATION_MS = 260;
 const LAUNCHER_AUTO_MINIMIZE_WINDOW_MS = 30_000;
 const SETTINGS_OVERLAY_TRANSITION_MS = 220;
@@ -478,6 +486,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     } else {
       stopHomeNotificationPolling();
     }
+
+    if (tabId === "announce") {
+      stopAnnounceNotificationPolling();
+    } else {
+      startAnnounceNotificationPolling();
+    }
   }
 
   for (const btn of document.querySelectorAll(".tab-bar-item")) {
@@ -495,6 +509,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   });
   const reportCenterBadge = document.querySelector<HTMLSpanElement>("#report-center-badge");
   const reportTabBadge = document.querySelector<HTMLSpanElement>("#report-tab-badge");
+  const announceTabBadge = document.querySelector<HTMLSpanElement>("#announce-tab-badge");
   const epicAuthStatusBox = document.querySelector<HTMLDivElement>("#epic-auth-status-box");
   const epicAuthStatusIcon = document.querySelector<HTMLDivElement>("#epic-auth-status-icon");
   const settingsCategoryButtons = Array.from(
@@ -585,6 +600,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let reportHomeNotificationLastFetchedAt = 0;
   let reportHomeNotificationFetching = false;
   let reportHomeNotificationPollTimer: number | null = null;
+  let announceBadgeLastFetchedAt = 0;
+  let announceBadgeFetching = false;
+  let announceBadgePollTimer: number | null = null;
+  let announceLatestArticleId: string | null = null;
+  let announceLatestArticleCreatedAt = 0;
   let launcherAutoMinimizePending = false;
   let launcherAutoMinimizeTimer: number | null = null;
   let launcherMinimizing = false;
@@ -651,7 +671,14 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       announceCenterRoot = createRoot(container);
     }
 
-    announceCenterRoot.render(<AnnounceCenter locale={currentLocale} t={t} />);
+    announceCenterRoot.render(
+      <AnnounceCenter
+        locale={currentLocale}
+        t={t}
+        onArticlesUpdated={handleAnnounceArticlesUpdated}
+        onArticleSelectedByUser={handleAnnounceArticleSelectedByUser}
+      />,
+    );
   }
 
   function unmountReportCenter() {
@@ -676,6 +703,95 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       badge.textContent = hasUnread ? "!" : "";
       badge.classList.toggle("is-visible", hasUnread);
     }
+  }
+
+  function parseAnnounceCreatedAt(value: string): number {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+
+  function resolveLatestAnnounceArticle(
+    items: AnnounceArticleMinimal[],
+  ): AnnounceArticleMinimal | null {
+    let latest: AnnounceArticleMinimal | null = null;
+    let latestCreatedAt = 0;
+    for (const item of items) {
+      const createdAt = parseAnnounceCreatedAt(item.created_at);
+      if (!latest || createdAt > latestCreatedAt) {
+        latest = item;
+        latestCreatedAt = createdAt;
+      }
+    }
+    return latest;
+  }
+
+  function getAnnounceReadCreatedAt(): number | null {
+    try {
+      const value = localStorage.getItem(ANNOUNCE_BADGE_READ_CREATED_AT_STORAGE_KEY);
+      if (!value) {
+        return null;
+      }
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function setAnnounceReadCreatedAt(value: number): void {
+    try {
+      localStorage.setItem(ANNOUNCE_BADGE_READ_CREATED_AT_STORAGE_KEY, String(value));
+    } catch {
+      // ignore storage failures
+    }
+  }
+
+  function setAnnounceNotificationBadge(hasUnread: boolean): void {
+    if (!announceTabBadge) {
+      return;
+    }
+    announceTabBadge.textContent = hasUnread ? "!" : "";
+    announceTabBadge.classList.toggle("is-visible", hasUnread);
+  }
+
+  function syncAnnounceBadgeFromItems(items: AnnounceArticleMinimal[]): void {
+    const latest = resolveLatestAnnounceArticle(items);
+    if (!latest) {
+      announceLatestArticleId = null;
+      announceLatestArticleCreatedAt = 0;
+      setAnnounceNotificationBadge(false);
+      return;
+    }
+
+    announceLatestArticleId = latest.id;
+    announceLatestArticleCreatedAt = parseAnnounceCreatedAt(latest.created_at);
+
+    const readCreatedAt = getAnnounceReadCreatedAt();
+    if (readCreatedAt === null) {
+      setAnnounceNotificationBadge(true);
+      return;
+    }
+
+    setAnnounceNotificationBadge(announceLatestArticleCreatedAt > readCreatedAt);
+  }
+
+  function handleAnnounceArticlesUpdated(items: AnnounceArticleMinimal[]): void {
+    announceBadgeLastFetchedAt = Date.now();
+    syncAnnounceBadgeFromItems(items);
+  }
+
+  function handleAnnounceArticleSelectedByUser(article: AnnounceArticleMinimal): void {
+    if (!announceLatestArticleId || article.id !== announceLatestArticleId) {
+      return;
+    }
+
+    const selectedCreatedAt = parseAnnounceCreatedAt(article.created_at);
+    if (selectedCreatedAt <= 0) {
+      return;
+    }
+
+    setAnnounceReadCreatedAt(selectedCreatedAt);
+    setAnnounceNotificationBadge(false);
   }
 
   function clearLauncherAutoMinimizePending(): void {
@@ -770,6 +886,53 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     if (reportHomeNotificationPollTimer !== null) {
       window.clearInterval(reportHomeNotificationPollTimer);
       reportHomeNotificationPollTimer = null;
+    }
+  }
+
+  async function refreshAnnounceNotificationState(force = false): Promise<void> {
+    if (activeTab === "announce") {
+      return;
+    }
+
+    const now = Date.now();
+    if (!force && now - announceBadgeLastFetchedAt < ANNOUNCE_BADGE_FETCH_GAP_MS) {
+      return;
+    }
+
+    if (announceBadgeFetching) {
+      return;
+    }
+
+    announceBadgeFetching = true;
+    try {
+      const response = await announceListArticles(currentLocale);
+      announceBadgeLastFetchedAt = Date.now();
+      syncAnnounceBadgeFromItems(response.items);
+    } catch (error) {
+      console.error("Failed to fetch announce notification state:", error);
+    } finally {
+      announceBadgeFetching = false;
+    }
+  }
+
+  function startAnnounceNotificationPolling(): void {
+    if (activeTab === "announce") {
+      return;
+    }
+
+    if (announceBadgePollTimer === null) {
+      announceBadgePollTimer = window.setInterval(() => {
+        void refreshAnnounceNotificationState();
+      }, ANNOUNCE_BADGE_POLL_INTERVAL_MS);
+    }
+
+    void refreshAnnounceNotificationState();
+  }
+
+  function stopAnnounceNotificationPolling(): void {
+    if (announceBadgePollTimer !== null) {
+      window.clearInterval(announceBadgePollTimer);
+      announceBadgePollTimer = null;
     }
   }
 
@@ -1052,37 +1215,61 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     if (localPresets.length === 0) {
       const empty = document.createElement("div");
-      empty.className = "muted";
+      empty.className = "preset-selection-empty muted";
       empty.textContent = t("preset.localEmpty");
       presetLocalList.append(empty);
       return;
     }
 
     for (const preset of localPresets) {
+      const presetName = preset.name.trim() || t("preset.emptyName");
       const row = document.createElement("label");
-      row.style.display = "flex";
-      row.style.alignItems = "center";
-      row.style.gap = "8px";
-      row.style.flexWrap = "wrap";
+      row.className = "preset-selection-card preset-selection-card-local";
+      if (!preset.hasDataFile) {
+        row.classList.add("is-disabled");
+      }
+
+      const toggle = document.createElement("span");
+      toggle.className = "preset-selection-toggle";
 
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
+      checkbox.className = "preset-selection-checkbox";
       checkbox.dataset.role = "local-preset-checkbox";
       checkbox.dataset.presetId = String(preset.id);
       checkbox.disabled = !preset.hasDataFile;
+      checkbox.setAttribute("aria-label", `[${preset.id}] ${presetName}`);
+
+      const indicator = document.createElement("span");
+      indicator.className = "preset-selection-indicator";
+      indicator.setAttribute("aria-hidden", "true");
+      toggle.append(checkbox, indicator);
+
+      const body = document.createElement("span");
+      body.className = "preset-selection-body";
+
+      const head = document.createElement("span");
+      head.className = "preset-selection-head";
+
+      const idLabel = document.createElement("span");
+      idLabel.className = "preset-selection-id";
+      idLabel.textContent = `[${preset.id}]`;
 
       const title = document.createElement("span");
-      title.textContent = `[${preset.id}] ${preset.name}`;
+      title.className = "preset-selection-name";
+      title.textContent = presetName;
 
-      row.append(checkbox, title);
+      head.append(idLabel, title);
+      body.append(head);
 
       if (!preset.hasDataFile) {
         const missing = document.createElement("span");
-        missing.className = "muted";
+        missing.className = "preset-selection-note muted";
         missing.textContent = t("preset.localMissingDataFile");
-        row.append(missing);
+        body.append(missing);
       }
 
+      row.append(toggle, body);
       presetLocalList.append(row);
     }
   }
@@ -1092,49 +1279,68 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     if (archivePresets.length === 0) {
       const empty = document.createElement("div");
-      empty.className = "muted";
+      empty.className = "preset-selection-empty muted";
       empty.textContent = t("preset.archiveHint");
       presetArchiveList.append(empty);
       return;
     }
 
     for (const preset of archivePresets) {
+      const presetName = preset.name.trim() || t("preset.emptyName");
       const row = document.createElement("div");
-      row.style.display = "flex";
-      row.style.alignItems = "center";
-      row.style.gap = "8px";
-      row.style.flexWrap = "wrap";
+      row.className = "preset-selection-card preset-selection-card-archive";
+      if (!preset.hasDataFile) {
+        row.classList.add("is-disabled");
+      }
+
+      const toggle = document.createElement("label");
+      toggle.className = "preset-selection-toggle";
 
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
+      checkbox.className = "preset-selection-checkbox";
       checkbox.dataset.role = "archive-preset-checkbox";
       checkbox.dataset.presetId = String(preset.id);
       checkbox.checked = preset.hasDataFile;
       checkbox.disabled = !preset.hasDataFile;
+      checkbox.setAttribute("aria-label", `[${preset.id}]`);
+
+      const indicator = document.createElement("span");
+      indicator.className = "preset-selection-indicator";
+      indicator.setAttribute("aria-hidden", "true");
+      toggle.append(checkbox, indicator);
+
+      const body = document.createElement("div");
+      body.className = "preset-selection-body";
+
+      const head = document.createElement("div");
+      head.className = "preset-selection-head";
 
       const idLabel = document.createElement("span");
+      idLabel.className = "preset-selection-id";
       idLabel.textContent = `[${preset.id}]`;
-      idLabel.style.minWidth = "54px";
+      head.append(idLabel);
 
       const nameInput = document.createElement("input");
       nameInput.type = "text";
+      nameInput.className = "preset-selection-name-input";
       nameInput.dataset.role = "archive-preset-name";
       nameInput.dataset.presetId = String(preset.id);
-      nameInput.value = preset.name;
-      nameInput.style.padding = "6px 8px";
-      nameInput.style.minWidth = "260px";
-      nameInput.style.flex = "1";
+      nameInput.value = presetName;
+      nameInput.placeholder = t("preset.emptyName");
+      nameInput.setAttribute("aria-label", `[${preset.id}]`);
       nameInput.disabled = !preset.hasDataFile;
 
-      row.append(checkbox, idLabel, nameInput);
+      body.append(head, nameInput);
 
       if (!preset.hasDataFile) {
         const missing = document.createElement("span");
-        missing.className = "muted";
+        missing.className = "preset-selection-note muted";
         missing.textContent = t("preset.archiveMissingData");
-        row.append(missing);
+        body.append(missing);
       }
 
+      row.append(toggle, body);
       presetArchiveList.append(row);
     }
   }
@@ -2527,6 +2733,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     updateButtons();
     startHomeNotificationPolling();
+    startAnnounceNotificationPolling();
     void runUpdateCheck("startup");
   })();
 }

@@ -146,7 +146,6 @@ const ja = {
   "announce.loadingDetail": "アナウンス詳細を読み込み中...",
   "announce.empty": "アナウンスがありません",
   "announce.selectPrompt": "記事を選択してください",
-  "announce.openOriginal": "元記事を開く",
   "announce.requestedLang": "要求言語",
   "announce.servedLang": "配信言語",
   "announce.fallback": "フォールバック",
@@ -278,6 +277,8 @@ const ja = {
   "migration.unencrypted": "暗号化なし",
 
   "preset.title": "プリセット共有",
+  "preset.importActionSubtitle": "プリセットファイルをインポートし、ゲーム内に導入する",
+  "preset.exportActionSubtitle": "ゲーム内のプリセットをエクスポートする",
   "preset.refreshLocal": "プリセットを再読み込み",
   "preset.selectAll": "全選択",
   "preset.clearSelection": "選択解除",

@@ -6,6 +6,7 @@ import type { OfficialLink } from "./types";
  */
 export const REPORTING_NOTIFICATION_STORAGE_KEY = "reporting.notification.enabled";
 export const ANNOUNCE_API_BASE_URL = "https://announce.supernewroles.com/api/v1/";
+export const ANNOUNCE_BADGE_READ_CREATED_AT_STORAGE_KEY = "announce.badge.readCreatedAt";
 
 export const OFFICIAL_LINKS: OfficialLink[] = [
   {

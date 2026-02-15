@@ -64,7 +64,7 @@ export function ReportThreadPanel({
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (!isOpen || isLoading) {
       return;
     }
 
@@ -76,7 +76,7 @@ export function ReportThreadPanel({
 
       container.scrollTop = container.scrollHeight;
     });
-  }, [isOpen]);
+  }, [isOpen, isLoading, normalizedMessages]);
 
   const handleSend = useCallback(async () => {
     if (!replyText.trim()) return;
@@ -125,7 +125,10 @@ export function ReportThreadPanel({
 
       <div className="report-thread-panel-content" ref={messagesContainerRef}>
         {isLoading ? (
-          <div className="report-messages-loading">{t("report.messagesLoading")}</div>
+          <div className="report-messages-loading" role="status" aria-live="polite">
+            <div className="report-spinner" aria-hidden="true" />
+            <span>{t("report.messagesLoading")}</span>
+          </div>
         ) : normalizedMessages.length === 0 ? (
           <div className="report-messages-empty">{t("report.messagesEmpty")}</div>
         ) : (

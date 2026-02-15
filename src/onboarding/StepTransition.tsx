@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { OnboardingStep } from "./types";
 import { STEP_ORDER } from "./types";
 
@@ -14,22 +14,25 @@ export default function StepTransition({ step, children }: StepTransitionProps) 
   const [prevStep, setPrevStep] = useState<OnboardingStep | null>(null);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
   const [isAnimating, setIsAnimating] = useState(false);
+  const currentStepRef = useRef<OnboardingStep>(step);
 
   useEffect(() => {
-    if (step === displayStep && prevStep === null) return;
+    if (step === currentStepRef.current) return;
 
-    const isForward = STEP_ORDER[step] > STEP_ORDER[displayStep];
+    const fromStep = currentStepRef.current;
+    const isForward = STEP_ORDER[step] > STEP_ORDER[fromStep];
     setDirection(isForward ? "forward" : "back");
-    setPrevStep(displayStep);
+    setPrevStep(fromStep);
     setDisplayStep(step);
+    currentStepRef.current = step;
     setIsAnimating(true);
 
-    const t = setTimeout(() => {
+    const t = window.setTimeout(() => {
       setPrevStep(null);
       setIsAnimating(false);
     }, TRANSITION_MS);
-    return () => clearTimeout(t);
-  }, [step, displayStep, prevStep]);
+    return () => window.clearTimeout(t);
+  }, [step]);
 
   return (
     <div
