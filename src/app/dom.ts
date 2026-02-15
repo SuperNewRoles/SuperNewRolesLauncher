@@ -172,7 +172,9 @@ export function collectAppDom(): AppDom {
     settingsMigrationSelectedPath: mustElement<HTMLParagraphElement>(
       "#settings-migration-selected-path",
     ),
-    settingsMigrationPickPathButton: mustElement<HTMLButtonElement>("#settings-migration-pick-path"),
+    settingsMigrationPickPathButton: mustElement<HTMLButtonElement>(
+      "#settings-migration-pick-path",
+    ),
     settingsMigrationStepSelectNextButton: mustElement<HTMLButtonElement>(
       "#settings-migration-step-select-next",
     ),
@@ -180,7 +182,9 @@ export function collectAppDom(): AppDom {
     settingsMigrationPasswordInput: mustElement<HTMLInputElement>(
       "#settings-migration-password-input",
     ),
-    settingsMigrationPasswordError: mustElement<HTMLDivElement>("#settings-migration-password-error"),
+    settingsMigrationPasswordError: mustElement<HTMLDivElement>(
+      "#settings-migration-password-error",
+    ),
     settingsMigrationStepPasswordCancelButton: mustElement<HTMLButtonElement>(
       "#settings-migration-step-password-cancel",
     ),

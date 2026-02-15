@@ -232,7 +232,7 @@ export function AnnounceCenter({
           ) : null}
 
           {items.length > 0 ? (
-            <div className="announce-list" role="listbox" aria-label={t("announce.tab")}>
+            <div className="announce-list" aria-label={t("announce.tab")}>
               {items.map((item) => {
                 const selected = item.id === selectedArticleId;
                 const itemCreatedAt = parseAnnounceCreatedAt(item.created_at);
@@ -245,7 +245,7 @@ export function AnnounceCenter({
                     onClick={() => {
                       handleSelectArticle(item);
                     }}
-                    aria-selected={selected ? "true" : "false"}
+                    aria-pressed={selected}
                   >
                     <div className="announce-list-item-heading">
                       <div className="announce-list-item-title">{item.title}</div>

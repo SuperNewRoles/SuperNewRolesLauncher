@@ -412,7 +412,8 @@ const ja = {
   "installFlow.importArchivePasswordCheckFailed": "パスワード検証に失敗しました: {error}",
   "installFlow.importPreviewLoading": "取り込み元を確認中...",
   "installFlow.importPreviewReady": "確認完了: プリセット {count}件 / ファイル {files}件",
-  "installFlow.importPreviewEmpty": "確認完了: プリセットが見つかりませんでした (ファイル {files}件)",
+  "installFlow.importPreviewEmpty":
+    "確認完了: プリセットが見つかりませんでした (ファイル {files}件)",
   "installFlow.importPreviewListTitle": "以下の設定をインポートします",
   "installFlow.importPreviewError": "取り込み元の確認に失敗しました: {error}",
   "installFlow.importNotConfigured": "取り込み元フォルダを選択して確認してください。",
@@ -422,8 +423,7 @@ const ja = {
   "installFlow.importingSaveData": "SaveDataを取り込み中...",
   "installFlow.importingMigrationData": "お引越しアーカイブを取り込み中...",
   "installFlow.importingSaveDataPresetMerge": "既存SaveDataのプリセットを統合中...",
-  "installFlow.importingPreservedSaveDataPresetMerge":
-    "保持セーブデータのプリセットを統合中...",
+  "installFlow.importingPreservedSaveDataPresetMerge": "保持セーブデータのプリセットを統合中...",
   "installFlow.importRetrySkipPrompt":
     "SaveDataの取り込みに失敗しました。\\n\\n{error}\\n\\nOK: 再試行 / キャンセル: スキップ",
   "installFlow.importRetrySkipPromptMigration":

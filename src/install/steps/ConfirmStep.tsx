@@ -90,8 +90,8 @@ export default function ConfirmStep({
               : importEnabled && migrationImportEnabled
                 ? `${t("installFlow.importSummaryEnabled", { count: importPresetCount })} / ${t("installFlow.importSummaryEnabledMigration")}`
                 : migrationImportEnabled
-                ? t("installFlow.importSummaryEnabledMigration")
-                : t("installFlow.importSummaryEnabled", { count: importPresetCount })}
+                  ? t("installFlow.importSummaryEnabledMigration")
+                  : t("installFlow.importSummaryEnabled", { count: importPresetCount })}
           </dd>
           {importEnabled && (
             <>

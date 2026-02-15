@@ -34,7 +34,9 @@ describe("announceApi", () => {
     const url = new URL(String(requestUrl));
 
     expect(ANNOUNCE_API_BASE_URL).toBe("https://announce.supernewroles.com/api/v1/");
-    expect(`${url.origin}${url.pathname}`).toBe("https://announce.supernewroles.com/api/v1/articles");
+    expect(`${url.origin}${url.pathname}`).toBe(
+      "https://announce.supernewroles.com/api/v1/articles",
+    );
     expect(url.searchParams.get("lang")).toBe("ja");
     expect(url.searchParams.get("fallback")).toBe("true");
     expect(url.searchParams.get("page")).toBe("1");

@@ -403,7 +403,7 @@ const en: Record<keyof typeof ja, string> = {
     "The selected folder is not an Among Us installation folder. Please select a folder containing Among Us.exe.",
   "installFlow.importTitle": "Import Existing SaveData",
   "installFlow.importDescription":
-    "If needed, import data from an existing SNR folder or a migration archive before finishing installation.\nIf this is your first time playing, press \"Next\" to continue.",
+    'If needed, import data from an existing SNR folder or a migration archive before finishing installation.\nIf this is your first time playing, press "Next" to continue.',
   "installFlow.importEnable": "Import SaveData from existing SNR",
   "installFlow.importArchiveEnable": "Import data from migration archive",
   "installFlow.importSelectSource": "Select source folder",
@@ -429,8 +429,7 @@ const en: Record<keyof typeof ja, string> = {
   "installFlow.importingSaveData": "Importing SaveData...",
   "installFlow.importingMigrationData": "Importing migration archive...",
   "installFlow.importingSaveDataPresetMerge": "Merging presets from existing SaveData...",
-  "installFlow.importingPreservedSaveDataPresetMerge":
-    "Merging presets from preserved SaveData...",
+  "installFlow.importingPreservedSaveDataPresetMerge": "Merging presets from preserved SaveData...",
   "installFlow.importRetrySkipPrompt":
     "Failed to import SaveData.\\n\\n{error}\\n\\nOK: Retry / Cancel: Skip",
   "installFlow.importRetrySkipPromptMigration":

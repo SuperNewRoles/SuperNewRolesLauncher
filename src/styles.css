@@ -52,8 +52,8 @@
   --scrollbar-thumb-radius: 999px;
   --scrollbar-thumb-pad: 3px;
   --scrollbar-thumb-pad-hover: 2px;
-  --scrollbar-track: rgba(var(--accent-rgb), 0.10);
-  --scrollbar-thumb: rgba(var(--accent-rgb), 0.40);
+  --scrollbar-track: rgba(var(--accent-rgb), 0.1);
+  --scrollbar-thumb: rgba(var(--accent-rgb), 0.4);
   --scrollbar-thumb-hover: rgba(var(--accent-rgb), 0.56);
   --scrollbar-thumb-active: rgba(var(--accent-rgb), 0.72);
 }
@@ -2503,7 +2503,8 @@ progress {
   border-radius: 12px;
   background: color-mix(in srgb, var(--card-strong) 86%, transparent);
   box-shadow: 0 1px 0 color-mix(in srgb, var(--card-strong) 60%, transparent);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background-color
+    0.2s ease;
 }
 
 .preset-selection-card-local {

@@ -12,6 +12,9 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { check } from "@tauri-apps/plugin-updater";
 import React from "react";
 import { type Root, createRoot } from "react-dom/client";
+import { AnnounceCenter } from "../announce/AnnounceCenter";
+import { announceListArticles } from "../announce/announceApi";
+import type { AnnounceArticleMinimal } from "../announce/types";
 import {
   type LocaleCode,
   createTranslator,
@@ -19,9 +22,6 @@ import {
   resolveInitialLocale,
   saveLocale,
 } from "../i18n";
-import { announceListArticles } from "../announce/announceApi";
-import { AnnounceCenter } from "../announce/AnnounceCenter";
-import type { AnnounceArticleMinimal } from "../announce/types";
 import OnboardingWizard from "../onboarding/OnboardingWizard";
 import { ReportCenter } from "../report/ReportCenter";
 import {
@@ -217,10 +217,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     mainLayout.addEventListener(
       "animationend",
       (event) => {
-        if (
-          event.target !== mainLayout ||
-          event.animationName !== "launcher-locale-switch-in"
-        ) {
+        if (event.target !== mainLayout || event.animationName !== "launcher-locale-switch-in") {
           return;
         }
         cleanupLocaleSwitchEnterAnimation();
@@ -420,10 +417,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         announcePanel.addEventListener(
           "animationend",
           (event) => {
-            if (
-              event.target !== announcePanel ||
-              event.animationName !== "announce-tab-enter"
-            ) {
+            if (event.target !== announcePanel || event.animationName !== "announce-tab-enter") {
               return;
             }
             announcePanel.classList.remove("tab-announce-enter");
@@ -1105,7 +1099,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       migrationProcessing || migrationPassword.trim().length === 0;
     settingsMigrationResultRetryButton.disabled = migrationProcessing;
     settingsMigrationResultCloseButton.disabled = migrationProcessing;
-    const presetProcessing = presetLoading || presetExporting || presetInspecting || presetImporting;
+    const presetProcessing =
+      presetLoading || presetExporting || presetInspecting || presetImporting;
     presetOpenImportButton.disabled = control.presetInspectButtonDisabled;
     presetOpenExportButton.disabled = control.presetRefreshButtonDisabled;
     presetOverlayCloseButton.disabled = presetProcessing;
@@ -1849,7 +1844,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     updateButtons();
   }
 
-  async function resolveMigrationDialogDefaultPath(mode: MigrationMode): Promise<string | undefined> {
+  async function resolveMigrationDialogDefaultPath(
+    mode: MigrationMode,
+  ): Promise<string | undefined> {
     try {
       const downloadsPath = await downloadDir();
       if (mode === "export") {
@@ -1997,7 +1994,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         if (invalidPassword) {
           const localized = t("migration.overlay.invalidPassword");
           migrationResultMessage = localized;
-          setStatusLine(migrationStatus, t("migration.importFailed", { error: localized }), "error");
+          setStatusLine(
+            migrationStatus,
+            t("migration.importFailed", { error: localized }),
+            "error",
+          );
         } else {
           migrationResultMessage = t("migration.overlay.failedWithError", { error: message });
           setStatusLine(migrationStatus, t("migration.importFailed", { error: message }), "error");
@@ -2506,7 +2507,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   presetImportButton.addEventListener("click", async () => {
     const archivePath = presetImportArchivePath.trim();
     if (!archivePath) {
-      showPresetResultOverlay(t("preset.importPathRequired"), t("preset.feedback.confirmImportTitle"));
+      showPresetResultOverlay(
+        t("preset.importPathRequired"),
+        t("preset.feedback.confirmImportTitle"),
+      );
       return;
     }
 
@@ -2690,17 +2694,15 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         // fall through to finally cleanup when reload fails unexpectedly.
       }
     } finally {
-      if (didRequestReload) {
-        return;
+      if (!didRequestReload) {
+        clearLocaleSwitchReloadAnimation();
+        if (mainLayout) {
+          mainLayout.classList.remove("main-layout-minimize-out");
+        }
+        setLocaleSwitchAnimationScrollLock(false);
+        languageSelect.disabled = false;
+        localeSwitchInProgress = false;
       }
-
-      clearLocaleSwitchReloadAnimation();
-      if (mainLayout) {
-        mainLayout.classList.remove("main-layout-minimize-out");
-      }
-      setLocaleSwitchAnimationScrollLock(false);
-      languageSelect.disabled = false;
-      localeSwitchInProgress = false;
     }
   });
 
@@ -2725,9 +2727,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         return;
       }
 
-      const shouldInstall = await confirm(t("update.confirmPrompt", { version: update.version }), {
-        kind: "warning",
-      });
+      const shouldInstall = window.confirm(t("update.confirmPrompt", { version: update.version }));
       if (!shouldInstall) {
         updateStatus.textContent = t("update.skipped", { version: update.version });
         return;
