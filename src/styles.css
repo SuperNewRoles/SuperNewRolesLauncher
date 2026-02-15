@@ -2457,13 +2457,9 @@ progress {
 .preset-overlay-screen {
   flex: 1;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 14px;
   min-height: 0;
-}
-
-#preset-overlay-export-screen.preset-overlay-screen {
-  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
 .preset-overlay-list {
@@ -2644,8 +2640,39 @@ progress {
   min-width: 180px;
 }
 
-.preset-remake-status {
+.settings-fullscreen-overlay-panel.preset-feedback-overlay-panel {
+  width: min(560px, calc(100vw - 40px));
+  max-width: 560px;
+  max-height: min(70vh, 520px);
+}
+
+.preset-feedback-header {
+  margin-bottom: 8px;
+}
+
+.preset-feedback-message {
   margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.preset-feedback-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.preset-feedback-actions {
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.preset-feedback-actions > button {
+  min-width: 110px;
 }
 
 .tab-settings-shell {

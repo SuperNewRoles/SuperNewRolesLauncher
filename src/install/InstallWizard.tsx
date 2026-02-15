@@ -147,7 +147,8 @@ export default function InstallWizard() {
         available: false,
         files: 0,
       }));
-      const hasPreservedSaveData = preservedSaveDataStatus.available;
+      const hasPreservedSaveData =
+        preservedSaveDataStatus.available && preservedSaveDataStatus.files > 0;
       setPreservedSaveDataAvailable(hasPreservedSaveData);
       setRestoreSaveData(hasPreservedSaveData);
       setStep("platform");

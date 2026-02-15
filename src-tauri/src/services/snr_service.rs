@@ -2,7 +2,10 @@
 //! commands層から呼び出される実処理をここに集約する。
 
 use crate::utils::{download, migration, presets, settings, zip};
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use tauri::{AppHandle, Emitter, Runtime};
@@ -11,6 +14,8 @@ const RELEASES_API_URL: &str =
     "https://api.github.com/repos/SuperNewRoles/SuperNewRoles/releases?per_page=30";
 const RELEASE_BY_TAG_API_URL: &str =
     "https://api.github.com/repos/SuperNewRoles/SuperNewRoles/releases/tags";
+const PATCHER_MANIFEST_URL: &str = "https://update.supernewroles.com/patchers/data.json";
+const PATCHER_BASE_URL: &str = "https://update.supernewroles.com/patchers/";
 const PRESERVED_SAVE_DATA_DIR: &str = "preserved_save_data";
 const AMONG_US_EXE: &str = "Among Us.exe";
 const SOURCE_SAVE_DATA_RELATIVE_PATH: [&str; 2] = ["SuperNewRolesNext", "SaveData"];
@@ -21,7 +26,8 @@ const SAVE_DATA_BACKUP_DIR_NAME: &str = "SaveData._import_backup";
 // downloading/extracting は各ステージの 0-100 をこの範囲へ線形変換する。
 const INSTALL_DOWNLOAD_END: f64 = 80.0;
 const INSTALL_EXTRACT_END: f64 = 98.0;
-const INSTALL_RESTORE_END: f64 = 99.0;
+const INSTALL_PATCHERS_END: f64 = 99.0;
+const INSTALL_RESTORE_END: f64 = 100.0;
 
 fn scale_progress(stage_percent: f64, start: f64, end: f64) -> f64 {
     let ratio = stage_percent.clamp(0.0, 100.0) / 100.0;
@@ -35,7 +41,8 @@ fn map_install_progress(stage: &str, stage_percent: f64) -> f64 {
         "resolving" => 0.0,
         "downloading" => scale_progress(clamped, 0.0, INSTALL_DOWNLOAD_END),
         "extracting" => scale_progress(clamped, INSTALL_DOWNLOAD_END, INSTALL_EXTRACT_END),
-        "restoring" => scale_progress(clamped, INSTALL_EXTRACT_END, INSTALL_RESTORE_END),
+        "patchers" => scale_progress(clamped, INSTALL_EXTRACT_END, INSTALL_PATCHERS_END),
+        "restoring" => scale_progress(clamped, INSTALL_PATCHERS_END, INSTALL_RESTORE_END),
         "complete" => 100.0,
         "failed" => 0.0,
         _ => clamped,
@@ -55,6 +62,20 @@ struct GitHubRelease {
     prerelease: bool,
     published_at: Option<String>,
     assets: Vec<GitHubAsset>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PatchersManifestPayload {
+    #[serde(default)]
+    windows: Vec<String>,
+    #[serde(flatten)]
+    hashes: HashMap<String, String>,
+}
+
+#[derive(Debug, Clone)]
+struct PatchFile {
+    name: String,
+    expected_md5: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -159,6 +180,271 @@ fn emit_progress<R: Runtime>(
             entries_total,
         },
     );
+}
+
+async fn fetch_patcher_manifest(client: &Client) -> Result<Vec<PatchFile>, String> {
+    let response = client
+        .get(PATCHER_MANIFEST_URL)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch patcher manifest: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "Failed to fetch patcher manifest (status {})",
+            response.status()
+        ));
+    }
+
+    let payload = response
+        .json::<Value>()
+        .await
+        .map_err(|e| format!("Failed to parse patcher manifest: {e}"))?;
+
+    let windows = match payload.get("windows").and_then(Value::as_array) {
+        Some(items) => items,
+        None => return Ok(Vec::new()),
+    };
+
+    let mut windows_hashes = HashMap::new();
+    if let Some(object) = payload.as_object() {
+        for (name, hash_value) in object {
+            if name == "windows" {
+                continue;
+            }
+            if let Some(hash) = hash_value.as_str() {
+                if !hash.trim().is_empty() {
+                    windows_hashes.insert(name.clone(), hash.to_string());
+                }
+            }
+        }
+    }
+
+    let payload = PatchersManifestPayload {
+        windows: windows
+            .iter()
+            .filter_map(|file| file.as_str().map(str::trim).filter(|name| !name.is_empty()))
+            .map(ToString::to_string)
+            .collect(),
+        hashes: windows_hashes,
+    };
+
+    Ok(payload
+        .windows
+        .iter()
+        .map(|name| PatchFile {
+            name: name.to_string(),
+            expected_md5: payload.hashes.get(name).cloned(),
+        })
+        .collect())
+}
+
+fn safe_patcher_name(name: &str) -> bool {
+    let name = name.trim();
+    if name.is_empty() {
+        return false;
+    }
+
+    if name == "." || name == ".." {
+        return false;
+    }
+
+    if name.contains('/') || name.contains('\\') {
+        return false;
+    }
+
+    let path = Path::new(name);
+    if path.is_absolute() {
+        return false;
+    }
+
+    if path
+        .components()
+        .any(|component| matches!(component, Component::ParentDir | Component::RootDir | Component::Prefix(_)))
+    {
+        return false;
+    }
+
+    path.file_name().and_then(|file_name| file_name.to_str()) == Some(name)
+}
+
+fn verify_md5(path: &Path, expected: &str) -> Result<(), String> {
+    if expected.trim().is_empty() {
+        return Ok(());
+    }
+
+    let actual = fs::read(path)
+        .map_err(|e| format!("Failed to read patcher '{}': {e}", path.display()))
+        .map(|bytes| format!("{:x}", md5::compute(bytes)))?;
+
+    let actual = actual.to_ascii_lowercase();
+    let expected = expected.trim().to_ascii_lowercase();
+
+    if actual == expected {
+        Ok(())
+    } else {
+        Err(format!(
+            "MD5 mismatch for '{}': expected '{expected}', got '{actual}'",
+            path.display()
+        ))
+    }
+}
+
+async fn download_patchers_into_staging<R: Runtime>(
+    app: &AppHandle<R>,
+    client: &Client,
+    staging_path: &Path,
+) -> Result<Vec<String>, String> {
+    let patchers = fetch_patcher_manifest(client).await?;
+    if patchers.is_empty() {
+        emit_progress(
+            app,
+            "patchers",
+            100.0,
+            "No windows patchers listed; skipping patcher synchronization.",
+            None,
+            None,
+            Some(0),
+            Some(0),
+        );
+        return Ok(Vec::new());
+    }
+
+    let patchers_dir = staging_path.join("BepInEx").join("patchers");
+    fs::create_dir_all(&patchers_dir)
+        .map_err(|e| format!("Failed to create patchers directory '{}': {e}", patchers_dir.display()))?;
+
+    let total_patchers = patchers.len();
+    emit_progress(
+        app,
+        "patchers",
+        0.0,
+        "Preparing patchers...",
+        None,
+        None,
+        Some(0),
+        Some(total_patchers),
+    );
+
+    let mut skipped: Vec<String> = Vec::new();
+
+    for (index, patcher) in patchers.iter().enumerate() {
+        let index = index + 1;
+        let name = patcher.name.trim();
+        let base_progress = ((index - 1) as f64 / total_patchers as f64) * 100.0;
+
+        if !safe_patcher_name(name) {
+            skipped.push(name.to_string());
+            emit_progress(
+                app,
+                "patchers",
+                (index as f64 / total_patchers as f64) * 100.0,
+                "Skipping unsafe patcher",
+                None,
+                None,
+                Some(index),
+                Some(total_patchers),
+            );
+            continue;
+        }
+
+        let destination = patchers_dir.join(name);
+        let url = format!("{PATCHER_BASE_URL}{name}");
+
+        let download_result = download::download_file(
+            client,
+            &url,
+            &destination,
+            |downloaded, total| {
+                let file_percent = total
+                    .map(|size| (downloaded as f64 / size as f64) * 100.0)
+                    .unwrap_or(0.0);
+                let stage_percent = base_progress + file_percent / total_patchers as f64;
+                emit_progress(
+                    app,
+                    "patchers",
+                    stage_percent.clamp(0.0, 100.0),
+                    format!("Downloading patcher {index}/{total_patchers}"),
+                    Some(downloaded),
+                    total,
+                    Some(index),
+                    Some(total_patchers),
+                );
+            },
+        )
+        .await;
+
+        if let Err(error) = download_result {
+            skipped.push(name.to_string());
+            emit_progress(
+                app,
+                "patchers",
+                (index as f64 / total_patchers as f64) * 100.0,
+                format!("Download failed ({index}/{total_patchers})"),
+                None,
+                None,
+                Some(index),
+                Some(total_patchers),
+            );
+            let _ = fs::remove_file(&destination);
+            continue;
+        }
+
+        if let Some(expected_md5) = patcher.expected_md5.as_deref() {
+            if let Err(error) = verify_md5(&destination, expected_md5) {
+                skipped.push(name.to_string());
+                emit_progress(
+                    app,
+                    "patchers",
+                    (index as f64 / total_patchers as f64) * 100.0,
+                    format!("MD5 mismatch ({index}/{total_patchers})"),
+                    None,
+                    None,
+                    Some(index),
+                    Some(total_patchers),
+                );
+                let _ = fs::remove_file(&destination);
+                continue;
+            }
+        }
+
+        emit_progress(
+            app,
+            "patchers",
+            (index as f64 / total_patchers as f64) * 100.0,
+            format!("Patchers ok ({index}/{total_patchers})"),
+            None,
+            None,
+            Some(index),
+            Some(total_patchers),
+        );
+    }
+
+    if skipped.is_empty() {
+        emit_progress(
+            app,
+            "patchers",
+            100.0,
+            format!("Downloaded {total_patchers} patcher file(s)."),
+            None,
+            None,
+            Some(total_patchers),
+            Some(total_patchers),
+        );
+    } else {
+        emit_progress(
+            app,
+            "patchers",
+            100.0,
+            format!("Skipped {} patcher file(s)", skipped.len()),
+            None,
+            None,
+            Some(total_patchers),
+            Some(total_patchers),
+        );
+    }
+
+    Ok(skipped)
 }
 
 fn resolve_asset<'a>(
@@ -567,8 +853,8 @@ pub fn get_preserved_save_data_status<R: Runtime>(
     collect_files_recursive(&preserved_path, &mut files)?;
 
     Ok(PreservedSaveDataStatus {
-        // 空でもディレクトリが存在する場合は、保持操作済みとして扱う。
-        available: true,
+        // 空のディレクトリは復元不能として扱う。
+        available: !files.is_empty(),
         files: files.len(),
     })
 }
@@ -861,6 +1147,19 @@ async fn install_snr_release_inner<R: Runtime>(
             Some(total),
         );
     })?;
+
+    if let Err(error) = download_patchers_into_staging(app, &client, &staging_path).await {
+        emit_progress(
+            app,
+            "patchers",
+            100.0,
+            "Skipping patchers synchronization",
+            None,
+            None,
+            None,
+            None,
+        );
+    }
 
     let restored_save_files = if restore_preserved_save_data {
         emit_progress(

@@ -2,7 +2,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
 import { downloadDir, join } from "@tauri-apps/api/path";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { confirm, open, save } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import {
   isPermissionGranted,
   requestPermission,
@@ -112,6 +112,7 @@ type SettingsCategoryId = "general" | "epic" | "migration" | "credit" | "app-ver
 type MigrationMode = "export" | "import";
 type MigrationOverlayStep = "select" | "password" | "processing" | "result";
 type PresetOverlayMode = "import" | "export";
+type PresetFeedbackMode = "none" | "confirmImport" | "result";
 const DEFAULT_SETTINGS_CATEGORY: SettingsCategoryId = "general";
 
 function isMainTabId(value: string | undefined): value is MainTabId {
@@ -301,13 +302,17 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     presetClearLocalButton,
     presetLocalList,
     presetExportButton,
-    presetImportPathInput,
-    presetInspectButton,
     presetSelectAllArchiveButton,
     presetClearArchiveButton,
     presetImportButton,
     presetArchiveList,
-    presetStatus,
+    presetFeedbackOverlay,
+    presetFeedbackOverlayBackdrop,
+    presetFeedbackTitle,
+    presetFeedbackMessage,
+    presetFeedbackList,
+    presetFeedbackPrimaryButton,
+    presetFeedbackSecondaryButton,
     epicLoginWebviewButton,
     epicLogoutButton,
     epicAuthStatus,
@@ -617,6 +622,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let migrationResultSuccess = false;
   let migrationResultMessage = "";
   let presetOverlayMode: PresetOverlayMode | null = null;
+  let presetFeedbackMode: PresetFeedbackMode = "none";
+  let presetImportArchivePath = "";
+  let presetFeedbackCloseAllOnDismiss = false;
+  let presetFeedbackPrimaryAction: (() => void | Promise<void>) | null = null;
+  let presetFeedbackSecondaryAction: (() => void | Promise<void>) | null = null;
   const overlayAnimationTimers = new WeakMap<HTMLDivElement, number>();
   const overlayCloseTimers = new WeakMap<HTMLDivElement, number>();
 
@@ -1019,7 +1029,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   async function refreshPreservedSaveDataStatus(): Promise<void> {
     try {
       const status = await snrPreservedSaveDataStatus();
-      preservedSaveDataAvailable = status.available;
+      preservedSaveDataAvailable = status.available && status.files > 0;
       preservedSaveDataFiles = status.files;
     } catch (error) {
       preservedSaveDataAvailable = false;
@@ -1103,11 +1113,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     presetSelectAllLocalButton.disabled = control.presetSelectAllLocalButtonDisabled;
     presetClearLocalButton.disabled = control.presetClearLocalButtonDisabled;
     presetExportButton.disabled = control.presetExportButtonDisabled;
-    presetImportPathInput.disabled = control.presetImportPathInputDisabled;
-    presetInspectButton.disabled = control.presetInspectButtonDisabled;
     presetSelectAllArchiveButton.disabled = control.presetSelectAllArchiveButtonDisabled;
     presetClearArchiveButton.disabled = control.presetClearArchiveButtonDisabled;
     presetImportButton.disabled = control.presetImportButtonDisabled;
+    presetFeedbackPrimaryButton.disabled = presetProcessing;
+    presetFeedbackSecondaryButton.disabled = presetProcessing;
   }
 
   function applyGameRunningState(running: boolean): void {
@@ -1340,6 +1350,22 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         body.append(missing);
       }
 
+      if (preset.hasDataFile) {
+        row.addEventListener("click", (event) => {
+          const target = event.target as HTMLElement | null;
+          if (!target) {
+            return;
+          }
+          if (target.closest(".preset-selection-toggle")) {
+            return;
+          }
+          if (target.closest('input[data-role="archive-preset-name"]')) {
+            return;
+          }
+          checkbox.checked = !checkbox.checked;
+        });
+      }
+
       row.append(toggle, body);
       presetArchiveList.append(row);
     }
@@ -1389,39 +1415,17 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     return inputs;
   }
 
-  async function refreshLocalPresets(keepStatusMessage = false): Promise<void> {
+  async function refreshLocalPresets(_keepStatusMessage = false): Promise<void> {
     presetLoading = true;
     updateButtons();
-
-    if (!keepStatusMessage) {
-      setStatusLine(presetStatus, t("preset.statusLoadingLocal"));
-    }
 
     try {
       localPresets = await presetsListLocal();
       renderLocalPresetList();
-
-      if (!keepStatusMessage) {
-        if (localPresets.length > 0) {
-          setStatusLine(
-            presetStatus,
-            t("preset.statusLoadedLocal", { count: localPresets.length }),
-            "success",
-          );
-        } else {
-          setStatusLine(presetStatus, t("preset.statusNoLocal"), "warn");
-        }
-      }
     } catch (error) {
       localPresets = [];
       renderLocalPresetList();
-      if (!keepStatusMessage) {
-        setStatusLine(
-          presetStatus,
-          t("preset.statusLoadFailed", { error: String(error) }),
-          "error",
-        );
-      }
+      setGeneralStatusLine(t("preset.statusLoadFailed", { error: String(error) }), "error");
     } finally {
       presetLoading = false;
       updateButtons();
@@ -1444,7 +1448,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       !settingsAmongUsOverlay.hidden ||
       !settingsUninstallConfirmOverlay.hidden ||
       !settingsMigrationOverlay.hidden ||
-      !presetOverlay.hidden;
+      !presetOverlay.hidden ||
+      !presetFeedbackOverlay.hidden;
     document.documentElement.classList.toggle("settings-overlay-open", overlayOpen);
     document.body.classList.toggle("settings-overlay-open", overlayOpen);
   }
@@ -2133,6 +2138,106 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     updateButtons();
   }
 
+  function closePresetResultOverlay(force = false): void {
+    if (isPresetProcessing() && !force) {
+      return;
+    }
+    closeSettingsOverlay(presetFeedbackOverlay, force);
+    const resetPresetFeedbackState = () => {
+      presetFeedbackMode = "none";
+      presetFeedbackCloseAllOnDismiss = false;
+      presetFeedbackPrimaryAction = null;
+      presetFeedbackSecondaryAction = null;
+      presetFeedbackTitle.textContent = "";
+      presetFeedbackMessage.textContent = "";
+      presetFeedbackList.replaceChildren();
+      presetFeedbackList.hidden = true;
+      presetFeedbackPrimaryButton.hidden = false;
+      presetFeedbackSecondaryButton.hidden = false;
+    };
+    if (force) {
+      resetPresetFeedbackState();
+    } else {
+      window.setTimeout(() => {
+        if (!presetFeedbackOverlay.hidden) {
+          return;
+        }
+        resetPresetFeedbackState();
+        updateButtons();
+      }, SETTINGS_OVERLAY_TRANSITION_MS);
+    }
+    updateButtons();
+  }
+
+  function closeAllOverlays(force = false): void {
+    closePresetResultOverlay(force);
+    closePresetOverlay(force);
+    closeUninstallConfirmOverlay(force);
+    closeMigrationOverlay(force);
+    closeAmongUsOverlay(force);
+  }
+
+  function openPresetFeedbackOverlay(
+    mode: PresetFeedbackMode,
+    title: string,
+    message: string,
+    listItems: string[],
+    primaryLabel: string,
+    secondaryLabel: string | null,
+    onPrimary: (() => void | Promise<void>) | null,
+    onSecondary: (() => void | Promise<void>) | null,
+    closeAllOnDismiss = false,
+  ): void {
+    presetFeedbackMode = mode;
+    presetFeedbackCloseAllOnDismiss = closeAllOnDismiss;
+    presetFeedbackPrimaryAction = onPrimary;
+    presetFeedbackSecondaryAction = onSecondary;
+    presetFeedbackTitle.textContent = title;
+    presetFeedbackMessage.textContent = message;
+    presetFeedbackList.replaceChildren();
+    if (listItems.length > 0) {
+      const items = listItems.map((text) => {
+        const li = document.createElement("li");
+        li.textContent = text;
+        return li;
+      });
+      presetFeedbackList.append(...items);
+      presetFeedbackList.hidden = false;
+    } else {
+      presetFeedbackList.hidden = true;
+    }
+    presetFeedbackPrimaryButton.textContent = primaryLabel;
+    presetFeedbackPrimaryButton.hidden = false;
+    if (secondaryLabel) {
+      presetFeedbackSecondaryButton.textContent = secondaryLabel;
+      presetFeedbackSecondaryButton.hidden = false;
+    } else {
+      presetFeedbackSecondaryButton.textContent = "";
+      presetFeedbackSecondaryButton.hidden = true;
+    }
+    openSettingsOverlay(presetFeedbackOverlay);
+    updateButtons();
+  }
+
+  function showPresetResultOverlay(
+    message: string,
+    title = t("preset.feedback.doneTitle"),
+    listItems: string[] = [],
+    closeAllOnDismiss = true,
+  ): void {
+    openPresetFeedbackOverlay(
+      "result",
+      title,
+      message,
+      listItems,
+      t("preset.feedback.close"),
+      null,
+      null,
+      null,
+      closeAllOnDismiss,
+    );
+  }
+
   presetOpenImportButton.addEventListener("click", () => {
     void startPresetImportFlow();
   });
@@ -2149,8 +2254,58 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     closePresetOverlay();
   });
 
+  presetFeedbackOverlayBackdrop.addEventListener("click", () => {
+    if (presetFeedbackMode === "result") {
+      if (presetFeedbackCloseAllOnDismiss) {
+        closeAllOverlays();
+      } else {
+        closePresetResultOverlay();
+      }
+      return;
+    }
+    closePresetResultOverlay();
+  });
+
+  presetFeedbackPrimaryButton.addEventListener("click", () => {
+    const action = presetFeedbackPrimaryAction;
+    if (action) {
+      void action();
+      return;
+    }
+    if (presetFeedbackMode === "result") {
+      if (presetFeedbackCloseAllOnDismiss) {
+        closeAllOverlays();
+      } else {
+        closePresetResultOverlay();
+      }
+      return;
+    }
+    closePresetResultOverlay();
+  });
+
+  presetFeedbackSecondaryButton.addEventListener("click", () => {
+    const action = presetFeedbackSecondaryAction;
+    if (action) {
+      void action();
+      return;
+    }
+    closePresetResultOverlay();
+  });
+
   window.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") {
+      return;
+    }
+    if (!presetFeedbackOverlay.hidden) {
+      if (presetFeedbackMode === "result") {
+        if (presetFeedbackCloseAllOnDismiss) {
+          closeAllOverlays();
+        } else {
+          closePresetResultOverlay();
+        }
+      } else {
+        closePresetResultOverlay();
+      }
       return;
     }
     if (!presetOverlay.hidden) {
@@ -2224,38 +2379,20 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   async function inspectPresetArchiveWithStatus(archivePath: string): Promise<boolean> {
     if (!archivePath) {
-      setStatusLine(presetStatus, t("preset.inspectPathRequired"), "warn");
       return false;
     }
 
     presetInspecting = true;
     updateButtons();
-    setStatusLine(presetStatus, t("preset.statusInspecting"));
 
     try {
       archivePresets = await presetsInspectArchive(archivePath);
       renderArchivePresetList();
-
-      const importable = archivePresets.filter((preset) => preset.hasDataFile).length;
-      const missing = archivePresets.length - importable;
-      setStatusLine(
-        presetStatus,
-        t("preset.statusInspectDone", {
-          total: archivePresets.length,
-          importable,
-          missing,
-        }),
-        importable > 0 ? "success" : "warn",
-      );
       return true;
     } catch (error) {
       archivePresets = [];
       renderArchivePresetList();
-      setStatusLine(
-        presetStatus,
-        t("preset.statusInspectFailed", { error: String(error) }),
-        "error",
-      );
+      setGeneralStatusLine(t("preset.statusInspectFailed", { error: String(error) }), "error");
       return false;
     } finally {
       presetInspecting = false;
@@ -2268,12 +2405,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       return;
     }
     closePresetOverlay(true);
+    closePresetResultOverlay(true);
     const archivePath = await pickPresetImportPath();
     if (!archivePath) {
       return;
     }
+    presetImportArchivePath = archivePath;
     openPresetOverlay("import");
-    presetImportPathInput.value = archivePath;
     await inspectPresetArchiveWithStatus(archivePath);
   }
 
@@ -2292,7 +2430,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   presetExportButton.addEventListener("click", async () => {
     const selectedIds = getSelectedLocalPresetIds();
     if (selectedIds.length === 0) {
-      setStatusLine(presetStatus, t("preset.exportSelectRequired"), "warn");
+      showPresetResultOverlay(t("preset.exportSelectRequired"), t("preset.title"), [], false);
       return;
     }
     const outputPath = await pickPresetExportPath();
@@ -2302,7 +2440,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     presetExporting = true;
     updateButtons();
-    setStatusLine(presetStatus, t("preset.statusExporting"));
 
     try {
       const result = await presetsExport({
@@ -2310,30 +2447,17 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         outputPath,
       });
 
-      presetImportPathInput.value = result.archivePath;
-      setStatusLine(
-        presetStatus,
-        t("preset.statusExportDone", {
-          path: result.archivePath,
-          count: result.exportedPresets,
-        }),
-        "success",
-      );
+      presetImportArchivePath = result.archivePath;
+      showPresetResultOverlay(t("preset.feedback.exportDone", { count: result.exportedPresets }));
     } catch (error) {
-      setStatusLine(
-        presetStatus,
+      showPresetResultOverlay(
         t("preset.statusExportFailed", { error: String(error) }),
-        "error",
+        t("preset.title"),
       );
     } finally {
       presetExporting = false;
       updateButtons();
     }
-  });
-
-  presetInspectButton.addEventListener("click", async () => {
-    const archivePath = presetImportPathInput.value.trim();
-    await inspectPresetArchiveWithStatus(archivePath);
   });
 
   presetSelectAllArchiveButton.addEventListener("click", () => {
@@ -2344,33 +2468,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     setCheckedStateByRole(presetArchiveList, "archive-preset-checkbox", false);
   });
 
-  presetImportButton.addEventListener("click", async () => {
-    const archivePath = presetImportPathInput.value.trim();
-    if (!archivePath) {
-      setStatusLine(presetStatus, t("preset.importPathRequired"), "warn");
-      return;
-    }
-
-    const selections = getSelectedArchivePresetInputs();
-    if (selections.length === 0) {
-      setStatusLine(presetStatus, t("preset.importSelectRequired"), "warn");
-      return;
-    }
-
-    const previewLines = selections
-      .map(
-        (selection) =>
-          `- [${selection.sourceId}] ${(selection.name ?? "").trim() || t("preset.emptyName")}`,
-      )
-      .join("\n");
-    const confirmed = window.confirm(t("preset.importConfirmPrompt", { list: previewLines }));
-    if (!confirmed) {
-      return;
-    }
-
+  async function runPresetImport(
+    archivePath: string,
+    selections: PresetImportSelectionInput[],
+  ): Promise<void> {
+    closePresetResultOverlay(true);
     presetImporting = true;
     updateButtons();
-    setStatusLine(presetStatus, t("preset.statusImporting"));
 
     try {
       const result = await presetsImportArchive({
@@ -2380,27 +2484,61 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
       await refreshLocalPresets(true);
 
-      const importedNames = result.imported
-        .map((item) => `[${item.targetId}] ${item.name}`)
-        .join(", ");
-      setStatusLine(
-        presetStatus,
-        t("preset.statusImportDone", {
-          count: result.importedPresets,
-          names: importedNames ? ` (${importedNames})` : "",
-        }),
-        "success",
+      const importedItems = result.imported.map(
+        (item) => `[${item.targetId}] ${(item.name ?? "").trim() || t("preset.emptyName")}`,
+      );
+      showPresetResultOverlay(
+        t("preset.statusImportDone", { count: result.importedPresets, names: "" }),
+        t("preset.feedback.confirmImportTitle"),
+        importedItems,
       );
     } catch (error) {
-      setStatusLine(
-        presetStatus,
+      showPresetResultOverlay(
         t("preset.statusImportFailed", { error: String(error) }),
-        "error",
+        t("preset.feedback.confirmImportTitle"),
       );
     } finally {
       presetImporting = false;
       updateButtons();
     }
+  }
+
+  presetImportButton.addEventListener("click", async () => {
+    const archivePath = presetImportArchivePath.trim();
+    if (!archivePath) {
+      showPresetResultOverlay(t("preset.importPathRequired"), t("preset.feedback.confirmImportTitle"));
+      return;
+    }
+
+    const selections = getSelectedArchivePresetInputs();
+    if (selections.length === 0) {
+      showPresetResultOverlay(
+        t("preset.importSelectRequired"),
+        t("preset.feedback.confirmImportTitle"),
+        [],
+        false,
+      );
+      return;
+    }
+
+    const previewItems = selections.map(
+      (selection) =>
+        `[${selection.sourceId}] ${(selection.name ?? "").trim() || t("preset.emptyName")}`,
+    );
+    openPresetFeedbackOverlay(
+      "confirmImport",
+      t("preset.feedback.confirmImportTitle"),
+      t("preset.feedback.confirmImportMessage"),
+      previewItems,
+      t("preset.feedback.import"),
+      t("preset.feedback.cancel"),
+      async () => {
+        await runPresetImport(archivePath, selections);
+      },
+      () => {
+        closePresetResultOverlay();
+      },
+    );
   });
 
   launchModdedButton.addEventListener("click", async () => {
@@ -2652,7 +2790,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   void listen<InstallProgressPayload>("snr-install-progress", (event) => {
     const payload = event.payload;
 
-    if (payload.stage === "downloading" && typeof payload.downloaded === "number") {
+    if (
+      (payload.stage === "downloading" || payload.stage === "patchers") &&
+      typeof payload.downloaded === "number"
+    ) {
       if (typeof payload.total === "number" && payload.total > 0) {
         const percent = Math.floor((payload.downloaded / payload.total) * 100);
         installStatus.textContent = t("install.progressPercent", {

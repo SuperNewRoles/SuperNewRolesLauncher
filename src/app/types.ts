@@ -47,6 +47,7 @@ export interface UninstallResult {
 }
 
 export interface PreservedSaveDataStatus {
+  // available は「復元可能な保存データが1件以上あるか」を表す。
   available: boolean;
   files: number;
 }

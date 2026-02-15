@@ -99,7 +99,6 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
               </span>
             </button>
           </div>
-          <div id="preset-status" class="status-line preset-remake-status" aria-live="polite"></div>
         </div>
 
         <div id="preset-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
@@ -111,10 +110,6 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
             </header>
 
             <section id="preset-overlay-import-screen" class="preset-overlay-screen" hidden>
-              <div class="row preset-remake-row preset-remake-path-row">
-                <input id="preset-import-path" class="preset-remake-path" type="text" placeholder="${t("preset.importPathPlaceholder")}" />
-                <button id="preset-inspect" type="button">${t("preset.inspectArchive")}</button>
-              </div>
               <div class="row preset-remake-row preset-selection-toolbar">
                 <button id="preset-select-all-archive" type="button">${t("preset.selectAll")}</button>
                 <button id="preset-clear-archive" type="button">${t("preset.clearSelection")}</button>
@@ -361,6 +356,26 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
             </div>
           </div>
         </div>
+
+      </section>
+    </div>
+    <div id="preset-feedback-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
+      <div id="preset-feedback-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
+      <section
+        class="settings-fullscreen-overlay-panel preset-feedback-overlay-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="preset-feedback-title"
+      >
+        <header class="settings-fullscreen-overlay-header preset-feedback-header">
+          <h2 id="preset-feedback-title"></h2>
+        </header>
+        <p id="preset-feedback-message" class="preset-feedback-message" role="status" aria-live="polite"></p>
+        <ul id="preset-feedback-list" class="preset-feedback-list" hidden></ul>
+        <footer class="settings-fullscreen-overlay-actions preset-feedback-actions">
+          <button id="preset-feedback-secondary" type="button"></button>
+          <button id="preset-feedback-primary" type="button"></button>
+        </footer>
       </section>
     </div>
 
