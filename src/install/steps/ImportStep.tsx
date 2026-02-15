@@ -171,16 +171,16 @@ export default function ImportStep({
                 📁 {t("installFlow.importSelectSource")}
               </button>
 
+              <p className={`import-preview-status ${previewError ? "is-error" : ""}`}>
+                {previewStatus}
+              </p>
+
               <div className="import-paths">
                 <p className="import-path-line">
                   <strong>{t("installFlow.folderPath")}:</strong>{" "}
                   <code>{sourceAmongUsPath || t("common.unset")}</code>
                 </p>
               </div>
-
-              <p className={`import-preview-status ${previewError ? "is-error" : ""}`}>
-                {previewStatus}
-              </p>
 
               {hasFolderPreview && (
                 <>
