@@ -11,8 +11,6 @@ export type InstallStep =
   | "progress"
   | "complete";
 
-export type ImportMode = "savedata-folder" | "migration-archive";
-
 /** ステップの進行順（番号が大きいほど先） */
 export const STEP_ORDER: Record<InstallStep, number> = {
   welcome: 0,

@@ -1,10 +1,12 @@
 import { listen } from "@tauri-apps/api/event";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   epicLoginWebview,
   epicSessionRestore,
   epicStatusGet,
   finderDetectPlatforms,
+  migrationImport,
+  migrationValidateArchivePassword,
   settingsUpdate,
   snrInstall,
   snrPreservedSaveDataStatus,
@@ -39,6 +41,8 @@ const LOCALE_OPTION_LABEL_KEYS: Record<LocaleCode, MessageKey> = {
   en: "language.option.en",
 };
 
+type MigrationPasswordValidationState = "idle" | "checking" | "valid" | "invalid";
+
 export default function InstallWizard() {
   const initialLocale = resolveInitialLocale();
   const [locale, setLocale] = useState<LocaleCode>(initialLocale);
@@ -56,40 +60,87 @@ export default function InstallWizard() {
   const [error, setError] = useState<string | null>(null);
 
   const [importEnabled, setImportEnabled] = useState(false);
+  const [migrationImportEnabled, setMigrationImportEnabled] = useState(false);
   const [importSourceAmongUsPath, setImportSourceAmongUsPath] = useState("");
   const [importSourceSaveDataPath, setImportSourceSaveDataPath] = useState("");
   const [importPreviewPresets, setImportPreviewPresets] = useState<PresetSummary[]>([]);
   const [importPreviewFileCount, setImportPreviewFileCount] = useState(0);
   const [importPreviewError, setImportPreviewError] = useState<string | null>(null);
+  const [migrationArchivePath, setMigrationArchivePath] = useState("");
+  const [migrationPassword, setMigrationPassword] = useState("");
+  const [migrationArchiveError, setMigrationArchiveError] = useState<string | null>(null);
+  const [migrationPasswordValidationState, setMigrationPasswordValidationState] =
+    useState<MigrationPasswordValidationState>("idle");
   const [importSkippedAfterFailure, setImportSkippedAfterFailure] = useState(false);
   const [importSkipReason, setImportSkipReason] = useState<string | null>(null);
 
   const [detectedPlatforms, setDetectedPlatforms] = useState<DetectedPlatform[]>([]);
   const [releases, setReleases] = useState<SnrReleaseSummary[]>([]);
+  const [releasesLoading, setReleasesLoading] = useState(false);
+  const [releasesError, setReleasesError] = useState<string | null>(null);
   const [preservedSaveDataAvailable, setPreservedSaveDataAvailable] = useState(false);
   const [epicLoggedIn, setEpicLoggedIn] = useState(false);
   const [epicUserDisplay, setEpicUserDisplay] = useState<string | null>(null);
+  const releasesRequestIdRef = useRef(0);
+  const migrationPasswordValidationRequestIdRef = useRef(0);
 
   const resetImportState = useCallback(() => {
     setImportEnabled(false);
+    setMigrationImportEnabled(false);
     setImportSourceAmongUsPath("");
     setImportSourceSaveDataPath("");
     setImportPreviewPresets([]);
     setImportPreviewFileCount(0);
     setImportPreviewError(null);
+    setMigrationArchivePath("");
+    setMigrationPassword("");
+    setMigrationArchiveError(null);
+    setMigrationPasswordValidationState("idle");
+    migrationPasswordValidationRequestIdRef.current += 1;
     setImportSkippedAfterFailure(false);
     setImportSkipReason(null);
+  }, []);
+
+  const fetchReleasesForInstall = useCallback(async () => {
+    const requestId = releasesRequestIdRef.current + 1;
+    releasesRequestIdRef.current = requestId;
+    setReleasesLoading(true);
+    setReleasesError(null);
+    setReleases([]);
+    setReleaseTag("");
+
+    try {
+      const rels = await snrReleasesList();
+      if (releasesRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setReleases(rels);
+      if (rels.length > 0) {
+        setReleaseTag((current) => (current.trim().length > 0 ? current : rels[0].tag));
+      }
+    } catch (e) {
+      if (releasesRequestIdRef.current !== requestId) {
+        return;
+      }
+      setReleases([]);
+      setReleaseTag("");
+      setReleasesError(String(e));
+    } finally {
+      if (releasesRequestIdRef.current === requestId) {
+        setReleasesLoading(false);
+      }
+    }
   }, []);
 
   const onStart = useCallback(async () => {
     setError(null);
     resetImportState();
     setStep("detecting");
+    void fetchReleasesForInstall();
     try {
       const platforms = await finderDetectPlatforms();
       setDetectedPlatforms(platforms);
-      const rels = await snrReleasesList();
-      setReleases(rels);
       const preservedSaveDataStatus = await snrPreservedSaveDataStatus().catch(() => ({
         available: false,
         files: 0,
@@ -97,15 +148,12 @@ export default function InstallWizard() {
       const hasPreservedSaveData = preservedSaveDataStatus.available;
       setPreservedSaveDataAvailable(hasPreservedSaveData);
       setRestoreSaveData(hasPreservedSaveData);
-      if (rels.length > 0) {
-        setReleaseTag(rels[0].tag);
-      }
       setStep("platform");
     } catch (e) {
       setError(String(e));
       setStep("welcome");
     }
-  }, [resetImportState]);
+  }, [fetchReleasesForInstall, resetImportState]);
 
   const onPlatformSelect = useCallback((path: string, plat: GamePlatform) => {
     setAmongUsPath(path);
@@ -155,15 +203,122 @@ export default function InstallWizard() {
     }
   }, []);
 
-  const onImportNext = useCallback(() => {
-    if (
-      importEnabled &&
-      (importSourceSaveDataPath.trim().length === 0 || importPreviewError !== null)
-    ) {
+  const isMigrationPasswordError = useCallback((message: string): boolean => {
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes("incorrect password") ||
+      normalized.includes("invalid password") ||
+      normalized.includes("failed to decrypt .snrdata") ||
+      normalized.includes("password may be incorrect") ||
+      normalized.includes("please provide a password")
+    );
+  }, []);
+
+  const validateMigrationPassword = useCallback(async (): Promise<boolean> => {
+    if (!migrationImportEnabled) {
+      return true;
+    }
+
+    const archivePath = migrationArchivePath.trim();
+    if (archivePath.length === 0) {
+      setMigrationArchiveError(t("installFlow.importArchiveNotConfigured"));
+      setMigrationPasswordValidationState("invalid");
+      return false;
+    }
+
+    const password = migrationPassword.trim();
+    if (password.length === 0) {
+      setMigrationArchiveError(t("installFlow.importArchivePasswordRequired"));
+      setMigrationPasswordValidationState("invalid");
+      return false;
+    }
+
+    const requestId = migrationPasswordValidationRequestIdRef.current + 1;
+    migrationPasswordValidationRequestIdRef.current = requestId;
+    setMigrationArchiveError(null);
+    setMigrationPasswordValidationState("checking");
+
+    try {
+      await migrationValidateArchivePassword({
+        archivePath,
+        password,
+      });
+
+      if (migrationPasswordValidationRequestIdRef.current !== requestId) {
+        return false;
+      }
+
+      setMigrationPasswordValidationState("valid");
+      return true;
+    } catch (validationError) {
+      if (migrationPasswordValidationRequestIdRef.current !== requestId) {
+        return false;
+      }
+
+      const message = String(validationError);
+      setMigrationPasswordValidationState("invalid");
+      if (isMigrationPasswordError(message)) {
+        setMigrationArchiveError(t("installFlow.importArchivePasswordInvalid"));
+      } else {
+        setMigrationArchiveError(
+          t("installFlow.importArchivePasswordCheckFailed", { error: message }),
+        );
+      }
+      return false;
+    }
+  }, [
+    migrationArchivePath,
+    migrationImportEnabled,
+    migrationPassword,
+    t,
+    isMigrationPasswordError,
+  ]);
+
+  const onMigrationArchiveSelect = useCallback((archivePath: string) => {
+    migrationPasswordValidationRequestIdRef.current += 1;
+    setMigrationArchivePath(archivePath);
+    setMigrationArchiveError(null);
+    setMigrationPasswordValidationState("idle");
+  }, []);
+
+  const onImportNext = useCallback(async () => {
+    if (importEnabled && (importSourceSaveDataPath.trim().length === 0 || importPreviewError !== null)) {
       return;
     }
+
+    if (migrationImportEnabled && migrationArchivePath.trim().length === 0) {
+      setMigrationArchiveError(t("installFlow.importArchiveNotConfigured"));
+      return;
+    }
+    if (migrationImportEnabled && migrationPassword.trim().length === 0) {
+      setMigrationArchiveError(t("installFlow.importArchivePasswordRequired"));
+      return;
+    }
+
+    if (
+      migrationImportEnabled &&
+      (migrationPasswordValidationState === "checking" ||
+        migrationPasswordValidationState === "idle" ||
+        migrationPasswordValidationState === "invalid")
+    ) {
+      const validated = await validateMigrationPassword();
+      if (!validated) {
+        return;
+      }
+    }
+
     setStep("confirm");
-  }, [importEnabled, importPreviewError, importSourceSaveDataPath]);
+  }, [
+    importEnabled,
+    migrationImportEnabled,
+    importPreviewError,
+    importSourceSaveDataPath,
+    migrationArchivePath,
+    migrationPassword,
+    migrationPasswordValidationState,
+    t,
+    validateMigrationPassword,
+  ]);
 
   const onConfirmInstall = useCallback(async () => {
     if (!platform || !amongUsPath || !releaseTag) {
@@ -175,6 +330,71 @@ export default function InstallWizard() {
       setStep("import");
       return;
     }
+    if (migrationImportEnabled && migrationArchivePath.trim().length === 0) {
+      setMigrationArchiveError(t("installFlow.importArchiveNotConfigured"));
+      setStep("import");
+      return;
+    }
+    if (migrationImportEnabled && migrationPassword.trim().length === 0) {
+      setMigrationArchiveError(t("installFlow.importArchivePasswordRequired"));
+      setStep("import");
+      return;
+    }
+    if (migrationImportEnabled) {
+      const validated = await validateMigrationPassword();
+      if (!validated) {
+        setStep("import");
+        return;
+      }
+    }
+
+    const markImportSkipped = (reason: string) => {
+      setImportSkippedAfterFailure(true);
+      setImportSkipReason((current) => (current ? `${current} / ${reason}` : reason));
+    };
+
+    const runSaveDataImportFlow = async () => {
+      setProgress(99);
+      setProgressMessage(t("installFlow.importingSaveData"));
+      while (true) {
+        try {
+          await snrSaveDataImport(importSourceAmongUsPath);
+          return;
+        } catch (importError) {
+          const message = String(importError);
+          const shouldRetry = window.confirm(t("installFlow.importRetrySkipPrompt", { error: message }));
+          if (shouldRetry) {
+            continue;
+          }
+          markImportSkipped(message);
+          return;
+        }
+      }
+    };
+
+    const runMigrationImportFlow = async () => {
+      setProgress(99);
+      setProgressMessage(t("installFlow.importingMigrationData"));
+      while (true) {
+        try {
+          await migrationImport({
+            archivePath: migrationArchivePath.trim(),
+            password: migrationPassword.trim(),
+          });
+          return;
+        } catch (importError) {
+          const message = String(importError);
+          const shouldRetry = window.confirm(
+            t("installFlow.importRetrySkipPromptMigration", { error: message }),
+          );
+          if (shouldRetry) {
+            continue;
+          }
+          markImportSkipped(message);
+          return;
+        }
+      }
+    };
 
     setImportSkippedAfterFailure(false);
     setImportSkipReason(null);
@@ -196,24 +416,10 @@ export default function InstallWizard() {
       });
 
       if (importEnabled) {
-        setProgress(99);
-        setProgressMessage(t("installFlow.importingSaveData"));
-        while (true) {
-          try {
-            await snrSaveDataImport(importSourceAmongUsPath);
-            break;
-          } catch (importError) {
-            const shouldRetry = window.confirm(
-              t("installFlow.importRetrySkipPrompt", { error: String(importError) }),
-            );
-            if (shouldRetry) {
-              continue;
-            }
-            setImportSkippedAfterFailure(true);
-            setImportSkipReason(String(importError));
-            break;
-          }
-        }
+        await runSaveDataImportFlow();
+      }
+      if (migrationImportEnabled) {
+        await runMigrationImportFlow();
       }
 
       setStep("complete");
@@ -226,10 +432,14 @@ export default function InstallWizard() {
     amongUsPath,
     releaseTag,
     importEnabled,
+    migrationImportEnabled,
     importSourceAmongUsPath,
+    migrationArchivePath,
+    migrationPassword,
     restoreSaveData,
     preservedSaveDataAvailable,
     t,
+    validateMigrationPassword,
   ]);
 
   const onComplete = useCallback(() => {
@@ -354,8 +564,13 @@ export default function InstallWizard() {
         <VersionStep
           t={t}
           releases={releases}
+          releasesLoading={releasesLoading}
+          releasesError={releasesError}
           selectedTag={releaseTag}
           onSelect={onVersionSelect}
+          onRetryFetchReleases={() => {
+            void fetchReleasesForInstall();
+          }}
           onBack={onBack}
           platform={platform}
         />
@@ -365,18 +580,47 @@ export default function InstallWizard() {
         <ImportStep
           t={t}
           importEnabled={importEnabled}
+          migrationImportEnabled={migrationImportEnabled}
           sourceAmongUsPath={importSourceAmongUsPath}
           sourceSaveDataPath={importSourceSaveDataPath}
           previewPresets={importPreviewPresets}
           previewFileCount={importPreviewFileCount}
           previewError={importPreviewError}
+          migrationArchivePath={migrationArchivePath}
+          migrationPassword={migrationPassword}
+          migrationArchiveError={migrationArchiveError}
+          migrationPasswordValidationState={migrationPasswordValidationState}
           onImportEnabledChange={(enabled) => {
             setImportEnabled(enabled);
             if (!enabled) {
               setImportPreviewError(null);
+              setImportSourceAmongUsPath("");
+              setImportSourceSaveDataPath("");
+              setImportPreviewPresets([]);
+              setImportPreviewFileCount(0);
             }
           }}
+          onMigrationImportEnabledChange={(enabled) => {
+            setMigrationImportEnabled(enabled);
+            migrationPasswordValidationRequestIdRef.current += 1;
+            if (!enabled) {
+              setMigrationArchivePath("");
+              setMigrationPassword("");
+              setMigrationArchiveError(null);
+            }
+            setMigrationPasswordValidationState("idle");
+          }}
           onSelectSource={onImportSourceSelect}
+          onSelectArchive={onMigrationArchiveSelect}
+          onMigrationPasswordChange={(password) => {
+            migrationPasswordValidationRequestIdRef.current += 1;
+            setMigrationPassword(password);
+            setMigrationArchiveError(null);
+            setMigrationPasswordValidationState("idle");
+          }}
+          onMigrationPasswordBlur={() => {
+            void validateMigrationPassword();
+          }}
           onNext={onImportNext}
           onBack={onBack}
         />
@@ -389,7 +633,9 @@ export default function InstallWizard() {
           amongUsPath={amongUsPath}
           releaseTag={releaseTag}
           importEnabled={importEnabled}
+          migrationImportEnabled={migrationImportEnabled}
           importSourceAmongUsPath={importSourceAmongUsPath}
+          migrationArchivePath={migrationArchivePath}
           importPresetCount={importPreviewPresets.length}
           showRestoreSaveDataOption={preservedSaveDataAvailable}
           restoreSaveData={restoreSaveData}

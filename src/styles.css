@@ -1032,6 +1032,38 @@ progress {
   gap: 16px;
 }
 
+.version-status-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 260px;
+  text-align: center;
+}
+
+.version-status-spinner {
+  width: 48px;
+  height: 48px;
+  border-width: 5px;
+}
+
+.version-status-text {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text);
+}
+
+.version-status-error {
+  color: var(--danger);
+  max-width: 560px;
+  overflow-wrap: anywhere;
+}
+
+.version-retry-button {
+  margin-top: 4px;
+}
+
 .version-card {
   padding: 28px 32px;
   border: 2px solid var(--line);
@@ -1357,6 +1389,13 @@ progress {
 
 .import-preview-status.is-error {
   color: var(--danger);
+}
+
+.import-preview-heading {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 600;
 }
 
 .import-preview-list-wrap {
@@ -4790,6 +4829,24 @@ body.locale-switch-animating {
 /* SaveData import wizard step */
 .install-step-import {
   gap: 16px;
+}
+
+.import-option-block {
+  display: grid;
+  gap: 10px;
+}
+
+.import-archive-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.import-password-field input {
+  width: 100%;
+}
+
+.import-preview-status.is-success {
+  color: var(--success);
 }
 
 .complete-import-warning {

@@ -52,6 +52,11 @@ pub struct MigrationImportSummary {
 }
 
 #[derive(Debug, Clone)]
+pub struct MigrationPasswordValidationSummary {
+    pub encrypted: bool,
+}
+
+#[derive(Debug, Clone)]
 struct PlannedImportFile {
     archive_index: usize,
     target_path: PathBuf,
@@ -196,7 +201,7 @@ fn archive_extension_is_supported(path: &Path) -> bool {
         .and_then(|ext| ext.to_str())
         .map(|ext| {
             let ext_lower = ext.to_ascii_lowercase();
-            ext_lower == "snrdata" || ext_lower == "zip"
+            ext_lower == "snrdata"
         })
         .unwrap_or(false)
 }
@@ -902,4 +907,36 @@ pub fn import_migration_data<R: Runtime>(
             }
         }
     }
+}
+
+pub fn validate_migration_archive_password(
+    archive_path: &Path,
+    password: Option<String>,
+) -> Result<MigrationPasswordValidationSummary, String> {
+    if !archive_path.is_file() {
+        return Err(format!(
+            "Migration archive was not found: {}",
+            archive_path.display()
+        ));
+    }
+
+    if !archive_extension_is_supported(archive_path) {
+        return Err(format!(
+            "Unsupported migration archive extension: {}",
+            archive_path.display()
+        ));
+    }
+
+    let (zip_bytes, encrypted) =
+        read_zip_bytes_from_archive_file(archive_path, password.as_deref())?;
+    let mut archive = ZipArchive::new(Cursor::new(zip_bytes))
+        .map_err(|e| format!("Invalid migration archive format: {e}"))?;
+
+    for index in 0..archive.len() {
+        archive
+            .by_index(index)
+            .map_err(|e| format!("Failed to read migration archive entry {index}: {e}"))?;
+    }
+
+    Ok(MigrationPasswordValidationSummary { encrypted })
 }

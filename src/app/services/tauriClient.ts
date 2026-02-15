@@ -7,6 +7,7 @@ import type {
   LauncherSettingsInput,
   MigrationExportResult,
   MigrationImportResult,
+  MigrationPasswordValidationResult,
   PreservedSaveDataStatus,
   PresetExportResult,
   PresetImportResult,
@@ -107,6 +108,13 @@ export function migrationImport(input: {
   password?: string;
 }): Promise<MigrationImportResult> {
   return invoke<MigrationImportResult>("migration_import", input);
+}
+
+export function migrationValidateArchivePassword(input: {
+  archivePath: string;
+  password?: string;
+}): Promise<MigrationPasswordValidationResult> {
+  return invoke<MigrationPasswordValidationResult>("migration_validate_archive_password", input);
 }
 
 // プリセット関連API

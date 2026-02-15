@@ -66,6 +66,10 @@ export interface MigrationImportResult {
   encrypted: boolean;
 }
 
+export interface MigrationPasswordValidationResult {
+  encrypted: boolean;
+}
+
 export interface PresetSummary {
   id: number;
   name: string;

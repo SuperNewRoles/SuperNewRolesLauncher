@@ -209,6 +209,7 @@ pub fn run() {
             commands::settings::settings_open_folder,
             commands::migration::migration_export,
             commands::migration::migration_import,
+            commands::migration::migration_validate_archive_password,
             commands::presets::presets_list_local,
             commands::presets::presets_export,
             commands::presets::presets_inspect_archive,

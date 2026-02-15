@@ -22,6 +22,12 @@ pub struct MigrationImportResult {
     pub encrypted: bool,
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MigrationPasswordValidationResult {
+    pub encrypted: bool,
+}
+
 /// お引越しデータを書き出す。
 #[tauri::command]
 pub fn migration_export<R: Runtime>(
@@ -64,6 +70,24 @@ pub fn migration_import<R: Runtime>(
         imported_files: result.imported_files,
         profile_files: result.profile_files,
         locallow_files: result.locallow_files,
+        encrypted: result.encrypted,
+    })
+}
+
+/// お引越しアーカイブのパスワードを検証する。
+#[tauri::command]
+pub fn migration_validate_archive_password(
+    archive_path: String,
+    password: Option<String>,
+) -> Result<MigrationPasswordValidationResult, String> {
+    let normalized = archive_path.trim();
+    if normalized.is_empty() {
+        return Err("Migration archive path is required".to_string());
+    }
+
+    let result =
+        migration::validate_migration_archive_password(&PathBuf::from(normalized), password)?;
+    Ok(MigrationPasswordValidationResult {
         encrypted: result.encrypted,
     })
 }

@@ -9,7 +9,9 @@ interface ConfirmStepProps {
   amongUsPath: string;
   releaseTag: string;
   importEnabled: boolean;
+  migrationImportEnabled: boolean;
   importSourceAmongUsPath: string;
+  migrationArchivePath: string;
   importPresetCount: number;
   showRestoreSaveDataOption: boolean;
   restoreSaveData: boolean;
@@ -25,7 +27,9 @@ export default function ConfirmStep({
   amongUsPath,
   releaseTag,
   importEnabled,
+  migrationImportEnabled,
   importSourceAmongUsPath,
+  migrationArchivePath,
   importPresetCount,
   showRestoreSaveDataOption,
   restoreSaveData,
@@ -81,15 +85,27 @@ export default function ConfirmStep({
           </dd>
           <dt>{t("installFlow.importTitle")}</dt>
           <dd>
-            {importEnabled
-              ? t("installFlow.importSummaryEnabled", { count: importPresetCount })
-              : t("installFlow.importSummaryDisabled")}
+            {!importEnabled && !migrationImportEnabled
+              ? t("installFlow.importSummaryDisabled")
+              : importEnabled && migrationImportEnabled
+                ? `${t("installFlow.importSummaryEnabled", { count: importPresetCount })} / ${t("installFlow.importSummaryEnabledMigration")}`
+                : migrationImportEnabled
+                ? t("installFlow.importSummaryEnabledMigration")
+                : t("installFlow.importSummaryEnabled", { count: importPresetCount })}
           </dd>
           {importEnabled && (
             <>
               <dt>{t("installFlow.importSourcePath")}</dt>
               <dd>
                 <code>{importSourceAmongUsPath || t("common.unset")}</code>
+              </dd>
+            </>
+          )}
+          {migrationImportEnabled && (
+            <>
+              <dt>{t("installFlow.importArchivePath")}</dt>
+              <dd>
+                <code>{migrationArchivePath || t("common.unset")}</code>
               </dd>
             </>
           )}

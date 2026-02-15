@@ -1876,7 +1876,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         multiple: false,
         directory: false,
         defaultPath,
-        filters: [{ name: "migration archive", extensions: ["snrdata", "zip"] }],
+        filters: [{ name: "snrdata", extensions: ["snrdata"] }],
       });
       if (!selectedPath || Array.isArray(selectedPath)) {
         return null;
