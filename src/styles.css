@@ -1832,55 +1832,51 @@ progress {
 }
 
 .main-layout.main-layout-minimize-out {
-  animation: launcher-minimize-out 280ms cubic-bezier(0.22, 0.78, 0.22, 1) forwards;
+  animation: launcher-minimize-out 240ms cubic-bezier(0.2, 0.76, 0.2, 1) forwards;
   transform-origin: center top;
   pointer-events: none;
-  will-change: transform, opacity, filter;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
 }
 
 .main-layout.main-layout-locale-switch-in {
-  animation: launcher-locale-switch-in 280ms cubic-bezier(0.24, 0.76, 0.22, 1) both;
+  animation: launcher-locale-switch-in 240ms cubic-bezier(0.2, 0.76, 0.2, 1) both;
   transform-origin: center top;
-  will-change: transform, opacity, filter;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
 }
 
 @keyframes launcher-minimize-out {
   from {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 
   60% {
-    opacity: 0.82;
-    transform: translateY(12px) scale(0.96);
-    filter: blur(1.2px);
+    opacity: 0.8;
+    transform: translate3d(0, 10px, 0) scale(0.972);
   }
 
   to {
     opacity: 0;
-    transform: translateY(34px) scale(0.9);
-    filter: blur(4px);
+    transform: translate3d(0, 26px, 0) scale(0.94);
   }
 }
 
 @keyframes launcher-locale-switch-in {
   from {
     opacity: 0;
-    transform: translateY(-20px) scale(1.06);
-    filter: blur(3px);
+    transform: translate3d(0, -14px, 0) scale(1.028);
   }
 
   60% {
-    opacity: 0.92;
-    transform: translateY(-6px) scale(1.015);
-    filter: blur(0.9px);
+    opacity: 0.9;
+    transform: translate3d(0, -4px, 0) scale(1.006);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
@@ -2127,6 +2123,83 @@ progress {
 
 .tab-preset-scroll {
   padding-right: 2px;
+}
+
+.preset-remake-root {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+}
+
+.preset-remake-launch-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  height: 100%;
+  min-height: min(520px, calc(100dvh - 230px));
+}
+
+.preset-remake-primary {
+  width: 100%;
+  height: 100%;
+  min-height: min(520px, calc(100dvh - 230px));
+  padding: clamp(24px, 4.2vh, 56px) 20px;
+}
+
+.preset-remake-row {
+  margin: 0;
+}
+
+.preset-remake-row > button {
+  flex: 1 1 auto;
+}
+
+.preset-remake-path {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.preset-overlay-panel {
+  width: min(1200px, calc(100% - 24px));
+  height: min(900px, calc(100% - 24px));
+  padding: 20px clamp(16px, 2vw, 28px);
+}
+
+.preset-overlay-screen {
+  flex: 1;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 10px;
+  min-height: 0;
+}
+
+#preset-overlay-export-screen.preset-overlay-screen {
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+}
+
+.preset-overlay-list {
+  display: grid;
+  gap: 6px;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--bg-1);
+}
+
+.preset-overlay-actions {
+  justify-content: flex-end;
+}
+
+.preset-overlay-actions > button {
+  min-width: 180px;
+}
+
+.preset-remake-status {
+  margin: 0;
 }
 
 .tab-settings-shell {
@@ -2455,64 +2528,76 @@ body.settings-overlay-open .tab-settings-shell {
   justify-content: center;
 }
 
-.settings-migration-panel {
-  display: grid;
-  grid-template-rows: auto auto 1fr auto;
-  gap: 12px;
-  min-height: clamp(460px, 70vh, 860px);
+#settings-panel-migration {
+  min-height: min(760px, calc(100dvh - 210px));
 }
 
-.settings-migration-panel-description {
-  margin: 0;
+.settings-migration-panel {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 12px;
+  height: 100%;
+  min-height: 100%;
 }
 
 .settings-migration-action-stack {
   display: grid;
   grid-template-rows: 1fr 1fr;
-  gap: clamp(12px, 2vh, 18px);
+  gap: clamp(12px, 1.8vh, 18px);
+  height: 100%;
   min-height: 0;
 }
 
 .settings-migration-action {
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  gap: 18px;
+  justify-content: center;
+  gap: 16px;
   width: 100%;
   height: 100%;
   min-height: 0;
-  padding: clamp(24px, 4vh, 38px) 18px;
+  padding: clamp(24px, 3.8vh, 48px) 20px;
   border: 2px solid var(--line);
-  border-radius: 16px;
-  background: linear-gradient(180deg, var(--card-strong), var(--bg-1));
+  border-radius: 20px;
+  background: var(--card-strong);
   color: var(--text);
   text-align: center;
-  transition: transform 180ms cubic-bezier(0.32, 0.72, 0, 1), border-color 180ms ease,
-    box-shadow 180ms ease;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: fade-in-up 0.5s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
 .settings-migration-action:hover:not(:disabled) {
-  transform: translateY(-2px);
-  border-color: rgba(var(--accent-rgb), 0.5);
-  box-shadow: var(--shadow-card);
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+  transform: translateY(-4px) scale(1.02);
+}
+
+.settings-migration-action:active:not(:disabled) {
+  transform: translateY(-2px) scale(0.98);
+}
+
+.settings-migration-action-stack > .settings-migration-action:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.settings-migration-action-stack > .settings-migration-action:nth-child(2) {
+  animation-delay: 0.2s;
 }
 
 .settings-migration-action:disabled {
   opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .settings-migration-action-icon {
-  width: clamp(48px, 7vh, 68px);
-  height: clamp(48px, 7vh, 68px);
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: clamp(24px, 3.8vh, 36px);
-  background: rgba(var(--accent-rgb), 0.14);
-  color: var(--accent);
-  flex-shrink: 0;
+  display: block;
+  margin-bottom: 4px;
+  font-size: clamp(54px, 8vh, 72px);
+  line-height: 1;
+  color: var(--text);
 }
 
 .settings-migration-action-text {
@@ -2522,17 +2607,23 @@ body.settings-overlay-open .tab-settings-shell {
 }
 
 .settings-migration-action-title {
-  font-size: clamp(22px, 3.5vh, 34px);
+  font-size: clamp(22px, 3.2vh, 34px);
   font-weight: 700;
+  margin: 0;
 }
 
 .settings-migration-action-subtitle {
-  font-size: clamp(13px, 1.8vh, 16px);
+  font-size: 12px;
+  line-height: 1.4;
   color: var(--muted);
+  word-break: break-word;
+  max-width: 100%;
 }
 
 .settings-migration-overlay-panel {
-  width: min(860px, 100%);
+  width: min(calc(100% - 24px), 30vw);
+  height: min(calc(100% - 24px), 28vh);
+  padding: 20px clamp(16px, 2vw, 24px) 18px;
 }
 
 .settings-migration-overlay-header h2 {
@@ -3022,6 +3113,19 @@ body.locale-switch-animating {
     grid-template-columns: 1fr;
   }
 
+  .preset-remake-root {
+    min-height: 0;
+  }
+
+  .preset-remake-launch-grid {
+    grid-template-columns: 1fr;
+    min-height: min(620px, calc(100dvh - 200px));
+  }
+
+  .preset-remake-primary {
+    min-height: 280px;
+  }
+
   .settings-fullscreen-overlay {
     padding: 0;
   }
@@ -3065,12 +3169,12 @@ body.locale-switch-animating {
     min-width: 120px;
   }
 
-  .settings-migration-panel {
-    min-height: clamp(420px, 72vh, 720px);
+  #settings-panel-migration {
+    min-height: min(680px, calc(100dvh - 150px));
   }
 
   .settings-migration-action {
-    padding: 20px 14px;
+    padding: 24px 14px;
   }
 
   input,

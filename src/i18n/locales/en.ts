@@ -185,11 +185,12 @@ const en: Record<keyof typeof ja, string> = {
   "migration.overlay.exportCompleteTitle": "Export complete",
   "migration.overlay.importCompleteTitle": "Import complete",
   "migration.overlay.exportSuccess":
-    "Export complete: {path} ({count} files: profile {profile} / locallow {locallow})",
+    "Exported to {path}.\\n{count} files (profile {profile} / locallow {locallow})",
   "migration.overlay.importSuccess":
     "Import complete: {count} files (profile {profile} / locallow {locallow})",
   "migration.overlay.failedTitle": "Migration failed",
   "migration.overlay.failedWithError": "Operation failed: {error}",
+  "migration.overlay.invalidPassword": "Incorrect password. Please try again.",
   "migration.overlay.retry": "Retry",
   "migration.overlay.close": "Close",
 
@@ -254,7 +255,7 @@ const en: Record<keyof typeof ja, string> = {
 
   "migration.exporting": "Exporting migration data...",
   "migration.exportDone":
-    "Export complete: {path} ({count} files: profile {profile} / locallow {locallow})",
+    "Exported to {path}. ({count} files: profile {profile} / locallow {locallow})",
   "migration.exportFailed": "Export failed: {error}",
   "migration.exportPasswordRequired": "Enter a password when encryption is enabled.",
   "migration.importPathRequired": "Enter the path to a .snrdata file.",

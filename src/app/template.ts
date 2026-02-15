@@ -77,16 +77,63 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
 
       <!-- プリセットタブ -->
       <section id="tab-preset" class="tab-panel" data-tab="preset">
-        <div class="tab-inner tab-settings-scroll tab-preset-scroll">
-          <section class="card">
-            <strong>${t("preset.title")}</strong>
-            <div class="row"><button id="preset-refresh" type="button">${t("preset.refreshLocal")}</button><button id="preset-select-all-local" type="button">${t("preset.selectAll")}</button><button id="preset-clear-local" type="button">${t("preset.clearSelection")}</button></div>
-            <div id="preset-local-list" style="display: grid; gap: 6px; max-height: 180px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 8px;"></div>
-            <div class="row"><input id="preset-export-path" type="text" placeholder="${t("preset.exportPathPlaceholder")}" style="flex: 1; min-width: 0;" /><button id="preset-export" type="button">${t("preset.exportSelected")}</button></div>
-            <div class="row"><input id="preset-import-path" type="text" placeholder="${t("preset.importPathPlaceholder")}" style="flex: 1; min-width: 0;" /><button id="preset-inspect" type="button">${t("preset.inspectArchive")}</button></div>
-            <div class="row"><button id="preset-select-all-archive" type="button">${t("preset.selectAll")}</button><button id="preset-clear-archive" type="button">${t("preset.clearSelection")}</button><button id="preset-import" type="button">${t("preset.importSelected")}</button></div>
-            <div id="preset-archive-list" style="display: grid; gap: 6px; max-height: 200px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 8px;"></div>
-            <div id="preset-status" class="status-line" aria-live="polite"></div>
+        <div class="tab-inner tab-settings-scroll tab-preset-scroll preset-remake-root">
+          <div class="preset-remake-launch-grid">
+            <button id="preset-open-import" type="button" class="settings-migration-action preset-remake-primary">
+              <span class="settings-migration-action-icon" aria-hidden="true">↓</span>
+              <span class="settings-migration-action-text">
+                <span class="settings-migration-action-title">${t("preset.importSelected")}</span>
+                <span class="settings-migration-action-subtitle">${t("preset.inspectArchive")}</span>
+              </span>
+            </button>
+            <button id="preset-open-export" type="button" class="settings-migration-action preset-remake-primary">
+              <span class="settings-migration-action-icon" aria-hidden="true">↑</span>
+              <span class="settings-migration-action-text">
+                <span class="settings-migration-action-title">${t("preset.exportSelected")}</span>
+                <span class="settings-migration-action-subtitle">${t("preset.refreshLocal")}</span>
+              </span>
+            </button>
+          </div>
+          <div id="preset-status" class="status-line preset-remake-status" aria-live="polite"></div>
+        </div>
+
+        <div id="preset-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
+          <div id="preset-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
+          <section class="settings-fullscreen-overlay-panel preset-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="preset-overlay-title">
+            <header class="settings-fullscreen-overlay-header">
+              <h2 id="preset-overlay-title">${t("preset.title")}</h2>
+              <button id="preset-overlay-close" type="button" class="settings-fullscreen-overlay-close" aria-label="${t("common.cancel")}">×</button>
+            </header>
+
+            <section id="preset-overlay-import-screen" class="preset-overlay-screen" hidden>
+              <div class="row preset-remake-row">
+                <input id="preset-import-path" class="preset-remake-path" type="text" placeholder="${t("preset.importPathPlaceholder")}" />
+                <button id="preset-inspect" type="button">${t("preset.inspectArchive")}</button>
+              </div>
+              <div class="row preset-remake-row">
+                <button id="preset-select-all-archive" type="button">${t("preset.selectAll")}</button>
+                <button id="preset-clear-archive" type="button">${t("preset.clearSelection")}</button>
+              </div>
+              <div id="preset-archive-list" class="preset-overlay-list"></div>
+              <footer class="settings-fullscreen-overlay-actions preset-overlay-actions">
+                <button id="preset-import" type="button">${t("preset.importSelected")}</button>
+              </footer>
+            </section>
+
+            <section id="preset-overlay-export-screen" class="preset-overlay-screen" hidden>
+              <div class="row preset-remake-row">
+                <button id="preset-refresh" type="button">${t("preset.refreshLocal")}</button>
+                <button id="preset-select-all-local" type="button">${t("preset.selectAll")}</button>
+                <button id="preset-clear-local" type="button">${t("preset.clearSelection")}</button>
+              </div>
+              <div id="preset-local-list" class="preset-overlay-list"></div>
+              <div class="row preset-remake-row">
+                <input id="preset-export-path" class="preset-remake-path" type="text" placeholder="${t("preset.exportPathPlaceholder")}" />
+              </div>
+              <footer class="settings-fullscreen-overlay-actions preset-overlay-actions">
+                <button id="preset-export" type="button">${t("preset.exportSelected")}</button>
+              </footer>
+            </section>
           </section>
         </div>
       </section>
@@ -191,7 +238,6 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                     <h2 id="settings-migration-overlay-title">${t("migration.title")}</h2>
                     <button id="settings-migration-overlay-close" type="button" class="settings-fullscreen-overlay-close" aria-label="${t("migration.overlay.close")}">×</button>
                   </header>
-                  <p id="settings-migration-overlay-description" class="muted settings-migration-overlay-description"></p>
 
                   <section id="settings-migration-step-select" class="settings-migration-step">
                     <p id="settings-migration-selected-path" class="settings-migration-selected-path">${t("migration.overlay.pathNotSelected")}</p>
@@ -210,7 +256,6 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                     <div id="settings-migration-password-error" class="status-line" hidden></div>
                     <footer class="settings-fullscreen-overlay-actions settings-migration-step-actions">
                       <button id="settings-migration-step-password-cancel" type="button" class="ghost">${t("common.cancel")}</button>
-                      <button id="settings-migration-step-password-back" type="button" class="ghost">${t("common.back")}</button>
                       <button id="settings-migration-step-password-next" type="button">${t("common.next")}</button>
                     </footer>
                   </section>
@@ -225,7 +270,6 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                     <p id="settings-migration-result-message" class="settings-migration-result-message"></p>
                     <footer class="settings-fullscreen-overlay-actions settings-migration-step-actions">
                       <button id="settings-migration-result-retry" type="button" class="ghost">${t("migration.overlay.retry")}</button>
-                      <button id="settings-migration-result-close" type="button">${t("migration.overlay.close")}</button>
                     </footer>
                   </section>
                 </section>
@@ -265,7 +309,6 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
               <section id="settings-panel-migration" class="settings-category-panel" data-settings-panel="migration" role="tabpanel" aria-labelledby="settings-category-migration" hidden>
                 <section class="card settings-migration-panel">
                   <strong>${t("migration.title")}</strong>
-                  <p class="muted settings-migration-panel-description">${t("migration.exportDescription")}</p>
                   <div class="settings-migration-action-stack">
                     <button id="migration-export" type="button" class="settings-migration-action settings-migration-action-export">
                       <span class="settings-migration-action-icon" aria-hidden="true">↑</span>
@@ -320,7 +363,7 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
 
     <nav class="tab-bar" role="tablist" aria-label="メインナビゲーション">
       <button type="button" class="tab-bar-item tab-bar-item-active" data-tab="home" role="tab" aria-selected="true">${t("home.tab")}</button>
-      <button type="button" class="tab-bar-item" data-tab="report" role="tab" aria-selected="false">${t("report.title")}</button>
+      <button type="button" class="tab-bar-item tab-bar-item-report" data-tab="report" role="tab" aria-selected="false">${t("report.title")}<span id="report-tab-badge" class="report-center-badge report-tab-badge" aria-hidden="true"></span></button>
       <button type="button" class="tab-bar-item" data-tab="preset" role="tab" aria-selected="false">${t("preset.tab")}</button>
       <button type="button" class="tab-bar-item" data-tab="settings" role="tab" aria-selected="false">${t("settings.tab")}</button>
     </nav>

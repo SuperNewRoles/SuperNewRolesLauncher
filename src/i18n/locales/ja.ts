@@ -181,11 +181,12 @@ const ja = {
   "migration.overlay.exportCompleteTitle": "書き出し完了",
   "migration.overlay.importCompleteTitle": "読み込み完了",
   "migration.overlay.exportSuccess":
-    "書き出し完了: {path} ({count}件: profile {profile} / locallow {locallow})",
+    "{path} に書き出しました。\\n{count}件 (profile {profile} / locallow {locallow})",
   "migration.overlay.importSuccess":
     "読み込み完了: {count}件 (profile {profile} / locallow {locallow})",
   "migration.overlay.failedTitle": "お引越しに失敗しました",
   "migration.overlay.failedWithError": "処理に失敗しました: {error}",
+  "migration.overlay.invalidPassword": "パスワードが間違っています。もう一度お試しください。",
   "migration.overlay.retry": "やり直す",
   "migration.overlay.close": "閉じる",
 
@@ -250,7 +251,7 @@ const ja = {
 
   "migration.exporting": "お引越しデータを書き出し中...",
   "migration.exportDone":
-    "書き出し完了: {path} ({count}件: profile {profile} / locallow {locallow})",
+    "{path} に書き出しました。({count}件: profile {profile} / locallow {locallow})",
   "migration.exportFailed": "書き出し失敗: {error}",
   "migration.exportPasswordRequired": "暗号化を有効にする場合はパスワードを入力してください。",
   "migration.importPathRequired": ".snrdata のパスを入力してください。",

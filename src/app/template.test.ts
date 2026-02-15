@@ -33,7 +33,21 @@ describe("renderAppTemplate (settings general)", () => {
     expect(html).toContain('id="settings-migration-step-password"');
     expect(html).toContain('id="settings-migration-step-processing"');
     expect(html).toContain('id="settings-migration-step-result"');
-    expect(html).toContain('id="settings-migration-result-close"');
+  });
+
+  it("includes redesigned preset split layout with fullscreen overlay", () => {
+    expect(html).toContain('id="preset-open-import"');
+    expect(html).toContain('id="preset-open-export"');
+    expect(html).toContain('id="preset-overlay"');
+    expect(html).toContain('id="preset-overlay-import-screen"');
+    expect(html).toContain('id="preset-overlay-export-screen"');
+    expect(html).toContain('id="preset-import"');
+    expect(html).toContain('id="preset-export"');
+    expect(html).toContain('id="preset-inspect"');
+    expect(html).toContain('id="preset-refresh"');
+    expect(html).toContain('id="preset-local-list"');
+    expect(html).toContain('id="preset-archive-list"');
+    expect(html).toContain('class="preset-remake-launch-grid"');
   });
 
   it("does not include removed legacy migration controls", () => {
@@ -41,6 +55,8 @@ describe("renderAppTemplate (settings general)", () => {
     expect(html).not.toContain('id="migration-export-password"');
     expect(html).not.toContain('id="migration-import-path"');
     expect(html).not.toContain('id="migration-import-password"');
+    expect(html).not.toContain('id="settings-migration-overlay-description"');
+    expect(html).not.toContain('id="settings-migration-step-password-back"');
   });
 
   it("does not include removed legacy general controls", () => {

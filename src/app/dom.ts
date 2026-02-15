@@ -34,7 +34,6 @@ export interface AppDom {
   settingsMigrationOverlayCloseButton: HTMLButtonElement;
   settingsMigrationOverlayCancelButton: HTMLButtonElement;
   settingsMigrationOverlayTitle: HTMLHeadingElement;
-  settingsMigrationOverlayDescription: HTMLParagraphElement;
   settingsMigrationStepSelect: HTMLElement;
   settingsMigrationSelectedPath: HTMLParagraphElement;
   settingsMigrationPickPathButton: HTMLButtonElement;
@@ -43,7 +42,6 @@ export interface AppDom {
   settingsMigrationPasswordInput: HTMLInputElement;
   settingsMigrationPasswordError: HTMLDivElement;
   settingsMigrationStepPasswordCancelButton: HTMLButtonElement;
-  settingsMigrationStepPasswordBackButton: HTMLButtonElement;
   settingsMigrationStepPasswordNextButton: HTMLButtonElement;
   settingsMigrationStepProcessing: HTMLElement;
   settingsMigrationProcessingMessage: HTMLParagraphElement;
@@ -51,7 +49,6 @@ export interface AppDom {
   settingsMigrationResultTitle: HTMLHeadingElement;
   settingsMigrationResultMessage: HTMLParagraphElement;
   settingsMigrationResultRetryButton: HTMLButtonElement;
-  settingsMigrationResultCloseButton: HTMLButtonElement;
   installStatus: HTMLSpanElement;
   launchModdedButton: HTMLButtonElement;
   launchVanillaButton: HTMLButtonElement;
@@ -60,6 +57,14 @@ export interface AppDom {
   migrationExportButton: HTMLButtonElement;
   migrationImportButton: HTMLButtonElement;
   migrationStatus: HTMLDivElement;
+  presetOpenImportButton: HTMLButtonElement;
+  presetOpenExportButton: HTMLButtonElement;
+  presetOverlay: HTMLDivElement;
+  presetOverlayBackdrop: HTMLDivElement;
+  presetOverlayCloseButton: HTMLButtonElement;
+  presetOverlayTitle: HTMLHeadingElement;
+  presetOverlayImportScreen: HTMLElement;
+  presetOverlayExportScreen: HTMLElement;
   presetRefreshButton: HTMLButtonElement;
   presetSelectAllLocalButton: HTMLButtonElement;
   presetClearLocalButton: HTMLButtonElement;
@@ -159,9 +164,6 @@ export function collectAppDom(): AppDom {
     settingsMigrationOverlayTitle: mustElement<HTMLHeadingElement>(
       "#settings-migration-overlay-title",
     ),
-    settingsMigrationOverlayDescription: mustElement<HTMLParagraphElement>(
-      "#settings-migration-overlay-description",
-    ),
     settingsMigrationStepSelect: mustElement<HTMLElement>("#settings-migration-step-select"),
     settingsMigrationSelectedPath: mustElement<HTMLParagraphElement>(
       "#settings-migration-selected-path",
@@ -177,9 +179,6 @@ export function collectAppDom(): AppDom {
     settingsMigrationPasswordError: mustElement<HTMLDivElement>("#settings-migration-password-error"),
     settingsMigrationStepPasswordCancelButton: mustElement<HTMLButtonElement>(
       "#settings-migration-step-password-cancel",
-    ),
-    settingsMigrationStepPasswordBackButton: mustElement<HTMLButtonElement>(
-      "#settings-migration-step-password-back",
     ),
     settingsMigrationStepPasswordNextButton: mustElement<HTMLButtonElement>(
       "#settings-migration-step-password-next",
@@ -200,9 +199,6 @@ export function collectAppDom(): AppDom {
     settingsMigrationResultRetryButton: mustElement<HTMLButtonElement>(
       "#settings-migration-result-retry",
     ),
-    settingsMigrationResultCloseButton: mustElement<HTMLButtonElement>(
-      "#settings-migration-result-close",
-    ),
     installStatus: mustElement<HTMLSpanElement>("#install-status"),
     launchModdedButton: mustElement<HTMLButtonElement>("#launch-modded"),
     launchVanillaButton: mustElement<HTMLButtonElement>("#launch-vanilla"),
@@ -211,6 +207,14 @@ export function collectAppDom(): AppDom {
     migrationExportButton: mustElement<HTMLButtonElement>("#migration-export"),
     migrationImportButton: mustElement<HTMLButtonElement>("#migration-import"),
     migrationStatus: mustElement<HTMLDivElement>("#migration-status"),
+    presetOpenImportButton: mustElement<HTMLButtonElement>("#preset-open-import"),
+    presetOpenExportButton: mustElement<HTMLButtonElement>("#preset-open-export"),
+    presetOverlay: mustElement<HTMLDivElement>("#preset-overlay"),
+    presetOverlayBackdrop: mustElement<HTMLDivElement>("#preset-overlay-backdrop"),
+    presetOverlayCloseButton: mustElement<HTMLButtonElement>("#preset-overlay-close"),
+    presetOverlayTitle: mustElement<HTMLHeadingElement>("#preset-overlay-title"),
+    presetOverlayImportScreen: mustElement<HTMLElement>("#preset-overlay-import-screen"),
+    presetOverlayExportScreen: mustElement<HTMLElement>("#preset-overlay-export-screen"),
     presetRefreshButton: mustElement<HTMLButtonElement>("#preset-refresh"),
     presetSelectAllLocalButton: mustElement<HTMLButtonElement>("#preset-select-all-local"),
     presetClearLocalButton: mustElement<HTMLButtonElement>("#preset-clear-local"),

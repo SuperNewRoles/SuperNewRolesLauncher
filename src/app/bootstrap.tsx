@@ -94,7 +94,7 @@ import type {
  */
 const REPORT_HOME_NOTIFICATION_FETCH_GAP_MS = 30_000;
 const REPORT_HOME_NOTIFICATION_POLL_INTERVAL_MS = 180_000;
-const LAUNCHER_MINIMIZE_EFFECT_DURATION_MS = 280;
+const LAUNCHER_MINIMIZE_EFFECT_DURATION_MS = 240;
 const LAUNCHER_AUTO_MINIMIZE_WINDOW_MS = 30_000;
 const SETTINGS_OVERLAY_TRANSITION_MS = 220;
 const LOCALE_SWITCH_RELOAD_ANIMATION_FLAG_KEY = "ui.localeSwitchReloadAnimation";
@@ -102,6 +102,7 @@ type MainTabId = "home" | "report" | "preset" | "settings";
 type SettingsCategoryId = "general" | "epic" | "migration" | "credit" | "app-version";
 type MigrationMode = "export" | "import";
 type MigrationOverlayStep = "select" | "password" | "processing" | "result";
+type PresetOverlayMode = "import" | "export";
 const DEFAULT_SETTINGS_CATEGORY: SettingsCategoryId = "general";
 
 function isMainTabId(value: string | undefined): value is MainTabId {
@@ -152,6 +153,18 @@ function setLocaleSwitchAnimationScrollLock(active: boolean): void {
   document.body.classList.toggle("locale-switch-animating", active);
 }
 
+function restartLayoutAnimation(layout: HTMLElement, className: string): Promise<void> {
+  layout.classList.remove(className);
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        layout.classList.add(className);
+        resolve();
+      });
+    });
+  });
+}
+
 export async function runLauncher(container?: HTMLElement | null): Promise<void> {
   const app = container ?? document.querySelector<HTMLDivElement>("#app");
   if (!app) {
@@ -174,10 +187,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   if (mainLayout && shouldPlayLocaleSwitchEnterAnimation) {
     setLocaleSwitchAnimationScrollLock(true);
-    mainLayout.classList.remove("main-layout-locale-switch-in");
-    // class再付与時に必ずアニメーションを再生する。
-    void mainLayout.offsetWidth;
-    mainLayout.classList.add("main-layout-locale-switch-in");
+    void restartLayoutAnimation(mainLayout, "main-layout-locale-switch-in");
     let cleanedUp = false;
     const cleanupLocaleSwitchEnterAnimation = () => {
       if (cleanedUp) {
@@ -239,7 +249,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     settingsMigrationOverlayCloseButton,
     settingsMigrationOverlayCancelButton,
     settingsMigrationOverlayTitle,
-    settingsMigrationOverlayDescription,
     settingsMigrationStepSelect,
     settingsMigrationSelectedPath,
     settingsMigrationPickPathButton,
@@ -248,7 +257,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     settingsMigrationPasswordInput,
     settingsMigrationPasswordError,
     settingsMigrationStepPasswordCancelButton,
-    settingsMigrationStepPasswordBackButton,
     settingsMigrationStepPasswordNextButton,
     settingsMigrationStepProcessing,
     settingsMigrationProcessingMessage,
@@ -256,7 +264,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     settingsMigrationResultTitle,
     settingsMigrationResultMessage,
     settingsMigrationResultRetryButton,
-    settingsMigrationResultCloseButton,
     installStatus,
     launchModdedButton,
     launchVanillaButton,
@@ -265,6 +272,14 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     migrationExportButton,
     migrationImportButton,
     migrationStatus,
+    presetOpenImportButton,
+    presetOpenExportButton,
+    presetOverlay,
+    presetOverlayBackdrop,
+    presetOverlayCloseButton,
+    presetOverlayTitle,
+    presetOverlayImportScreen,
+    presetOverlayExportScreen,
     presetRefreshButton,
     presetSelectAllLocalButton,
     presetClearLocalButton,
@@ -422,6 +437,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     switchTab("report");
   });
   const reportCenterBadge = document.querySelector<HTMLSpanElement>("#report-center-badge");
+  const reportTabBadge = document.querySelector<HTMLSpanElement>("#report-tab-badge");
   const epicAuthStatusBox = document.querySelector<HTMLDivElement>("#epic-auth-status-box");
   const epicAuthStatusIcon = document.querySelector<HTMLDivElement>("#epic-auth-status-icon");
   const settingsCategoryButtons = Array.from(
@@ -522,6 +538,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let migrationPassword = "";
   let migrationResultSuccess = false;
   let migrationResultMessage = "";
+  let presetOverlayMode: PresetOverlayMode | null = null;
   const overlayAnimationTimers = new WeakMap<HTMLDivElement, number>();
   const overlayCloseTimers = new WeakMap<HTMLDivElement, number>();
 
@@ -575,12 +592,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   function setReportCenterNotificationBadge(hasUnread: boolean): void {
-    if (!reportCenterBadge) {
-      return;
+    for (const badge of [reportCenterBadge, reportTabBadge]) {
+      if (!badge) {
+        continue;
+      }
+      badge.textContent = hasUnread ? "!" : "";
+      badge.classList.toggle("is-visible", hasUnread);
     }
-
-    reportCenterBadge.textContent = hasUnread ? "!" : "";
-    reportCenterBadge.classList.toggle("is-visible", hasUnread);
   }
 
   function clearLauncherAutoMinimizePending(): void {
@@ -608,10 +626,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     try {
       if (mainLayout) {
         setLocaleSwitchAnimationScrollLock(true);
-        mainLayout.classList.remove("main-layout-minimize-out");
-        // class再付与時に必ずアニメーションを再生する。
-        void mainLayout.offsetWidth;
-        mainLayout.classList.add("main-layout-minimize-out");
+        await restartLayoutAnimation(mainLayout, "main-layout-minimize-out");
       }
 
       await new Promise<void>((resolve) => {
@@ -626,7 +641,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       if (mainLayout) {
         window.setTimeout(() => {
           mainLayout.classList.remove("main-layout-minimize-out");
+          setLocaleSwitchAnimationScrollLock(false);
         }, 80);
+      } else {
+        setLocaleSwitchAnimationScrollLock(false);
       }
       launcherMinimizing = false;
     }
@@ -833,11 +851,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       migrationProcessing || migrationSelectedPath.trim().length === 0;
     settingsMigrationPasswordInput.disabled = migrationProcessing;
     settingsMigrationStepPasswordCancelButton.disabled = migrationProcessing;
-    settingsMigrationStepPasswordBackButton.disabled = migrationProcessing;
     settingsMigrationStepPasswordNextButton.disabled =
       migrationProcessing || migrationPassword.trim().length === 0;
     settingsMigrationResultRetryButton.disabled = migrationProcessing;
-    settingsMigrationResultCloseButton.disabled = migrationProcessing;
+    const presetProcessing = presetLoading || presetExporting || presetInspecting || presetImporting;
+    presetOpenImportButton.disabled = control.presetInspectButtonDisabled;
+    presetOpenExportButton.disabled = control.presetRefreshButtonDisabled;
+    presetOverlayCloseButton.disabled = presetProcessing;
     presetRefreshButton.disabled = control.presetRefreshButtonDisabled;
     presetSelectAllLocalButton.disabled = control.presetSelectAllLocalButtonDisabled;
     presetClearLocalButton.disabled = control.presetClearLocalButtonDisabled;
@@ -1140,7 +1160,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     const overlayOpen =
       !settingsAmongUsOverlay.hidden ||
       !settingsUninstallConfirmOverlay.hidden ||
-      !settingsMigrationOverlay.hidden;
+      !settingsMigrationOverlay.hidden ||
+      !presetOverlay.hidden;
     document.documentElement.classList.toggle("settings-overlay-open", overlayOpen);
     document.body.classList.toggle("settings-overlay-open", overlayOpen);
   }
@@ -1440,6 +1461,27 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     return migrationExporting || migrationImporting;
   }
 
+  function isMigrationPasswordError(message: string): boolean {
+    const normalized = message.toLowerCase();
+    const passwordPatterns = [
+      "incorrect password",
+      "invalid password",
+      "wrong password",
+      "password mismatch",
+      "decrypt",
+      "decryption failed",
+      "authentication failed",
+      "hmac",
+      "mac mismatch",
+      "tag mismatch",
+      "aead",
+    ];
+    if (message.includes("パスワード")) {
+      return true;
+    }
+    return passwordPatterns.some((pattern) => normalized.includes(pattern));
+  }
+
   function setMigrationPasswordError(
     message: string | null,
     tone: "info" | "error" | "success" | "warn" = "warn",
@@ -1463,9 +1505,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     settingsMigrationOverlayTitle.textContent = exportMode
       ? t("migration.overlay.exportTitle")
       : t("migration.overlay.importTitle");
-    settingsMigrationOverlayDescription.textContent = exportMode
-      ? t("migration.overlay.exportDescription")
-      : t("migration.overlay.importDescription");
 
     settingsMigrationSelectedPath.textContent =
       migrationSelectedPath.trim().length > 0
@@ -1660,11 +1699,19 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     } catch (error) {
       const message = String(error);
       migrationResultSuccess = false;
-      migrationResultMessage = t("migration.overlay.failedWithError", { error: message });
       if (mode === "export") {
+        migrationResultMessage = t("migration.overlay.failedWithError", { error: message });
         setStatusLine(migrationStatus, t("migration.exportFailed", { error: message }), "error");
       } else {
-        setStatusLine(migrationStatus, t("migration.importFailed", { error: message }), "error");
+        const invalidPassword = isMigrationPasswordError(message);
+        if (invalidPassword) {
+          const localized = t("migration.overlay.invalidPassword");
+          migrationResultMessage = localized;
+          setStatusLine(migrationStatus, t("migration.importFailed", { error: localized }), "error");
+        } else {
+          migrationResultMessage = t("migration.overlay.failedWithError", { error: message });
+          setStatusLine(migrationStatus, t("migration.importFailed", { error: message }), "error");
+        }
       }
     } finally {
       migrationExporting = false;
@@ -1740,14 +1787,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   settingsMigrationStepPasswordCancelButton.addEventListener("click", () => {
     closeMigrationOverlay();
   });
-  settingsMigrationStepPasswordBackButton.addEventListener("click", () => {
-    if (isMigrationProcessing()) {
-      return;
-    }
-    if (migrationOverlayMode) {
-      void startMigrationFlow(migrationOverlayMode);
-    }
-  });
   settingsMigrationStepPasswordNextButton.addEventListener("click", async () => {
     migrationPassword = settingsMigrationPasswordInput.value;
     if (migrationPassword.trim().length === 0) {
@@ -1765,12 +1804,67 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       void startMigrationFlow(migrationOverlayMode);
     }
   });
-  settingsMigrationResultCloseButton.addEventListener("click", () => {
-    closeMigrationOverlay();
+
+  function isPresetProcessing(): boolean {
+    return presetLoading || presetExporting || presetInspecting || presetImporting;
+  }
+
+  function renderPresetOverlayContent(): void {
+    if (!presetOverlayMode) {
+      presetOverlayImportScreen.hidden = true;
+      presetOverlayExportScreen.hidden = true;
+      presetOverlayTitle.textContent = t("preset.title");
+      return;
+    }
+
+    const importMode = presetOverlayMode === "import";
+    presetOverlayImportScreen.hidden = !importMode;
+    presetOverlayExportScreen.hidden = importMode;
+    presetOverlayTitle.textContent = importMode ? t("preset.importSelected") : t("preset.exportSelected");
+  }
+
+  function openPresetOverlay(mode: PresetOverlayMode): void {
+    if (isPresetProcessing()) {
+      return;
+    }
+    presetOverlayMode = mode;
+    renderPresetOverlayContent();
+    openSettingsOverlay(presetOverlay);
+    updateButtons();
+  }
+
+  function closePresetOverlay(force = false): void {
+    if (isPresetProcessing() && !force) {
+      return;
+    }
+    closeSettingsOverlay(presetOverlay, force);
+    presetOverlayMode = null;
+    renderPresetOverlayContent();
+    updateButtons();
+  }
+
+  presetOpenImportButton.addEventListener("click", () => {
+    openPresetOverlay("import");
+  });
+
+  presetOpenExportButton.addEventListener("click", () => {
+    openPresetOverlay("export");
+  });
+
+  presetOverlayBackdrop.addEventListener("click", () => {
+    closePresetOverlay();
+  });
+
+  presetOverlayCloseButton.addEventListener("click", () => {
+    closePresetOverlay();
   });
 
   window.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") {
+      return;
+    }
+    if (!presetOverlay.hidden) {
+      closePresetOverlay();
       return;
     }
     if (!settingsUninstallConfirmOverlay.hidden) {
@@ -2077,10 +2171,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     try {
       if (mainLayout) {
-        mainLayout.classList.remove("main-layout-minimize-out");
-        // class再付与時に必ずアニメーションを再生する。
-        void mainLayout.offsetWidth;
-        mainLayout.classList.add("main-layout-minimize-out");
+        setLocaleSwitchAnimationScrollLock(true);
+        await restartLayoutAnimation(mainLayout, "main-layout-minimize-out");
       }
 
       markLocaleSwitchReloadAnimation();
@@ -2113,6 +2205,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   renderOfficialLinks();
   renderLocalPresetList();
   renderArchivePresetList();
+  renderPresetOverlayContent();
   setStatusLine(presetStatus, t("preset.statusReadyToRefresh"));
 
   async function runUpdateCheck(source: "manual" | "startup"): Promise<void> {
