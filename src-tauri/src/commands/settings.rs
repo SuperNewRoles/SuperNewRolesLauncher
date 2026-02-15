@@ -1,4 +1,5 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 use tauri::{AppHandle, Runtime};
 
 use crate::utils::settings::{
@@ -38,4 +39,55 @@ pub fn settings_profile_ready<R: Runtime>(
     };
 
     Ok(is_profile_ready(&target_path))
+}
+
+/// 指定フォルダをOS標準のファイルエクスプローラーで開く。
+#[tauri::command]
+pub fn settings_open_folder(path: String) -> Result<(), String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err("Path is empty".to_string());
+    }
+
+    let target = PathBuf::from(trimmed);
+    if !target.exists() {
+        return Err(format!("Path does not exist: {}", target.display()));
+    }
+    if !target.is_dir() {
+        return Err(format!("Path is not a directory: {}", target.display()));
+    }
+
+    open_directory(&target)
+}
+
+fn open_directory(path: &Path) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut cmd = Command::new("explorer");
+        cmd.arg(path);
+        cmd
+    };
+
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut cmd = Command::new("open");
+        cmd.arg(path);
+        cmd
+    };
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let mut command = {
+        let mut cmd = Command::new("xdg-open");
+        cmd.arg(path);
+        cmd
+    };
+
+    command.spawn().map_err(|e| {
+        format!(
+            "Failed to open directory {}: {e}",
+            path.to_string_lossy()
+        )
+    })?;
+
+    Ok(())
 }

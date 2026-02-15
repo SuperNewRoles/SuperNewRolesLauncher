@@ -47,6 +47,15 @@
   --settings-folder-btn-bg-start: #fbf4df;
   --settings-folder-btn-bg-end: #f4e6be;
   --settings-folder-btn-text: #5b4820;
+
+  --scrollbar-size: 10px;
+  --scrollbar-thumb-radius: 999px;
+  --scrollbar-thumb-pad: 3px;
+  --scrollbar-thumb-pad-hover: 2px;
+  --scrollbar-track: rgba(var(--accent-rgb), 0.10);
+  --scrollbar-thumb: rgba(var(--accent-rgb), 0.40);
+  --scrollbar-thumb-hover: rgba(var(--accent-rgb), 0.56);
+  --scrollbar-thumb-active: rgba(var(--accent-rgb), 0.72);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -225,6 +234,46 @@ body {
   transition: background 1.0s ease, color 1.0s ease;
   overflow-x: hidden;
   scrollbar-gutter: stable both-edges;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+*::-webkit-scrollbar-track {
+  background-color: var(--scrollbar-track);
+  border-radius: var(--scrollbar-thumb-radius);
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: var(--scrollbar-thumb-radius);
+  border: var(--scrollbar-thumb-pad) solid transparent;
+  background-clip: padding-box;
+  min-height: 32px;
+  transition: background-color 0.18s ease, border-width 0.18s ease;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  border-width: var(--scrollbar-thumb-pad-hover);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background-color: var(--scrollbar-thumb-active);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* スムーズなテーマ切り替え */
@@ -1789,6 +1838,12 @@ progress {
   will-change: transform, opacity, filter;
 }
 
+.main-layout.main-layout-locale-switch-in {
+  animation: launcher-locale-switch-in 280ms cubic-bezier(0.24, 0.76, 0.22, 1) both;
+  transform-origin: center top;
+  will-change: transform, opacity, filter;
+}
+
 @keyframes launcher-minimize-out {
   from {
     opacity: 1;
@@ -1806,6 +1861,26 @@ progress {
     opacity: 0;
     transform: translateY(34px) scale(0.9);
     filter: blur(4px);
+  }
+}
+
+@keyframes launcher-locale-switch-in {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(1.06);
+    filter: blur(3px);
+  }
+
+  60% {
+    opacity: 0.92;
+    transform: translateY(-6px) scale(1.015);
+    filter: blur(0.9px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
   }
 }
 
@@ -2380,8 +2455,167 @@ body.settings-overlay-open .tab-settings-shell {
   justify-content: center;
 }
 
+.settings-migration-panel {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 12px;
+  min-height: clamp(460px, 70vh, 860px);
+}
+
+.settings-migration-panel-description {
+  margin: 0;
+}
+
+.settings-migration-action-stack {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: clamp(12px, 2vh, 18px);
+  min-height: 0;
+}
+
+.settings-migration-action {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: clamp(24px, 4vh, 38px) 18px;
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--card-strong), var(--bg-1));
+  color: var(--text);
+  text-align: center;
+  transition: transform 180ms cubic-bezier(0.32, 0.72, 0, 1), border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.settings-migration-action:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(var(--accent-rgb), 0.5);
+  box-shadow: var(--shadow-card);
+}
+
+.settings-migration-action:disabled {
+  opacity: 0.55;
+}
+
+.settings-migration-action-icon {
+  width: clamp(48px, 7vh, 68px);
+  height: clamp(48px, 7vh, 68px);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(24px, 3.8vh, 36px);
+  background: rgba(var(--accent-rgb), 0.14);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.settings-migration-action-text {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.settings-migration-action-title {
+  font-size: clamp(22px, 3.5vh, 34px);
+  font-weight: 700;
+}
+
+.settings-migration-action-subtitle {
+  font-size: clamp(13px, 1.8vh, 16px);
+  color: var(--muted);
+}
+
+.settings-migration-overlay-panel {
+  width: min(860px, 100%);
+}
+
+.settings-migration-overlay-header h2 {
+  font-size: clamp(20px, 2.4vw, 26px);
+}
+
+.settings-migration-overlay-description {
+  margin: 0;
+  text-align: center;
+  font-size: 14px;
+}
+
+.settings-migration-step {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.settings-migration-selected-path {
+  margin: 0;
+  min-height: 20px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg-1);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.settings-migration-step-actions {
+  flex-wrap: wrap;
+}
+
+.settings-migration-processing-indicator {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent);
+  animation: settings-migration-spin 900ms linear infinite;
+  justify-self: center;
+}
+
+@keyframes settings-migration-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.settings-migration-processing-message {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+.settings-migration-result-title {
+  margin: 0;
+  font-size: 20px;
+}
+
+.settings-migration-result-message {
+  margin: 0;
+  line-height: 1.6;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.settings-migration-result-message.is-error {
+  color: var(--danger);
+}
+
+.settings-migration-result-message.is-success {
+  color: var(--success);
+}
+
 html.settings-overlay-open,
 body.settings-overlay-open {
+  overflow: hidden;
+}
+
+html.locale-switch-animating,
+body.locale-switch-animating {
   overflow: hidden;
 }
 
@@ -2821,6 +3055,22 @@ body.settings-overlay-open {
 
   .settings-among-us-candidate-card {
     min-height: 220px;
+  }
+
+  .settings-migration-step-actions {
+    justify-content: center;
+  }
+
+  .settings-migration-step-actions > button {
+    min-width: 120px;
+  }
+
+  .settings-migration-panel {
+    min-height: clamp(420px, 72vh, 720px);
+  }
+
+  .settings-migration-action {
+    padding: 20px 14px;
   }
 
   input,

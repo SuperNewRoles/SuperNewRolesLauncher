@@ -184,6 +184,53 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                 </section>
               </div>
 
+              <div id="settings-migration-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
+                <div id="settings-migration-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
+                <section class="settings-fullscreen-overlay-panel settings-migration-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="settings-migration-overlay-title">
+                  <header class="settings-fullscreen-overlay-header settings-migration-overlay-header">
+                    <h2 id="settings-migration-overlay-title">${t("migration.title")}</h2>
+                    <button id="settings-migration-overlay-close" type="button" class="settings-fullscreen-overlay-close" aria-label="${t("migration.overlay.close")}">×</button>
+                  </header>
+                  <p id="settings-migration-overlay-description" class="muted settings-migration-overlay-description"></p>
+
+                  <section id="settings-migration-step-select" class="settings-migration-step">
+                    <p id="settings-migration-selected-path" class="settings-migration-selected-path">${t("migration.overlay.pathNotSelected")}</p>
+                    <footer class="settings-fullscreen-overlay-actions settings-migration-step-actions">
+                      <button id="settings-migration-overlay-cancel" type="button" class="ghost">${t("common.cancel")}</button>
+                      <button id="settings-migration-pick-path" type="button">${t("migration.overlay.pickPath")}</button>
+                      <button id="settings-migration-step-select-next" type="button">${t("common.next")}</button>
+                    </footer>
+                  </section>
+
+                  <section id="settings-migration-step-password" class="settings-migration-step" hidden>
+                    <label class="stack" for="settings-migration-password-input">
+                      <span>${t("migration.overlay.passwordLabel")}</span>
+                      <input id="settings-migration-password-input" type="password" placeholder="${t("migration.overlay.passwordPlaceholder")}" autocomplete="new-password" />
+                    </label>
+                    <div id="settings-migration-password-error" class="status-line" hidden></div>
+                    <footer class="settings-fullscreen-overlay-actions settings-migration-step-actions">
+                      <button id="settings-migration-step-password-cancel" type="button" class="ghost">${t("common.cancel")}</button>
+                      <button id="settings-migration-step-password-back" type="button" class="ghost">${t("common.back")}</button>
+                      <button id="settings-migration-step-password-next" type="button">${t("common.next")}</button>
+                    </footer>
+                  </section>
+
+                  <section id="settings-migration-step-processing" class="settings-migration-step" hidden>
+                    <div class="settings-migration-processing-indicator" aria-hidden="true"></div>
+                    <p id="settings-migration-processing-message" class="settings-migration-processing-message">${t("migration.overlay.processing")}</p>
+                  </section>
+
+                  <section id="settings-migration-step-result" class="settings-migration-step" hidden>
+                    <h3 id="settings-migration-result-title" class="settings-migration-result-title"></h3>
+                    <p id="settings-migration-result-message" class="settings-migration-result-message"></p>
+                    <footer class="settings-fullscreen-overlay-actions settings-migration-step-actions">
+                      <button id="settings-migration-result-retry" type="button" class="ghost">${t("migration.overlay.retry")}</button>
+                      <button id="settings-migration-result-close" type="button">${t("migration.overlay.close")}</button>
+                    </footer>
+                  </section>
+                </section>
+              </div>
+
               <section id="settings-panel-epic" class="settings-category-panel" data-settings-panel="epic" role="tabpanel" aria-labelledby="settings-category-epic" hidden>
                 <section class="settings-epic-install-wrap">
                   <div class="install-step-epic-login settings-epic-install-step">
@@ -216,20 +263,24 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
               </section>
 
               <section id="settings-panel-migration" class="settings-category-panel" data-settings-panel="migration" role="tabpanel" aria-labelledby="settings-category-migration" hidden>
-                <section class="card">
+                <section class="card settings-migration-panel">
                   <strong>${t("migration.title")}</strong>
-                  <div class="row"><button id="migration-export" type="button">${t("migration.export")}</button><span class="muted">${t("migration.exportDescription")}</span></div>
-                  <div class="row">
-                    <label class="row" style="align-items: center; gap: 6px;">
-                      <input id="migration-encryption-enabled" type="checkbox" checked />
-                      ${t("migration.encryptionEnabled")}
-                    </label>
-                    <input id="migration-export-password" type="password" placeholder="${t("migration.exportPasswordPlaceholder")}" style="min-width: 180px;" />
-                  </div>
-                  <div class="row" style="flex-wrap: wrap;">
-                    <input id="migration-import-path" type="text" placeholder="${t("migration.importPlaceholder")}" style="flex: 1; min-width: 200px;" />
-                    <input id="migration-import-password" type="password" placeholder="${t("migration.importPasswordPlaceholder")}" style="min-width: 140px;" />
-                    <button id="migration-import" type="button">${t("migration.import")}</button>
+                  <p class="muted settings-migration-panel-description">${t("migration.exportDescription")}</p>
+                  <div class="settings-migration-action-stack">
+                    <button id="migration-export" type="button" class="settings-migration-action settings-migration-action-export">
+                      <span class="settings-migration-action-icon" aria-hidden="true">↑</span>
+                      <span class="settings-migration-action-text">
+                        <span class="settings-migration-action-title">${t("migration.export")}</span>
+                        <span class="settings-migration-action-subtitle">${t("migration.overlay.exportActionHint")}</span>
+                      </span>
+                    </button>
+                    <button id="migration-import" type="button" class="settings-migration-action settings-migration-action-import">
+                      <span class="settings-migration-action-icon" aria-hidden="true">↓</span>
+                      <span class="settings-migration-action-text">
+                        <span class="settings-migration-action-title">${t("migration.import")}</span>
+                        <span class="settings-migration-action-subtitle">${t("migration.overlay.importActionHint")}</span>
+                      </span>
+                    </button>
                   </div>
                   <div id="migration-status" class="status-line" aria-live="polite"></div>
                 </section>

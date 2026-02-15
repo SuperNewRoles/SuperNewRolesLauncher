@@ -1,14 +1,14 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
-import { join } from "@tauri-apps/api/path";
+import { downloadDir, join } from "@tauri-apps/api/path";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { confirm, open } from "@tauri-apps/plugin-dialog";
+import { confirm, open, save } from "@tauri-apps/plugin-dialog";
 import {
   isPermissionGranted,
   requestPermission,
   sendNotification,
 } from "@tauri-apps/plugin-notification";
-import { openPath, openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { check } from "@tauri-apps/plugin-updater";
 import React from "react";
 import { type Root, createRoot } from "react-dom/client";
@@ -54,6 +54,7 @@ import {
   reportingReportSend,
   reportingThreadsList,
   settingsGet,
+  settingsOpenFolder,
   settingsProfileReady,
   settingsUpdate,
   snrPreservedSaveDataStatus,
@@ -71,8 +72,6 @@ import type {
   InstallResult,
   LauncherSettings,
   LauncherSettingsInput,
-  MigrationExportResult,
-  MigrationImportResult,
   PreservedSaveDataStatus,
   PresetExportResult,
   PresetImportResult,
@@ -98,8 +97,11 @@ const REPORT_HOME_NOTIFICATION_POLL_INTERVAL_MS = 180_000;
 const LAUNCHER_MINIMIZE_EFFECT_DURATION_MS = 280;
 const LAUNCHER_AUTO_MINIMIZE_WINDOW_MS = 30_000;
 const SETTINGS_OVERLAY_TRANSITION_MS = 220;
+const LOCALE_SWITCH_RELOAD_ANIMATION_FLAG_KEY = "ui.localeSwitchReloadAnimation";
 type MainTabId = "home" | "report" | "preset" | "settings";
 type SettingsCategoryId = "general" | "epic" | "migration" | "credit" | "app-version";
+type MigrationMode = "export" | "import";
+type MigrationOverlayStep = "select" | "password" | "processing" | "result";
 const DEFAULT_SETTINGS_CATEGORY: SettingsCategoryId = "general";
 
 function isMainTabId(value: string | undefined): value is MainTabId {
@@ -114,6 +116,40 @@ function isSettingsCategoryId(value: string | undefined): value is SettingsCateg
     value === "credit" ||
     value === "app-version"
   );
+}
+
+function markLocaleSwitchReloadAnimation(): void {
+  try {
+    sessionStorage.setItem(LOCALE_SWITCH_RELOAD_ANIMATION_FLAG_KEY, "1");
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function clearLocaleSwitchReloadAnimation(): void {
+  try {
+    sessionStorage.removeItem(LOCALE_SWITCH_RELOAD_ANIMATION_FLAG_KEY);
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function consumeLocaleSwitchReloadAnimation(): boolean {
+  try {
+    const value = sessionStorage.getItem(LOCALE_SWITCH_RELOAD_ANIMATION_FLAG_KEY);
+    if (value !== "1") {
+      return false;
+    }
+    sessionStorage.removeItem(LOCALE_SWITCH_RELOAD_ANIMATION_FLAG_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function setLocaleSwitchAnimationScrollLock(active: boolean): void {
+  document.documentElement.classList.toggle("locale-switch-animating", active);
+  document.body.classList.toggle("locale-switch-animating", active);
 }
 
 export async function runLauncher(container?: HTMLElement | null): Promise<void> {
@@ -134,6 +170,42 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   app.innerHTML = renderAppTemplate(currentLocale, t);
   const mainLayout = app.querySelector<HTMLElement>(".main-layout");
+  const shouldPlayLocaleSwitchEnterAnimation = consumeLocaleSwitchReloadAnimation();
+
+  if (mainLayout && shouldPlayLocaleSwitchEnterAnimation) {
+    setLocaleSwitchAnimationScrollLock(true);
+    mainLayout.classList.remove("main-layout-locale-switch-in");
+    // class再付与時に必ずアニメーションを再生する。
+    void mainLayout.offsetWidth;
+    mainLayout.classList.add("main-layout-locale-switch-in");
+    let cleanedUp = false;
+    const cleanupLocaleSwitchEnterAnimation = () => {
+      if (cleanedUp) {
+        return;
+      }
+      cleanedUp = true;
+      mainLayout.classList.remove("main-layout-locale-switch-in");
+      setLocaleSwitchAnimationScrollLock(false);
+    };
+
+    mainLayout.addEventListener(
+      "animationend",
+      (event) => {
+        if (
+          event.target !== mainLayout ||
+          event.animationName !== "launcher-locale-switch-in"
+        ) {
+          return;
+        }
+        cleanupLocaleSwitchEnterAnimation();
+      },
+      { once: true },
+    );
+    window.setTimeout(
+      cleanupLocaleSwitchEnterAnimation,
+      LAUNCHER_MINIMIZE_EFFECT_DURATION_MS + 120,
+    );
+  }
 
   const {
     appVersion,
@@ -162,16 +234,35 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     settingsUninstallConfirmCloseButton,
     settingsUninstallConfirmCancelButton,
     settingsUninstallConfirmAcceptButton,
+    settingsMigrationOverlay,
+    settingsMigrationOverlayBackdrop,
+    settingsMigrationOverlayCloseButton,
+    settingsMigrationOverlayCancelButton,
+    settingsMigrationOverlayTitle,
+    settingsMigrationOverlayDescription,
+    settingsMigrationStepSelect,
+    settingsMigrationSelectedPath,
+    settingsMigrationPickPathButton,
+    settingsMigrationStepSelectNextButton,
+    settingsMigrationStepPassword,
+    settingsMigrationPasswordInput,
+    settingsMigrationPasswordError,
+    settingsMigrationStepPasswordCancelButton,
+    settingsMigrationStepPasswordBackButton,
+    settingsMigrationStepPasswordNextButton,
+    settingsMigrationStepProcessing,
+    settingsMigrationProcessingMessage,
+    settingsMigrationStepResult,
+    settingsMigrationResultTitle,
+    settingsMigrationResultMessage,
+    settingsMigrationResultRetryButton,
+    settingsMigrationResultCloseButton,
     installStatus,
     launchModdedButton,
     launchVanillaButton,
     createModdedShortcutButton,
     launchStatus,
     migrationExportButton,
-    migrationEncryptionEnabledInput,
-    migrationExportPasswordInput,
-    migrationImportPathInput,
-    migrationImportPasswordInput,
     migrationImportButton,
     migrationStatus,
     presetRefreshButton,
@@ -423,7 +514,14 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let launcherAutoMinimizePending = false;
   let launcherAutoMinimizeTimer: number | null = null;
   let launcherMinimizing = false;
+  let localeSwitchInProgress = false;
   let amongUsOverlayLoading = false;
+  let migrationOverlayMode: MigrationMode | null = null;
+  let migrationOverlayStep: MigrationOverlayStep = "select";
+  let migrationSelectedPath = "";
+  let migrationPassword = "";
+  let migrationResultSuccess = false;
+  let migrationResultMessage = "";
   const overlayAnimationTimers = new WeakMap<HTMLDivElement, number>();
   const overlayCloseTimers = new WeakMap<HTMLDivElement, number>();
 
@@ -509,6 +607,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     try {
       if (mainLayout) {
+        setLocaleSwitchAnimationScrollLock(true);
         mainLayout.classList.remove("main-layout-minimize-out");
         // class再付与時に必ずアニメーションを再生する。
         void mainLayout.offsetWidth;
@@ -646,7 +745,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
 
     try {
-      await openPath(target);
+      await settingsOpenFolder(target);
       setGeneralStatusLine(t("openFolder.opened", { label }), "success");
     } catch (error) {
       setGeneralStatusLine(
@@ -724,13 +823,21 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     openAmongUsFolderButton.disabled = control.openAmongUsFolderButtonDisabled;
     openProfileFolderButton.disabled = control.openProfileFolderButtonDisabled;
     closeToTrayOnCloseInput.disabled = control.closeToTrayOnCloseInputDisabled;
+    const migrationProcessing = migrationExporting || migrationImporting;
     migrationExportButton.disabled = control.migrationExportButtonDisabled;
     migrationImportButton.disabled = control.migrationImportButtonDisabled;
-    migrationImportPathInput.disabled = control.migrationImportPathInputDisabled;
-    migrationEncryptionEnabledInput.disabled = control.migrationEncryptionEnabledInputDisabled;
-    migrationExportPasswordInput.disabled =
-      !migrationEncryptionEnabledInput.checked || control.migrationExportPasswordInputDisabled;
-    migrationImportPasswordInput.disabled = control.migrationImportPasswordInputDisabled;
+    settingsMigrationOverlayCloseButton.disabled = migrationProcessing;
+    settingsMigrationOverlayCancelButton.disabled = migrationProcessing;
+    settingsMigrationPickPathButton.disabled = migrationProcessing;
+    settingsMigrationStepSelectNextButton.disabled =
+      migrationProcessing || migrationSelectedPath.trim().length === 0;
+    settingsMigrationPasswordInput.disabled = migrationProcessing;
+    settingsMigrationStepPasswordCancelButton.disabled = migrationProcessing;
+    settingsMigrationStepPasswordBackButton.disabled = migrationProcessing;
+    settingsMigrationStepPasswordNextButton.disabled =
+      migrationProcessing || migrationPassword.trim().length === 0;
+    settingsMigrationResultRetryButton.disabled = migrationProcessing;
+    settingsMigrationResultCloseButton.disabled = migrationProcessing;
     presetRefreshButton.disabled = control.presetRefreshButtonDisabled;
     presetSelectAllLocalButton.disabled = control.presetSelectAllLocalButtonDisabled;
     presetClearLocalButton.disabled = control.presetClearLocalButtonDisabled;
@@ -1030,7 +1137,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     "https://discord.gg/Cqfwx82ynN";
 
   function syncOverlayBodyLock(): void {
-    const overlayOpen = !settingsAmongUsOverlay.hidden || !settingsUninstallConfirmOverlay.hidden;
+    const overlayOpen =
+      !settingsAmongUsOverlay.hidden ||
+      !settingsUninstallConfirmOverlay.hidden ||
+      !settingsMigrationOverlay.hidden;
     document.documentElement.classList.toggle("settings-overlay-open", overlayOpen);
     document.body.classList.toggle("settings-overlay-open", overlayOpen);
   }
@@ -1326,6 +1436,339 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
   });
 
+  function isMigrationProcessing(): boolean {
+    return migrationExporting || migrationImporting;
+  }
+
+  function setMigrationPasswordError(
+    message: string | null,
+    tone: "info" | "error" | "success" | "warn" = "warn",
+  ): void {
+    if (!message) {
+      settingsMigrationPasswordError.hidden = true;
+      settingsMigrationPasswordError.textContent = "";
+      settingsMigrationPasswordError.className = "status-line";
+      return;
+    }
+    settingsMigrationPasswordError.hidden = false;
+    setStatusLine(settingsMigrationPasswordError, message, tone);
+  }
+
+  function renderMigrationOverlayContent(): void {
+    if (!migrationOverlayMode) {
+      return;
+    }
+
+    const exportMode = migrationOverlayMode === "export";
+    settingsMigrationOverlayTitle.textContent = exportMode
+      ? t("migration.overlay.exportTitle")
+      : t("migration.overlay.importTitle");
+    settingsMigrationOverlayDescription.textContent = exportMode
+      ? t("migration.overlay.exportDescription")
+      : t("migration.overlay.importDescription");
+
+    settingsMigrationSelectedPath.textContent =
+      migrationSelectedPath.trim().length > 0
+        ? t("migration.overlay.selectedPath", { path: migrationSelectedPath })
+        : t("migration.overlay.pathNotSelected");
+
+    settingsMigrationProcessingMessage.textContent = exportMode
+      ? t("migration.overlay.exporting")
+      : t("migration.overlay.importing");
+
+    settingsMigrationStepSelect.hidden = migrationOverlayStep !== "select";
+    settingsMigrationStepPassword.hidden = migrationOverlayStep !== "password";
+    settingsMigrationStepProcessing.hidden = migrationOverlayStep !== "processing";
+    settingsMigrationStepResult.hidden = migrationOverlayStep !== "result";
+
+    settingsMigrationResultRetryButton.hidden = migrationResultSuccess;
+    settingsMigrationResultTitle.textContent = migrationResultSuccess
+      ? exportMode
+        ? t("migration.overlay.exportCompleteTitle")
+        : t("migration.overlay.importCompleteTitle")
+      : t("migration.overlay.failedTitle");
+    settingsMigrationResultMessage.textContent = migrationResultMessage;
+    settingsMigrationResultMessage.classList.toggle("is-error", !migrationResultSuccess);
+    settingsMigrationResultMessage.classList.toggle("is-success", migrationResultSuccess);
+  }
+
+  function resetMigrationOverlayState(mode: MigrationMode): void {
+    migrationOverlayMode = mode;
+    migrationOverlayStep = "select";
+    migrationSelectedPath = "";
+    migrationPassword = "";
+    migrationResultSuccess = false;
+    migrationResultMessage = "";
+    settingsMigrationPasswordInput.value = "";
+    setMigrationPasswordError(null);
+    renderMigrationOverlayContent();
+  }
+
+  function closeMigrationOverlay(force = false): void {
+    if (isMigrationProcessing() && !force) {
+      return;
+    }
+    closeSettingsOverlay(settingsMigrationOverlay, force);
+    migrationOverlayMode = null;
+    migrationOverlayStep = "select";
+    migrationSelectedPath = "";
+    migrationPassword = "";
+    migrationResultSuccess = false;
+    migrationResultMessage = "";
+    settingsMigrationPasswordInput.value = "";
+    setMigrationPasswordError(null);
+    updateButtons();
+  }
+
+  async function resolveMigrationDialogDefaultPath(mode: MigrationMode): Promise<string | undefined> {
+    try {
+      const downloadsPath = await downloadDir();
+      if (mode === "export") {
+        return join(downloadsPath, "migration.snrdata");
+      }
+      return downloadsPath;
+    } catch {
+      if (mode === "export") {
+        return "migration.snrdata";
+      }
+      return undefined;
+    }
+  }
+
+  async function pickMigrationPathForMode(mode: MigrationMode): Promise<string | null> {
+    const defaultPath = await resolveMigrationDialogDefaultPath(mode);
+
+    try {
+      if (mode === "export") {
+        const selectedPath = await save({
+          title: t("migration.overlay.exportDialogTitle"),
+          defaultPath,
+          filters: [{ name: "snrdata", extensions: ["snrdata"] }],
+        });
+        return selectedPath ?? null;
+      }
+
+      const selectedPath = await open({
+        multiple: false,
+        directory: false,
+        defaultPath,
+        filters: [{ name: "migration archive", extensions: ["snrdata", "zip"] }],
+      });
+      if (!selectedPath || Array.isArray(selectedPath)) {
+        return null;
+      }
+      return selectedPath;
+    } catch {
+      // user cancelled
+      return null;
+    }
+  }
+
+  async function pickMigrationPath(): Promise<void> {
+    if (!migrationOverlayMode || isMigrationProcessing()) {
+      return;
+    }
+    const selectedPath = await pickMigrationPathForMode(migrationOverlayMode);
+    if (selectedPath) {
+      migrationSelectedPath = selectedPath;
+    }
+    renderMigrationOverlayContent();
+    updateButtons();
+  }
+
+  async function runMigrationOperation(): Promise<void> {
+    if (!migrationOverlayMode) {
+      return;
+    }
+
+    const mode = migrationOverlayMode;
+    const selectedPath = migrationSelectedPath.trim();
+    if (!selectedPath) {
+      migrationOverlayStep = "select";
+      renderMigrationOverlayContent();
+      updateButtons();
+      return;
+    }
+
+    const password = migrationPassword.trim();
+    if (password.length === 0) {
+      setMigrationPasswordError(t("migration.overlay.passwordRequired"), "warn");
+      updateButtons();
+      return;
+    }
+
+    migrationOverlayStep = "processing";
+    renderMigrationOverlayContent();
+
+    if (mode === "export") {
+      migrationExporting = true;
+      setStatusLine(migrationStatus, t("migration.exporting"));
+    } else {
+      migrationImporting = true;
+      setStatusLine(migrationStatus, t("migration.importing"));
+    }
+    updateButtons();
+
+    try {
+      if (mode === "export") {
+        const result = await migrationExport({
+          outputPath: selectedPath,
+          encryptionEnabled: true,
+          password,
+        });
+        migrationSelectedPath = result.archivePath;
+        migrationResultSuccess = true;
+        migrationResultMessage = t("migration.overlay.exportSuccess", {
+          path: result.archivePath,
+          count: result.includedFiles,
+          profile: result.profileFiles,
+          locallow: result.locallowFiles,
+        });
+        setStatusLine(
+          migrationStatus,
+          `${t("migration.exportDone", {
+            path: result.archivePath,
+            count: result.includedFiles,
+            profile: result.profileFiles,
+            locallow: result.locallowFiles,
+          })} (${result.encrypted ? t("migration.encrypted") : t("migration.unencrypted")})`,
+          "success",
+        );
+      } else {
+        const result = await migrationImport({
+          archivePath: selectedPath,
+          password,
+        });
+        migrationResultSuccess = true;
+        migrationResultMessage = t("migration.overlay.importSuccess", {
+          count: result.importedFiles,
+          profile: result.profileFiles,
+          locallow: result.locallowFiles,
+        });
+        setStatusLine(
+          migrationStatus,
+          `${t("migration.importDone", {
+            count: result.importedFiles,
+            profile: result.profileFiles,
+            locallow: result.locallowFiles,
+          })} (${result.encrypted ? t("migration.encrypted") : t("migration.unencrypted")})`,
+          "success",
+        );
+        await refreshProfileReady();
+        await refreshLocalPresets(true);
+      }
+    } catch (error) {
+      const message = String(error);
+      migrationResultSuccess = false;
+      migrationResultMessage = t("migration.overlay.failedWithError", { error: message });
+      if (mode === "export") {
+        setStatusLine(migrationStatus, t("migration.exportFailed", { error: message }), "error");
+      } else {
+        setStatusLine(migrationStatus, t("migration.importFailed", { error: message }), "error");
+      }
+    } finally {
+      migrationExporting = false;
+      migrationImporting = false;
+      migrationOverlayStep = "result";
+      renderMigrationOverlayContent();
+      updateButtons();
+    }
+  }
+
+  function openMigrationOverlay(mode: MigrationMode, selectedPath?: string): void {
+    resetMigrationOverlayState(mode);
+    if (selectedPath) {
+      migrationSelectedPath = selectedPath;
+      migrationOverlayStep = "password";
+      renderMigrationOverlayContent();
+    }
+    openSettingsOverlay(settingsMigrationOverlay);
+    updateButtons();
+  }
+
+  async function startMigrationFlow(mode: MigrationMode): Promise<void> {
+    if (isMigrationProcessing()) {
+      return;
+    }
+
+    closeMigrationOverlay(true);
+    const selectedPath = await pickMigrationPathForMode(mode);
+    if (!selectedPath) {
+      return;
+    }
+    openMigrationOverlay(mode, selectedPath);
+    settingsMigrationPasswordInput.focus();
+  }
+
+  migrationExportButton.addEventListener("click", () => {
+    void startMigrationFlow("export");
+  });
+
+  migrationImportButton.addEventListener("click", () => {
+    void startMigrationFlow("import");
+  });
+
+  settingsMigrationOverlayBackdrop.addEventListener("click", () => {
+    closeMigrationOverlay();
+  });
+  settingsMigrationOverlayCloseButton.addEventListener("click", () => {
+    closeMigrationOverlay();
+  });
+  settingsMigrationOverlayCancelButton.addEventListener("click", () => {
+    closeMigrationOverlay();
+  });
+  settingsMigrationPickPathButton.addEventListener("click", async () => {
+    await pickMigrationPath();
+  });
+  settingsMigrationStepSelectNextButton.addEventListener("click", () => {
+    if (migrationSelectedPath.trim().length === 0 || isMigrationProcessing()) {
+      return;
+    }
+    migrationOverlayStep = "password";
+    setMigrationPasswordError(null);
+    renderMigrationOverlayContent();
+    settingsMigrationPasswordInput.focus();
+    updateButtons();
+  });
+  settingsMigrationPasswordInput.addEventListener("input", () => {
+    migrationPassword = settingsMigrationPasswordInput.value;
+    if (migrationPassword.trim().length > 0) {
+      setMigrationPasswordError(null);
+    }
+    updateButtons();
+  });
+  settingsMigrationStepPasswordCancelButton.addEventListener("click", () => {
+    closeMigrationOverlay();
+  });
+  settingsMigrationStepPasswordBackButton.addEventListener("click", () => {
+    if (isMigrationProcessing()) {
+      return;
+    }
+    if (migrationOverlayMode) {
+      void startMigrationFlow(migrationOverlayMode);
+    }
+  });
+  settingsMigrationStepPasswordNextButton.addEventListener("click", async () => {
+    migrationPassword = settingsMigrationPasswordInput.value;
+    if (migrationPassword.trim().length === 0) {
+      setMigrationPasswordError(t("migration.overlay.passwordRequired"), "warn");
+      updateButtons();
+      return;
+    }
+    await runMigrationOperation();
+  });
+  settingsMigrationResultRetryButton.addEventListener("click", () => {
+    if (isMigrationProcessing()) {
+      return;
+    }
+    if (migrationOverlayMode) {
+      void startMigrationFlow(migrationOverlayMode);
+    }
+  });
+  settingsMigrationResultCloseButton.addEventListener("click", () => {
+    closeMigrationOverlay();
+  });
+
   window.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") {
       return;
@@ -1334,94 +1777,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       closeUninstallConfirmOverlay();
       return;
     }
+    if (!settingsMigrationOverlay.hidden) {
+      closeMigrationOverlay();
+      return;
+    }
     if (!settingsAmongUsOverlay.hidden) {
       closeAmongUsOverlay();
     }
-  });
-
-  migrationExportButton.addEventListener("click", async () => {
-    const encryptionEnabled = migrationEncryptionEnabledInput.checked;
-    const exportPassword = migrationExportPasswordInput.value;
-    if (encryptionEnabled && exportPassword.length === 0) {
-      setStatusLine(migrationStatus, t("migration.exportPasswordRequired"), "warn");
-      return;
-    }
-
-    migrationExporting = true;
-    updateButtons();
-    setStatusLine(migrationStatus, t("migration.exporting"));
-
-    try {
-      const result = await migrationExport({
-        encryptionEnabled,
-        password: encryptionEnabled ? exportPassword : undefined,
-      });
-      migrationImportPathInput.value = result.archivePath;
-      setStatusLine(
-        migrationStatus,
-        `${t("migration.exportDone", {
-          path: result.archivePath,
-          count: result.includedFiles,
-          profile: result.profileFiles,
-          locallow: result.locallowFiles,
-        })} (${result.encrypted ? t("migration.encrypted") : t("migration.unencrypted")})`,
-        "success",
-      );
-    } catch (error) {
-      setStatusLine(
-        migrationStatus,
-        t("migration.exportFailed", { error: String(error) }),
-        "error",
-      );
-    } finally {
-      migrationExporting = false;
-      updateButtons();
-    }
-  });
-
-  migrationImportButton.addEventListener("click", async () => {
-    const archivePath = migrationImportPathInput.value.trim();
-    if (!archivePath) {
-      setStatusLine(migrationStatus, t("migration.importPathRequired"), "warn");
-      return;
-    }
-
-    const importPassword = migrationImportPasswordInput.value;
-
-    migrationImporting = true;
-    updateButtons();
-    setStatusLine(migrationStatus, t("migration.importing"));
-
-    try {
-      const result = await migrationImport({
-        archivePath,
-        password: importPassword.length > 0 ? importPassword : undefined,
-      });
-      setStatusLine(
-        migrationStatus,
-        `${t("migration.importDone", {
-          count: result.importedFiles,
-          profile: result.profileFiles,
-          locallow: result.locallowFiles,
-        })} (${result.encrypted ? t("migration.encrypted") : t("migration.unencrypted")})`,
-        "success",
-      );
-      await refreshProfileReady();
-      await refreshLocalPresets(true);
-    } catch (error) {
-      setStatusLine(
-        migrationStatus,
-        t("migration.importFailed", { error: String(error) }),
-        "error",
-      );
-    } finally {
-      migrationImporting = false;
-      updateButtons();
-    }
-  });
-
-  migrationEncryptionEnabledInput.addEventListener("change", () => {
-    updateButtons();
   });
 
   presetRefreshButton.addEventListener("click", async () => {
@@ -1692,17 +2054,60 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   });
 
   languageSelect.addEventListener("change", async () => {
+    if (localeSwitchInProgress) {
+      return;
+    }
+
     const nextLocale = normalizeLocale(languageSelect.value) ?? currentLocale;
     if (nextLocale === currentLocale) {
       return;
     }
+
+    localeSwitchInProgress = true;
+    languageSelect.disabled = true;
+    let didRequestReload = false;
+
     try {
+      saveLocale(nextLocale);
+
       await settingsUpdate({ uiLocale: nextLocale });
     } catch {
       // ignore backend locale sync failures
     }
-    saveLocale(nextLocale);
-    window.location.reload();
+
+    try {
+      if (mainLayout) {
+        mainLayout.classList.remove("main-layout-minimize-out");
+        // class再付与時に必ずアニメーションを再生する。
+        void mainLayout.offsetWidth;
+        mainLayout.classList.add("main-layout-minimize-out");
+      }
+
+      markLocaleSwitchReloadAnimation();
+
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, LAUNCHER_MINIMIZE_EFFECT_DURATION_MS);
+      });
+
+      try {
+        window.location.reload();
+        didRequestReload = true;
+      } catch {
+        // fall through to finally cleanup when reload fails unexpectedly.
+      }
+    } finally {
+      if (didRequestReload) {
+        return;
+      }
+
+      clearLocaleSwitchReloadAnimation();
+      if (mainLayout) {
+        mainLayout.classList.remove("main-layout-minimize-out");
+      }
+      setLocaleSwitchAnimationScrollLock(false);
+      languageSelect.disabled = false;
+      localeSwitchInProgress = false;
+    }
   });
 
   renderOfficialLinks();

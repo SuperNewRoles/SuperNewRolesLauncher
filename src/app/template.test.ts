@@ -25,6 +25,24 @@ describe("renderAppTemplate (settings general)", () => {
     expect(html).toContain('id="settings-uninstall-confirm-accept"');
   });
 
+  it("includes redesigned migration controls and overlay", () => {
+    expect(html).toContain('id="migration-export"');
+    expect(html).toContain('id="migration-import"');
+    expect(html).toContain('id="settings-migration-overlay"');
+    expect(html).toContain('id="settings-migration-step-select"');
+    expect(html).toContain('id="settings-migration-step-password"');
+    expect(html).toContain('id="settings-migration-step-processing"');
+    expect(html).toContain('id="settings-migration-step-result"');
+    expect(html).toContain('id="settings-migration-result-close"');
+  });
+
+  it("does not include removed legacy migration controls", () => {
+    expect(html).not.toContain('id="migration-encryption-enabled"');
+    expect(html).not.toContain('id="migration-export-password"');
+    expect(html).not.toContain('id="migration-import-path"');
+    expect(html).not.toContain('id="migration-import-password"');
+  });
+
   it("does not include removed legacy general controls", () => {
     expect(html).not.toContain('id="among-us-path"');
     expect(html).not.toContain('id="save-among-us-path"');

@@ -206,6 +206,7 @@ pub fn run() {
             commands::settings::settings_get,
             commands::settings::settings_update,
             commands::settings::settings_profile_ready,
+            commands::settings::settings_open_folder,
             commands::migration::migration_export,
             commands::migration::migration_import,
             commands::presets::presets_list_local,

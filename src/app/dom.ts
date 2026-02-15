@@ -29,16 +29,35 @@ export interface AppDom {
   settingsUninstallConfirmCloseButton: HTMLButtonElement;
   settingsUninstallConfirmCancelButton: HTMLButtonElement;
   settingsUninstallConfirmAcceptButton: HTMLButtonElement;
+  settingsMigrationOverlay: HTMLDivElement;
+  settingsMigrationOverlayBackdrop: HTMLDivElement;
+  settingsMigrationOverlayCloseButton: HTMLButtonElement;
+  settingsMigrationOverlayCancelButton: HTMLButtonElement;
+  settingsMigrationOverlayTitle: HTMLHeadingElement;
+  settingsMigrationOverlayDescription: HTMLParagraphElement;
+  settingsMigrationStepSelect: HTMLElement;
+  settingsMigrationSelectedPath: HTMLParagraphElement;
+  settingsMigrationPickPathButton: HTMLButtonElement;
+  settingsMigrationStepSelectNextButton: HTMLButtonElement;
+  settingsMigrationStepPassword: HTMLElement;
+  settingsMigrationPasswordInput: HTMLInputElement;
+  settingsMigrationPasswordError: HTMLDivElement;
+  settingsMigrationStepPasswordCancelButton: HTMLButtonElement;
+  settingsMigrationStepPasswordBackButton: HTMLButtonElement;
+  settingsMigrationStepPasswordNextButton: HTMLButtonElement;
+  settingsMigrationStepProcessing: HTMLElement;
+  settingsMigrationProcessingMessage: HTMLParagraphElement;
+  settingsMigrationStepResult: HTMLElement;
+  settingsMigrationResultTitle: HTMLHeadingElement;
+  settingsMigrationResultMessage: HTMLParagraphElement;
+  settingsMigrationResultRetryButton: HTMLButtonElement;
+  settingsMigrationResultCloseButton: HTMLButtonElement;
   installStatus: HTMLSpanElement;
   launchModdedButton: HTMLButtonElement;
   launchVanillaButton: HTMLButtonElement;
   createModdedShortcutButton: HTMLButtonElement;
   launchStatus: HTMLSpanElement;
   migrationExportButton: HTMLButtonElement;
-  migrationEncryptionEnabledInput: HTMLInputElement;
-  migrationExportPasswordInput: HTMLInputElement;
-  migrationImportPathInput: HTMLInputElement;
-  migrationImportPasswordInput: HTMLInputElement;
   migrationImportButton: HTMLButtonElement;
   migrationStatus: HTMLDivElement;
   presetRefreshButton: HTMLButtonElement;
@@ -127,16 +146,69 @@ export function collectAppDom(): AppDom {
     settingsUninstallConfirmAcceptButton: mustElement<HTMLButtonElement>(
       "#settings-uninstall-confirm-accept",
     ),
+    settingsMigrationOverlay: mustElement<HTMLDivElement>("#settings-migration-overlay"),
+    settingsMigrationOverlayBackdrop: mustElement<HTMLDivElement>(
+      "#settings-migration-overlay-backdrop",
+    ),
+    settingsMigrationOverlayCloseButton: mustElement<HTMLButtonElement>(
+      "#settings-migration-overlay-close",
+    ),
+    settingsMigrationOverlayCancelButton: mustElement<HTMLButtonElement>(
+      "#settings-migration-overlay-cancel",
+    ),
+    settingsMigrationOverlayTitle: mustElement<HTMLHeadingElement>(
+      "#settings-migration-overlay-title",
+    ),
+    settingsMigrationOverlayDescription: mustElement<HTMLParagraphElement>(
+      "#settings-migration-overlay-description",
+    ),
+    settingsMigrationStepSelect: mustElement<HTMLElement>("#settings-migration-step-select"),
+    settingsMigrationSelectedPath: mustElement<HTMLParagraphElement>(
+      "#settings-migration-selected-path",
+    ),
+    settingsMigrationPickPathButton: mustElement<HTMLButtonElement>("#settings-migration-pick-path"),
+    settingsMigrationStepSelectNextButton: mustElement<HTMLButtonElement>(
+      "#settings-migration-step-select-next",
+    ),
+    settingsMigrationStepPassword: mustElement<HTMLElement>("#settings-migration-step-password"),
+    settingsMigrationPasswordInput: mustElement<HTMLInputElement>(
+      "#settings-migration-password-input",
+    ),
+    settingsMigrationPasswordError: mustElement<HTMLDivElement>("#settings-migration-password-error"),
+    settingsMigrationStepPasswordCancelButton: mustElement<HTMLButtonElement>(
+      "#settings-migration-step-password-cancel",
+    ),
+    settingsMigrationStepPasswordBackButton: mustElement<HTMLButtonElement>(
+      "#settings-migration-step-password-back",
+    ),
+    settingsMigrationStepPasswordNextButton: mustElement<HTMLButtonElement>(
+      "#settings-migration-step-password-next",
+    ),
+    settingsMigrationStepProcessing: mustElement<HTMLElement>(
+      "#settings-migration-step-processing",
+    ),
+    settingsMigrationProcessingMessage: mustElement<HTMLParagraphElement>(
+      "#settings-migration-processing-message",
+    ),
+    settingsMigrationStepResult: mustElement<HTMLElement>("#settings-migration-step-result"),
+    settingsMigrationResultTitle: mustElement<HTMLHeadingElement>(
+      "#settings-migration-result-title",
+    ),
+    settingsMigrationResultMessage: mustElement<HTMLParagraphElement>(
+      "#settings-migration-result-message",
+    ),
+    settingsMigrationResultRetryButton: mustElement<HTMLButtonElement>(
+      "#settings-migration-result-retry",
+    ),
+    settingsMigrationResultCloseButton: mustElement<HTMLButtonElement>(
+      "#settings-migration-result-close",
+    ),
     installStatus: mustElement<HTMLSpanElement>("#install-status"),
     launchModdedButton: mustElement<HTMLButtonElement>("#launch-modded"),
     launchVanillaButton: mustElement<HTMLButtonElement>("#launch-vanilla"),
     createModdedShortcutButton: mustElement<HTMLButtonElement>("#create-modded-shortcut"),
     launchStatus: mustElement<HTMLSpanElement>("#launch-status"),
     migrationExportButton: mustElement<HTMLButtonElement>("#migration-export"),
-    migrationEncryptionEnabledInput: mustElement<HTMLInputElement>("#migration-encryption-enabled"),
-    migrationExportPasswordInput: mustElement<HTMLInputElement>("#migration-export-password"),
-    migrationImportPathInput: mustElement<HTMLInputElement>("#migration-import-path"),
-    migrationImportPasswordInput: mustElement<HTMLInputElement>("#migration-import-password"),
     migrationImportButton: mustElement<HTMLButtonElement>("#migration-import"),
     migrationStatus: mustElement<HTMLDivElement>("#migration-status"),
     presetRefreshButton: mustElement<HTMLButtonElement>("#preset-refresh"),

@@ -40,6 +40,10 @@ export function settingsProfileReady(profilePath?: string): Promise<boolean> {
   return invoke<boolean>("settings_profile_ready", { profilePath });
 }
 
+export function settingsOpenFolder(path: string): Promise<void> {
+  return invoke<void>("settings_open_folder", { path });
+}
+
 // パス検出関連API
 export function finderDetectAmongUs(): Promise<string> {
   return invoke<string>("finder_detect_among_us");
