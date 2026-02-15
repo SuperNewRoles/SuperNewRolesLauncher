@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { InstallStep } from "./types";
 import { STEP_ORDER } from "./types";
 
@@ -13,18 +13,21 @@ export default function StepTransition({ step, children }: StepTransitionProps) 
   const [displayStep, setDisplayStep] = useState<InstallStep>(step);
   const [prevStep, setPrevStep] = useState<InstallStep | null>(null);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
+  const currentStepRef = useRef<InstallStep>(step);
 
   useEffect(() => {
-    if (step === displayStep && prevStep === null) return;
+    if (step === currentStepRef.current) return;
 
-    const isForward = STEP_ORDER[step] > STEP_ORDER[displayStep];
+    const fromStep = currentStepRef.current;
+    const isForward = STEP_ORDER[step] > STEP_ORDER[fromStep];
     setDirection(isForward ? "forward" : "back");
-    setPrevStep(displayStep);
+    setPrevStep(fromStep);
     setDisplayStep(step);
+    currentStepRef.current = step;
 
-    const t = setTimeout(() => setPrevStep(null), TRANSITION_MS);
-    return () => clearTimeout(t);
-  }, [step, displayStep, prevStep]);
+    const t = window.setTimeout(() => setPrevStep(null), TRANSITION_MS);
+    return () => window.clearTimeout(t);
+  }, [step]);
 
   return (
     <div

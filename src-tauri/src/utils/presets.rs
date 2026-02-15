@@ -519,6 +519,10 @@ pub fn list_local_presets<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<Vec<PresetEntrySummary>, String> {
     let save_data_dir = profile_save_data_dir(app)?;
+    list_presets_from_save_data_dir(&save_data_dir)
+}
+
+pub fn list_presets_from_save_data_dir(save_data_dir: &Path) -> Result<Vec<PresetEntrySummary>, String> {
     let options_path = save_data_dir.join(OPTIONS_FILE_NAME);
 
     let Some(options) = load_options_data(&options_path)? else {
@@ -812,4 +816,53 @@ pub fn import_presets_from_archive<R: Runtime>(
         imported_presets: imported.len(),
         imported,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn make_temp_dir(label: &str) -> PathBuf {
+        let millis = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        std::env::temp_dir().join(format!(
+            "snr-presets-{label}-{}-{millis}",
+            std::process::id()
+        ))
+    }
+
+    #[test]
+    fn list_presets_from_save_data_dir_marks_missing_data_files() {
+        let save_data_dir = make_temp_dir("list-presets");
+        let _ = fs::remove_dir_all(&save_data_dir);
+        fs::create_dir_all(&save_data_dir).expect("failed to create temp dir");
+
+        let mut names = BTreeMap::new();
+        names.insert(0, "Alpha".to_string());
+        names.insert(1, "Beta".to_string());
+        let options = OptionsData {
+            version: 1,
+            current_preset: 0,
+            preset_names: names,
+        };
+        let options_bytes = build_options_data(&options).expect("failed to build options");
+        fs::write(save_data_dir.join(OPTIONS_FILE_NAME), options_bytes)
+            .expect("failed to write options");
+        fs::write(save_data_dir.join(preset_file_name(0)), [1u8, 2, 3])
+            .expect("failed to write preset data");
+
+        let presets = list_presets_from_save_data_dir(&save_data_dir).expect("list failed");
+        assert_eq!(presets.len(), 2);
+        assert_eq!(presets[0].id, 0);
+        assert_eq!(presets[0].name, "Alpha");
+        assert!(presets[0].has_data_file);
+        assert_eq!(presets[1].id, 1);
+        assert_eq!(presets[1].name, "Beta");
+        assert!(!presets[1].has_data_file);
+
+        let _ = fs::remove_dir_all(&save_data_dir);
+    }
 }

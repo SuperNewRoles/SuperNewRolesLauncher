@@ -387,6 +387,24 @@ const ja = {
   "installFlow.selectFolder": "フォルダを選択",
   "installFlow.invalidAmongUsFolder":
     "選択されたフォルダはAmong Usのインストールフォルダではありません。Among Us.exeが存在するフォルダを選択してください。",
+  "installFlow.importTitle": "既存データの取り込み",
+  "installFlow.importDescription":
+    "必要な場合は、既存のSuperNewRoles環境から設定などのデータを取り込みできます。",
+  "installFlow.importEnable": "インストール済みのSuperNewRolesからデータを取り込む",
+  "installFlow.importSelectSource": "取り込み元フォルダを選択",
+  "installFlow.importSourcePath": "SaveDataパス",
+  "installFlow.importPreviewLoading": "取り込み元を確認中...",
+  "installFlow.importPreviewReady": "確認完了: プリセット {count}件 / ファイル {files}件",
+  "installFlow.importPreviewEmpty": "確認完了: プリセットが見つかりませんでした (ファイル {files}件)",
+  "installFlow.importPreviewError": "取り込み元の確認に失敗しました: {error}",
+  "installFlow.importNotConfigured": "取り込み元フォルダを選択して確認してください。",
+  "installFlow.importSummaryEnabled": "有効 (検出プリセット {count}件)",
+  "installFlow.importSummaryDisabled": "無効",
+  "installFlow.importingSaveData": "SaveDataを取り込み中...",
+  "installFlow.importRetrySkipPrompt":
+    "SaveDataの取り込みに失敗しました。\\n\\n{error}\\n\\nOK: 再試行 / キャンセル: スキップ",
+  "installFlow.importSkippedNotice":
+    "SaveData取り込みはスキップされました。必要なら後で再実行してください。理由: {reason}",
 
   "common.skip": "スキップ",
   "common.next": "次へ",

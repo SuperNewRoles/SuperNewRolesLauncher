@@ -8,6 +8,9 @@ interface ConfirmStepProps {
   platform: GamePlatform | null;
   amongUsPath: string;
   releaseTag: string;
+  importEnabled: boolean;
+  importSourceAmongUsPath: string;
+  importPresetCount: number;
   showRestoreSaveDataOption: boolean;
   restoreSaveData: boolean;
   onRestoreChange: (value: boolean) => void;
@@ -21,6 +24,9 @@ export default function ConfirmStep({
   platform,
   amongUsPath,
   releaseTag,
+  importEnabled,
+  importSourceAmongUsPath,
+  importPresetCount,
   showRestoreSaveDataOption,
   restoreSaveData,
   onRestoreChange,
@@ -73,6 +79,20 @@ export default function ConfirmStep({
           <dd>
             <code>v{releaseTag || t("common.unset")}</code>
           </dd>
+          <dt>{t("installFlow.importTitle")}</dt>
+          <dd>
+            {importEnabled
+              ? t("installFlow.importSummaryEnabled", { count: importPresetCount })
+              : t("installFlow.importSummaryDisabled")}
+          </dd>
+          {importEnabled && (
+            <>
+              <dt>{t("installFlow.importSourcePath")}</dt>
+              <dd>
+                <code>{importSourceAmongUsPath || t("common.unset")}</code>
+              </dd>
+            </>
+          )}
         </dl>
         {showRestoreSaveDataOption && (
           <label className="confirm-checkbox">

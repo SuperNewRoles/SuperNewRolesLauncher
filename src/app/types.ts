@@ -93,6 +93,20 @@ export interface PresetImportResult {
   imported: ImportedPresetResult[];
 }
 
+export interface SaveDataPreviewResult {
+  sourceAmongUsPath: string;
+  sourceSaveDataPath: string;
+  presets: PresetSummary[];
+  fileCount: number;
+}
+
+export interface SaveDataImportResult {
+  sourceSaveDataPath: string;
+  targetSaveDataPath: string;
+  importedFiles: number;
+  importedPresets: number;
+}
+
 export interface InstallProgressPayload {
   stage: string;
   progress: number;

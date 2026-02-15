@@ -1,7 +1,7 @@
 //! SNR配布物の取得・展開・退避復元を扱うサービス層。
 //! commands層から呼び出される実処理をここに集約する。
 
-use crate::utils::{download, migration, settings, zip};
+use crate::utils::{download, migration, presets, settings, zip};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
@@ -12,6 +12,10 @@ const RELEASES_API_URL: &str =
 const RELEASE_BY_TAG_API_URL: &str =
     "https://api.github.com/repos/SuperNewRoles/SuperNewRoles/releases/tags";
 const PRESERVED_SAVE_DATA_DIR: &str = "preserved_save_data";
+const AMONG_US_EXE: &str = "Among Us.exe";
+const SOURCE_SAVE_DATA_RELATIVE_PATH: [&str; 2] = ["SuperNewRolesNext", "SaveData"];
+const SAVE_DATA_STAGING_DIR_NAME: &str = "SaveData._import_staging";
+const SAVE_DATA_BACKUP_DIR_NAME: &str = "SaveData._import_backup";
 
 // インストール全体の進捗(0-100)へ統合するための配分。
 // downloading/extracting は各ステージの 0-100 をこの範囲へ線形変換する。
@@ -84,6 +88,32 @@ pub struct UninstallResult {
 pub struct PreservedSaveDataStatus {
     pub available: bool,
     pub files: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveDataPresetSummary {
+    pub id: i32,
+    pub name: String,
+    pub has_data_file: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveDataPreviewResult {
+    pub source_among_us_path: String,
+    pub source_save_data_path: String,
+    pub presets: Vec<SaveDataPresetSummary>,
+    pub file_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveDataImportResult {
+    pub source_save_data_path: String,
+    pub target_save_data_path: String,
+    pub imported_files: usize,
+    pub imported_presets: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -223,6 +253,109 @@ fn collect_files_recursive(current: &Path, out: &mut Vec<PathBuf>) -> Result<(),
         if path.is_file() {
             out.push(path);
         }
+    }
+
+    Ok(())
+}
+
+fn validate_source_among_us_path(source_among_us_path: &str) -> Result<PathBuf, String> {
+    let trimmed = source_among_us_path.trim();
+    if trimmed.is_empty() {
+        return Err("Source Among Us path is required".to_string());
+    }
+
+    let among_us_path = PathBuf::from(trimmed);
+    if !among_us_path.is_dir() {
+        return Err(format!(
+            "Source path is not a directory: {}",
+            among_us_path.display()
+        ));
+    }
+
+    if !among_us_path.join(AMONG_US_EXE).is_file() {
+        return Err(format!(
+            "The selected folder is not an Among Us installation directory: {}",
+            among_us_path.display()
+        ));
+    }
+
+    Ok(among_us_path)
+}
+
+fn source_save_data_path_from_among_us(among_us_path: &Path) -> PathBuf {
+    among_us_path.join(SOURCE_SAVE_DATA_RELATIVE_PATH[0]).join(SOURCE_SAVE_DATA_RELATIVE_PATH[1])
+}
+
+fn resolve_source_save_data_path(source_among_us_path: &str) -> Result<(PathBuf, PathBuf), String> {
+    let among_us_path = validate_source_among_us_path(source_among_us_path)?;
+    let source_save_data_path = source_save_data_path_from_among_us(&among_us_path);
+    if !source_save_data_path.is_dir() {
+        return Err(format!(
+            "SaveData directory was not found in the selected Among Us folder: {}",
+            source_save_data_path.display()
+        ));
+    }
+
+    Ok((among_us_path, source_save_data_path))
+}
+
+fn profile_save_data_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    let mut launcher_settings = settings::load_or_init_settings(app)?;
+    if launcher_settings.profile_path.trim().is_empty() {
+        launcher_settings.profile_path = settings::default_profile_path(app)?
+            .to_string_lossy()
+            .to_string();
+        settings::save_settings(app, &launcher_settings)?;
+    }
+
+    Ok(PathBuf::from(launcher_settings.profile_path.trim())
+        .join("SuperNewRolesNext")
+        .join("SaveData"))
+}
+
+fn copy_directory_recursive(source: &Path, destination: &Path) -> Result<(), String> {
+    if !source.is_dir() {
+        return Err(format!(
+            "Source directory does not exist for SaveData import: {}",
+            source.display()
+        ));
+    }
+
+    fs::create_dir_all(destination).map_err(|e| {
+        format!(
+            "Failed to create SaveData import staging directory '{}': {e}",
+            destination.display()
+        )
+    })?;
+
+    let mut files = Vec::new();
+    collect_files_recursive(source, &mut files)?;
+    for source_file in files {
+        let relative = source_file.strip_prefix(source).map_err(|_| {
+            format!(
+                "Failed to compute relative path during SaveData import copy: '{}' (source root '{}')",
+                source_file.display(),
+                source.display()
+            )
+        })?;
+
+        let destination_file = destination.join(relative);
+        if let Some(parent) = destination_file.parent() {
+            fs::create_dir_all(parent).map_err(|e| {
+                format!(
+                    "Failed to create destination directory during SaveData import '{}': {e}",
+                    parent.display()
+                )
+            })?;
+        }
+
+        fs::copy(&source_file, &destination_file).map_err(|e| {
+            format!(
+                "Failed to copy SaveData import file '{}' -> '{}': {e}",
+                source_file.display(),
+                destination_file.display()
+            )
+        })?;
     }
 
     Ok(())
@@ -430,6 +563,76 @@ pub fn get_preserved_save_data_status<R: Runtime>(
         // 空でもディレクトリが存在する場合は、保持操作済みとして扱う。
         available: true,
         files: files.len(),
+    })
+}
+
+pub fn preview_savedata_from_among_us(
+    source_among_us_path: String,
+) -> Result<SaveDataPreviewResult, String> {
+    let (among_us_path, source_save_data_path) = resolve_source_save_data_path(&source_among_us_path)?;
+
+    let mut files = Vec::new();
+    collect_files_recursive(&source_save_data_path, &mut files)?;
+
+    let presets = presets::list_presets_from_save_data_dir(&source_save_data_path)?
+        .into_iter()
+        .map(|preset| SaveDataPresetSummary {
+            id: preset.id,
+            name: preset.name,
+            has_data_file: preset.has_data_file,
+        })
+        .collect();
+
+    Ok(SaveDataPreviewResult {
+        source_among_us_path: among_us_path.to_string_lossy().to_string(),
+        source_save_data_path: source_save_data_path.to_string_lossy().to_string(),
+        presets,
+        file_count: files.len(),
+    })
+}
+
+pub fn import_savedata_from_among_us_into_profile<R: Runtime>(
+    app: &AppHandle<R>,
+    source_among_us_path: String,
+) -> Result<SaveDataImportResult, String> {
+    let preview = preview_savedata_from_among_us(source_among_us_path)?;
+    let source_save_data_path = PathBuf::from(&preview.source_save_data_path);
+    let target_save_data_path = profile_save_data_path(app)?;
+
+    let target_parent = target_save_data_path.parent().ok_or_else(|| {
+        format!(
+            "SaveData target path has no parent directory: {}",
+            target_save_data_path.display()
+        )
+    })?;
+    fs::create_dir_all(target_parent).map_err(|e| {
+        format!(
+            "Failed to create target parent directory for SaveData import '{}': {e}",
+            target_parent.display()
+        )
+    })?;
+
+    let staging_path = target_parent.join(SAVE_DATA_STAGING_DIR_NAME);
+    let backup_path = target_parent.join(SAVE_DATA_BACKUP_DIR_NAME);
+    clean_path(&staging_path)?;
+    clean_path(&backup_path)?;
+
+    if let Err(error) = copy_directory_recursive(&source_save_data_path, &staging_path) {
+        let _ = clean_path(&staging_path);
+        return Err(error);
+    }
+
+    if let Err(error) = promote_staging_to_profile(&staging_path, &target_save_data_path, &backup_path) {
+        let _ = clean_path(&staging_path);
+        let _ = clean_path(&backup_path);
+        return Err(error);
+    }
+
+    Ok(SaveDataImportResult {
+        source_save_data_path: source_save_data_path.to_string_lossy().to_string(),
+        target_save_data_path: target_save_data_path.to_string_lossy().to_string(),
+        imported_files: preview.file_count,
+        imported_presets: preview.presets.len(),
     })
 }
 
@@ -679,4 +882,82 @@ async fn install_snr_release_inner<R: Runtime>(
         profile_path: profile_path.to_string_lossy().to_string(),
         restored_save_files,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn make_temp_dir(label: &str) -> PathBuf {
+        let millis = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        std::env::temp_dir().join(format!(
+            "snr-service-{label}-{}-{millis}",
+            std::process::id()
+        ))
+    }
+
+    fn make_minimal_options_data() -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.push(1);
+        bytes.push(2);
+        bytes.push(4);
+        bytes.extend_from_slice(&0i32.to_le_bytes());
+        bytes.extend_from_slice(&0i32.to_le_bytes());
+        bytes
+    }
+
+    #[test]
+    fn preview_savedata_requires_among_us_exe() {
+        let path = make_temp_dir("missing-exe");
+        let _ = fs::remove_dir_all(&path);
+        fs::create_dir_all(&path).expect("failed to create temp dir");
+
+        let error = preview_savedata_from_among_us(path.to_string_lossy().to_string())
+            .expect_err("expected missing exe to fail");
+        assert!(error.contains("Among Us installation"));
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn preview_savedata_requires_savedata_directory() {
+        let path = make_temp_dir("missing-savedata");
+        let _ = fs::remove_dir_all(&path);
+        fs::create_dir_all(&path).expect("failed to create temp dir");
+        fs::write(path.join(AMONG_US_EXE), b"").expect("failed to write exe marker");
+
+        let error = preview_savedata_from_among_us(path.to_string_lossy().to_string())
+            .expect_err("expected missing save data to fail");
+        assert!(error.contains("SaveData directory"));
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn preview_savedata_returns_file_count() {
+        let path = make_temp_dir("preview-success");
+        let _ = fs::remove_dir_all(&path);
+        let save_data_path = path.join("SuperNewRolesNext").join("SaveData");
+        fs::create_dir_all(&save_data_path).expect("failed to create save data dir");
+        fs::write(path.join(AMONG_US_EXE), b"").expect("failed to write exe marker");
+        fs::write(save_data_path.join("Options.data"), make_minimal_options_data())
+            .expect("failed to write options");
+        fs::write(save_data_path.join("CustomCosmetics.data"), [1u8, 2u8, 3u8])
+            .expect("failed to write extra file");
+
+        let preview = preview_savedata_from_among_us(path.to_string_lossy().to_string())
+            .expect("preview should succeed");
+        assert_eq!(
+            preview.source_save_data_path,
+            save_data_path.to_string_lossy().to_string()
+        );
+        assert_eq!(preview.file_count, 2);
+        assert!(preview.presets.is_empty());
+
+        let _ = fs::remove_dir_all(&path);
+    }
 }

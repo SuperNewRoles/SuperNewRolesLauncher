@@ -5,10 +5,13 @@ export type InstallStep =
   | "detecting"
   | "platform"
   | "version"
+  | "import"
   | "epic-login"
   | "confirm"
   | "progress"
   | "complete";
+
+export type ImportMode = "savedata-folder" | "migration-archive";
 
 /** ステップの進行順（番号が大きいほど先） */
 export const STEP_ORDER: Record<InstallStep, number> = {
@@ -17,9 +20,10 @@ export const STEP_ORDER: Record<InstallStep, number> = {
   platform: 1,
   "epic-login": 2,
   version: 3,
-  confirm: 4,
-  progress: 5,
-  complete: 6,
+  import: 4,
+  confirm: 5,
+  progress: 6,
+  complete: 7,
 };
 
 export interface InstallState {

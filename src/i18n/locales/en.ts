@@ -393,6 +393,24 @@ const en: Record<keyof typeof ja, string> = {
   "installFlow.selectFolder": "Select folder",
   "installFlow.invalidAmongUsFolder":
     "The selected folder is not an Among Us installation folder. Please select a folder containing Among Us.exe.",
+  "installFlow.importTitle": "Import Existing SaveData",
+  "installFlow.importDescription":
+    "If needed, import SaveData from an existing SuperNewRoles setup before finishing installation.",
+  "installFlow.importEnable": "Import SaveData from existing SNR",
+  "installFlow.importSelectSource": "Select source folder",
+  "installFlow.importSourcePath": "SaveData path",
+  "installFlow.importPreviewLoading": "Inspecting source data...",
+  "installFlow.importPreviewReady": "Inspection complete: presets {count} / files {files}",
+  "installFlow.importPreviewEmpty": "Inspection complete: no presets found (files {files})",
+  "installFlow.importPreviewError": "Failed to inspect source data: {error}",
+  "installFlow.importNotConfigured": "Select and inspect a source folder before continuing.",
+  "installFlow.importSummaryEnabled": "Enabled (detected presets: {count})",
+  "installFlow.importSummaryDisabled": "Disabled",
+  "installFlow.importingSaveData": "Importing SaveData...",
+  "installFlow.importRetrySkipPrompt":
+    "Failed to import SaveData.\\n\\n{error}\\n\\nOK: Retry / Cancel: Skip",
+  "installFlow.importSkippedNotice":
+    "SaveData import was skipped. You can retry later if needed. Reason: {reason}",
 
   "common.skip": "Skip",
   "common.next": "Next",

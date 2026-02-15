@@ -9,11 +9,11 @@ import {
   snrInstall,
   snrPreservedSaveDataStatus,
   snrReleasesList,
+  snrSaveDataImport,
+  snrSaveDataPreview,
 } from "../app/services/tauriClient";
 import { type ThemePreference, applyTheme, getStoredTheme, setStoredTheme } from "../app/theme";
-import type { InstallProgressPayload } from "../app/types";
-import type { GamePlatform } from "../app/types";
-import type { SnrReleaseSummary } from "../app/types";
+import type { GamePlatform, InstallProgressPayload, PresetSummary, SnrReleaseSummary } from "../app/types";
 import {
   type LocaleCode,
   SUPPORTED_LOCALES,
@@ -27,6 +27,7 @@ import CompleteStep from "./steps/CompleteStep";
 import ConfirmStep from "./steps/ConfirmStep";
 import DetectingStep from "./steps/DetectingStep";
 import EpicLoginStep from "./steps/EpicLoginStep";
+import ImportStep from "./steps/ImportStep";
 import PlatformStep from "./steps/PlatformStep";
 import ProgressStep from "./steps/ProgressStep";
 import VersionStep from "./steps/VersionStep";
@@ -54,14 +55,35 @@ export default function InstallWizard() {
   const [progressMessage, setProgressMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  const [importEnabled, setImportEnabled] = useState(false);
+  const [importSourceAmongUsPath, setImportSourceAmongUsPath] = useState("");
+  const [importSourceSaveDataPath, setImportSourceSaveDataPath] = useState("");
+  const [importPreviewPresets, setImportPreviewPresets] = useState<PresetSummary[]>([]);
+  const [importPreviewFileCount, setImportPreviewFileCount] = useState(0);
+  const [importPreviewError, setImportPreviewError] = useState<string | null>(null);
+  const [importSkippedAfterFailure, setImportSkippedAfterFailure] = useState(false);
+  const [importSkipReason, setImportSkipReason] = useState<string | null>(null);
+
   const [detectedPlatforms, setDetectedPlatforms] = useState<DetectedPlatform[]>([]);
   const [releases, setReleases] = useState<SnrReleaseSummary[]>([]);
   const [preservedSaveDataAvailable, setPreservedSaveDataAvailable] = useState(false);
   const [epicLoggedIn, setEpicLoggedIn] = useState(false);
   const [epicUserDisplay, setEpicUserDisplay] = useState<string | null>(null);
 
+  const resetImportState = useCallback(() => {
+    setImportEnabled(false);
+    setImportSourceAmongUsPath("");
+    setImportSourceSaveDataPath("");
+    setImportPreviewPresets([]);
+    setImportPreviewFileCount(0);
+    setImportPreviewError(null);
+    setImportSkippedAfterFailure(false);
+    setImportSkipReason(null);
+  }, []);
+
   const onStart = useCallback(async () => {
     setError(null);
+    resetImportState();
     setStep("detecting");
     try {
       const platforms = await finderDetectPlatforms();
@@ -83,7 +105,7 @@ export default function InstallWizard() {
       setError(String(e));
       setStep("welcome");
     }
-  }, []);
+  }, [resetImportState]);
 
   const onPlatformSelect = useCallback((path: string, plat: GamePlatform) => {
     setAmongUsPath(path);
@@ -111,11 +133,51 @@ export default function InstallWizard() {
 
   const onVersionSelect = useCallback((tag: string) => {
     setReleaseTag(tag);
-    setStep("confirm");
+    setError(null);
+    setStep("import");
   }, []);
 
+  const onImportSourceSelect = useCallback(async (sourcePath: string) => {
+    setImportSourceAmongUsPath(sourcePath);
+    setImportSourceSaveDataPath("");
+    setImportPreviewPresets([]);
+    setImportPreviewFileCount(0);
+    setImportPreviewError(null);
+
+    try {
+      const preview = await snrSaveDataPreview(sourcePath);
+      setImportSourceAmongUsPath(preview.sourceAmongUsPath);
+      setImportSourceSaveDataPath(preview.sourceSaveDataPath);
+      setImportPreviewPresets(preview.presets);
+      setImportPreviewFileCount(preview.fileCount);
+    } catch (previewError) {
+      setImportPreviewError(String(previewError));
+    }
+  }, []);
+
+  const onImportNext = useCallback(() => {
+    if (
+      importEnabled &&
+      (importSourceSaveDataPath.trim().length === 0 || importPreviewError !== null)
+    ) {
+      return;
+    }
+    setStep("confirm");
+  }, [importEnabled, importPreviewError, importSourceSaveDataPath]);
+
   const onConfirmInstall = useCallback(async () => {
-    if (!platform || !amongUsPath || !releaseTag) return;
+    if (!platform || !amongUsPath || !releaseTag) {
+      return;
+    }
+
+    if (importEnabled && importSourceAmongUsPath.trim().length === 0) {
+      setImportPreviewError(t("installFlow.importNotConfigured"));
+      setStep("import");
+      return;
+    }
+
+    setImportSkippedAfterFailure(false);
+    setImportSkipReason(null);
     setStep("progress");
     setProgress(0);
     setProgressMessage(t("install.starting"));
@@ -132,12 +194,43 @@ export default function InstallWizard() {
         platform,
         restorePreservedSaveData: preservedSaveDataAvailable && restoreSaveData,
       });
+
+      if (importEnabled) {
+        setProgress(99);
+        setProgressMessage(t("installFlow.importingSaveData"));
+        while (true) {
+          try {
+            await snrSaveDataImport(importSourceAmongUsPath);
+            break;
+          } catch (importError) {
+            const shouldRetry = window.confirm(
+              t("installFlow.importRetrySkipPrompt", { error: String(importError) }),
+            );
+            if (shouldRetry) {
+              continue;
+            }
+            setImportSkippedAfterFailure(true);
+            setImportSkipReason(String(importError));
+            break;
+          }
+        }
+      }
+
       setStep("complete");
     } catch (e) {
       setError(String(e));
       setStep("confirm");
     }
-  }, [platform, amongUsPath, releaseTag, restoreSaveData, preservedSaveDataAvailable, t]);
+  }, [
+    platform,
+    amongUsPath,
+    releaseTag,
+    importEnabled,
+    importSourceAmongUsPath,
+    restoreSaveData,
+    preservedSaveDataAvailable,
+    t,
+  ]);
 
   const onComplete = useCallback(() => {
     setStep("welcome");
@@ -147,13 +240,21 @@ export default function InstallWizard() {
     setRestoreSaveData(true);
     setProgress(0);
     setProgressMessage("");
-  }, []);
+    resetImportState();
+  }, [resetImportState]);
 
   const onBack = useCallback(() => {
-    if (step === "platform") setStep("welcome");
-    else if (step === "version") setStep(platform === "epic" ? "epic-login" : "platform");
-    else if (step === "epic-login") setStep("platform");
-    else if (step === "confirm") setStep("version");
+    if (step === "platform") {
+      setStep("welcome");
+    } else if (step === "version") {
+      setStep(platform === "epic" ? "epic-login" : "platform");
+    } else if (step === "epic-login") {
+      setStep("platform");
+    } else if (step === "import") {
+      setStep("version");
+    } else if (step === "confirm") {
+      setStep("import");
+    }
   }, [step, platform]);
 
   useEffect(() => {
@@ -202,7 +303,7 @@ export default function InstallWizard() {
     applyTheme(newTheme);
   }, []);
 
-  const renderStep = (s: InstallStep, isExiting: boolean, _direction: "forward" | "back") => {
+  const renderStep = (s: InstallStep, _isExiting: boolean, _direction: "forward" | "back") => {
     if (s === "welcome")
       return (
         <WelcomeStep
@@ -238,9 +339,9 @@ export default function InstallWizard() {
           epicLoggedIn={epicLoggedIn}
           onEpicLogin={epicLoginWebview}
           onRefreshStatus={() =>
-            epicStatusGet().then((s) => {
-              setEpicLoggedIn(s.loggedIn);
-              setEpicUserDisplay(s.displayName?.trim() || s.accountId?.trim() || null);
+            epicStatusGet().then((status) => {
+              setEpicLoggedIn(status.loggedIn);
+              setEpicUserDisplay(status.displayName?.trim() || status.accountId?.trim() || null);
             })
           }
           epicUserDisplay={epicUserDisplay}
@@ -259,6 +360,27 @@ export default function InstallWizard() {
           platform={platform}
         />
       );
+    if (s === "import")
+      return (
+        <ImportStep
+          t={t}
+          importEnabled={importEnabled}
+          sourceAmongUsPath={importSourceAmongUsPath}
+          sourceSaveDataPath={importSourceSaveDataPath}
+          previewPresets={importPreviewPresets}
+          previewFileCount={importPreviewFileCount}
+          previewError={importPreviewError}
+          onImportEnabledChange={(enabled) => {
+            setImportEnabled(enabled);
+            if (!enabled) {
+              setImportPreviewError(null);
+            }
+          }}
+          onSelectSource={onImportSourceSelect}
+          onNext={onImportNext}
+          onBack={onBack}
+        />
+      );
     if (s === "confirm")
       return (
         <ConfirmStep
@@ -266,6 +388,9 @@ export default function InstallWizard() {
           platform={platform}
           amongUsPath={amongUsPath}
           releaseTag={releaseTag}
+          importEnabled={importEnabled}
+          importSourceAmongUsPath={importSourceAmongUsPath}
+          importPresetCount={importPreviewPresets.length}
           showRestoreSaveDataOption={preservedSaveDataAvailable}
           restoreSaveData={restoreSaveData}
           onRestoreChange={setRestoreSaveData}
@@ -276,7 +401,15 @@ export default function InstallWizard() {
       );
     if (s === "progress")
       return <ProgressStep t={t} progress={progress} message={progressMessage} />;
-    if (s === "complete") return <CompleteStep t={t} onNext={onComplete} />;
+    if (s === "complete")
+      return (
+        <CompleteStep
+          t={t}
+          onNext={onComplete}
+          importSkippedAfterFailure={importSkippedAfterFailure}
+          importSkipReason={importSkipReason}
+        />
+      );
     return null;
   };
 

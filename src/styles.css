@@ -1299,6 +1299,109 @@ progress {
   transform: translateX(4px);
 }
 
+.install-step-import {
+  gap: 16px;
+}
+
+.import-step-description {
+  margin: -4px 0 8px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.import-step-card {
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  background: var(--card-strong);
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+}
+
+.import-toggle {
+  margin-top: 0;
+  font-size: 16px;
+}
+
+.import-step-content {
+  display: grid;
+  gap: 12px;
+}
+
+.import-paths {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--confirm-code-bg);
+}
+
+.import-path-line {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.import-path-line code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.import-preview-status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.import-preview-status.is-error {
+  color: var(--danger);
+}
+
+.import-preview-list-wrap {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  max-height: 240px;
+  overflow: auto;
+  padding: 10px 12px;
+}
+
+.import-preview-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.import-preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.import-preview-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 4px;
+  background: var(--card-strong);
+}
+
+.import-preview-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.import-preview-missing {
+  font-size: 12px;
+  color: var(--warning);
+}
+
 .confirm-content {
   border: 2px solid var(--line);
   border-radius: 16px;
@@ -1471,6 +1574,18 @@ progress {
   margin: 0;
   max-width: 400px;
   line-height: 1.5;
+}
+
+.complete-import-warning {
+  margin: 12px auto 0;
+  max-width: 520px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(153, 99, 28, 0.35);
+  background: rgba(255, 248, 230, 0.75);
+  color: var(--warning);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 /* ── Actions ── */
@@ -3511,6 +3626,122 @@ body.locale-switch-animating {
   }
 }
 
+/* Install import step */
+.install-step-import {
+  gap: 16px;
+}
+
+.import-step-description {
+  margin: -4px 0 8px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.import-step-card {
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  background: var(--card-strong);
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+}
+
+.import-toggle {
+  margin-top: 0;
+  font-size: 16px;
+}
+
+.import-step-content {
+  display: grid;
+  gap: 12px;
+}
+
+.import-paths {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--confirm-code-bg);
+}
+
+.import-path-line {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.import-path-line code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.import-preview-status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.import-preview-status.is-error {
+  color: var(--danger);
+}
+
+.import-preview-list-wrap {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  max-height: 240px;
+  overflow: auto;
+  padding: 10px 12px;
+}
+
+.import-preview-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.import-preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.import-preview-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 4px;
+  background: var(--card-strong);
+}
+
+.import-preview-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.import-preview-missing {
+  font-size: 12px;
+  color: var(--warning);
+}
+
+.complete-import-warning {
+  margin: 12px auto 0;
+  max-width: 520px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(153, 99, 28, 0.35);
+  background: rgba(255, 248, 230, 0.75);
+  color: var(--warning);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 /* ───────────────────────── Report Center (New Design) ───────────────────────── */
 
 .report-center-container {
@@ -4554,4 +4785,21 @@ body.locale-switch-animating {
     height: 100%;
     max-height: none;
   }
+}
+
+/* SaveData import wizard step */
+.install-step-import {
+  gap: 16px;
+}
+
+.complete-import-warning {
+  margin: 12px auto 0;
+  max-width: 520px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(153, 99, 28, 0.35);
+  background: rgba(255, 248, 230, 0.75);
+  color: var(--warning);
+  font-size: 13px;
+  line-height: 1.45;
 }

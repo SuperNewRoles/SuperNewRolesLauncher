@@ -220,6 +220,8 @@ pub fn run() {
             commands::snr::snr_install,
             commands::snr::snr_uninstall,
             commands::snr::snr_preserved_save_data_status,
+            commands::snr::snr_savedata_preview,
+            commands::snr::snr_savedata_import,
             commands::reporting::reporting_prepare,
             commands::reporting::reporting_threads_list,
             commands::reporting::reporting_messages_list,

@@ -12,6 +12,8 @@ import type {
   PresetImportResult,
   PresetImportSelectionInput,
   PresetSummary,
+  SaveDataImportResult,
+  SaveDataPreviewResult,
   ReportMessage,
   ReportThread,
   ReportingLogSourceInfo,
@@ -81,6 +83,14 @@ export function snrUninstall(preserveSaveData: boolean): Promise<UninstallResult
 
 export function snrPreservedSaveDataStatus(): Promise<PreservedSaveDataStatus> {
   return invoke<PreservedSaveDataStatus>("snr_preserved_save_data_status");
+}
+
+export function snrSaveDataPreview(sourceAmongUsPath: string): Promise<SaveDataPreviewResult> {
+  return invoke<SaveDataPreviewResult>("snr_savedata_preview", { sourceAmongUsPath });
+}
+
+export function snrSaveDataImport(sourceAmongUsPath: string): Promise<SaveDataImportResult> {
+  return invoke<SaveDataImportResult>("snr_savedata_import", { sourceAmongUsPath });
 }
 
 // マイグレーション関連API

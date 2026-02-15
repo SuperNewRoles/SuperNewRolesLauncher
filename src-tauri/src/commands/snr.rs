@@ -5,7 +5,14 @@ use tauri::{AppHandle, Runtime};
 
 use crate::services::snr_service;
 
-pub use snr_service::{InstallResult, PreservedSaveDataStatus, SnrReleaseSummary, UninstallResult};
+pub use snr_service::{
+    InstallResult,
+    PreservedSaveDataStatus,
+    SaveDataImportResult,
+    SaveDataPreviewResult,
+    SnrReleaseSummary,
+    UninstallResult,
+};
 
 /// 利用可能なSNRリリース一覧を取得する。
 #[tauri::command]
@@ -19,6 +26,21 @@ pub fn snr_preserved_save_data_status<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<PreservedSaveDataStatus, String> {
     snr_service::get_preserved_save_data_status(app)
+}
+
+/// 指定したAmong UsフォルダからSaveDataの取り込み候補を検査する。
+#[tauri::command]
+pub fn snr_savedata_preview(source_among_us_path: String) -> Result<SaveDataPreviewResult, String> {
+    snr_service::preview_savedata_from_among_us(source_among_us_path)
+}
+
+/// 指定したAmong UsフォルダのSaveDataを現在のプロファイルへ取り込む。
+#[tauri::command]
+pub fn snr_savedata_import<R: Runtime>(
+    app: AppHandle<R>,
+    source_among_us_path: String,
+) -> Result<SaveDataImportResult, String> {
+    snr_service::import_savedata_from_among_us_into_profile(&app, source_among_us_path)
 }
 
 /// プロファイルをアンインストールし、必要ならセーブデータを退避する。

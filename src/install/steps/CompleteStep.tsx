@@ -4,6 +4,8 @@ import type { MessageKey } from "../../i18n";
 interface CompleteStepProps {
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
   onNext: () => void;
+  importSkippedAfterFailure: boolean;
+  importSkipReason: string | null;
 }
 
 function Confetti() {
@@ -72,7 +74,12 @@ function SuccessIcon() {
   );
 }
 
-export default function CompleteStep({ t, onNext }: CompleteStepProps) {
+export default function CompleteStep({
+  t,
+  onNext,
+  importSkippedAfterFailure,
+  importSkipReason,
+}: CompleteStepProps) {
   const [showContent, setShowContent] = useState(false);
 
   useEffect(() => {
@@ -92,6 +99,13 @@ export default function CompleteStep({ t, onNext }: CompleteStepProps) {
         <h2 className="complete-title">{t("installFlow.complete")}</h2>
         <p className="complete-message">{t("installFlow.completeMessage")}</p>
         <p className="complete-hint">{t("installFlow.completeHint")}</p>
+        {importSkippedAfterFailure && (
+          <p className="complete-import-warning">
+            {t("installFlow.importSkippedNotice", {
+              reason: importSkipReason || t("common.unset"),
+            })}
+          </p>
+        )}
       </div>
       <div className={`complete-actions ${showContent ? "visible" : ""}`}>
         <button type="button" className="btn-primary" onClick={handleNext}>
