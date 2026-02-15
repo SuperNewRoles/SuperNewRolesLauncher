@@ -258,10 +258,12 @@ fn safe_patcher_name(name: &str) -> bool {
         return false;
     }
 
-    if path
-        .components()
-        .any(|component| matches!(component, Component::ParentDir | Component::RootDir | Component::Prefix(_)))
-    {
+    if path.components().any(|component| {
+        matches!(
+            component,
+            Component::ParentDir | Component::RootDir | Component::Prefix(_)
+        )
+    }) {
         return false;
     }
 
@@ -311,8 +313,12 @@ async fn download_patchers_into_staging<R: Runtime>(
     }
 
     let patchers_dir = staging_path.join("BepInEx").join("patchers");
-    fs::create_dir_all(&patchers_dir)
-        .map_err(|e| format!("Failed to create patchers directory '{}': {e}", patchers_dir.display()))?;
+    fs::create_dir_all(&patchers_dir).map_err(|e| {
+        format!(
+            "Failed to create patchers directory '{}': {e}",
+            patchers_dir.display()
+        )
+    })?;
 
     let total_patchers = patchers.len();
     emit_progress(
@@ -352,11 +358,8 @@ async fn download_patchers_into_staging<R: Runtime>(
         let encoded_name = urlencoding::encode(name);
         let url = format!("{PATCHER_BASE_URL}{encoded_name}");
 
-        let download_result = download::download_file(
-            client,
-            &url,
-            &destination,
-            |downloaded, total| {
+        let download_result =
+            download::download_file(client, &url, &destination, |downloaded, total| {
                 let file_percent = total
                     .map(|size| (downloaded as f64 / size as f64) * 100.0)
                     .unwrap_or(0.0);
@@ -371,11 +374,10 @@ async fn download_patchers_into_staging<R: Runtime>(
                     Some(index),
                     Some(total_patchers),
                 );
-            },
-        )
-        .await;
+            })
+            .await;
 
-        if let Err(error) = download_result {
+        if download_result.is_err() {
             skipped.push(name.to_string());
             emit_progress(
                 app,
@@ -393,7 +395,7 @@ async fn download_patchers_into_staging<R: Runtime>(
         }
 
         if let Some(expected_md5) = patcher.expected_md5.as_deref() {
-            if let Err(error) = verify_md5(&destination, expected_md5) {
+            if verify_md5(&destination, expected_md5).is_err() {
                 skipped.push(name.to_string());
                 emit_progress(
                     app,
@@ -579,7 +581,9 @@ fn validate_source_among_us_path(source_among_us_path: &str) -> Result<PathBuf, 
 }
 
 fn source_save_data_path_from_among_us(among_us_path: &Path) -> PathBuf {
-    among_us_path.join(SOURCE_SAVE_DATA_RELATIVE_PATH[0]).join(SOURCE_SAVE_DATA_RELATIVE_PATH[1])
+    among_us_path
+        .join(SOURCE_SAVE_DATA_RELATIVE_PATH[0])
+        .join(SOURCE_SAVE_DATA_RELATIVE_PATH[1])
 }
 
 fn resolve_source_save_data_path(source_among_us_path: &str) -> Result<(PathBuf, PathBuf), String> {
@@ -865,7 +869,8 @@ pub fn get_preserved_save_data_status<R: Runtime>(
 pub fn preview_savedata_from_among_us(
     source_among_us_path: String,
 ) -> Result<SaveDataPreviewResult, String> {
-    let (among_us_path, source_save_data_path) = resolve_source_save_data_path(&source_among_us_path)?;
+    let (among_us_path, source_save_data_path) =
+        resolve_source_save_data_path(&source_among_us_path)?;
 
     let mut files = Vec::new();
     collect_files_recursive(&source_save_data_path, &mut files)?;
@@ -918,7 +923,9 @@ pub fn import_savedata_from_among_us_into_profile<R: Runtime>(
         return Err(error);
     }
 
-    if let Err(error) = promote_staging_to_profile(&staging_path, &target_save_data_path, &backup_path) {
+    if let Err(error) =
+        promote_staging_to_profile(&staging_path, &target_save_data_path, &backup_path)
+    {
         let _ = clean_path(&staging_path);
         let _ = clean_path(&backup_path);
         return Err(error);
@@ -1151,7 +1158,10 @@ async fn install_snr_release_inner<R: Runtime>(
         );
     })?;
 
-    if let Err(error) = download_patchers_into_staging(app, &client, &staging_path).await {
+    if download_patchers_into_staging(app, &client, &staging_path)
+        .await
+        .is_err()
+    {
         emit_progress(
             app,
             "patchers",
@@ -1281,8 +1291,11 @@ mod tests {
         let save_data_path = path.join("SuperNewRolesNext").join("SaveData");
         fs::create_dir_all(&save_data_path).expect("failed to create save data dir");
         fs::write(path.join(AMONG_US_EXE), b"").expect("failed to write exe marker");
-        fs::write(save_data_path.join("Options.data"), make_minimal_options_data())
-            .expect("failed to write options");
+        fs::write(
+            save_data_path.join("Options.data"),
+            make_minimal_options_data(),
+        )
+        .expect("failed to write options");
         fs::write(save_data_path.join("CustomCosmetics.data"), [1u8, 2u8, 3u8])
             .expect("failed to write extra file");
 

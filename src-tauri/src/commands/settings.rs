@@ -82,12 +82,9 @@ fn open_directory(path: &Path) -> Result<(), String> {
         cmd
     };
 
-    command.spawn().map_err(|e| {
-        format!(
-            "Failed to open directory {}: {e}",
-            path.to_string_lossy()
-        )
-    })?;
+    command
+        .spawn()
+        .map_err(|e| format!("Failed to open directory {}: {e}", path.to_string_lossy()))?;
 
     Ok(())
 }
