@@ -23,6 +23,7 @@ import {
   saveLocale,
 } from "../i18n";
 import OnboardingWizard from "../onboarding/OnboardingWizard";
+import type { OnboardingStep, OnboardingStepGuide } from "../onboarding/types";
 import { ReportCenter } from "../report/ReportCenter";
 import {
   ANNOUNCE_BADGE_READ_CREATED_AT_STORAGE_KEY,
@@ -107,6 +108,9 @@ const LAUNCHER_MINIMIZE_EFFECT_DURATION_MS = 260;
 const LAUNCHER_AUTO_MINIMIZE_WINDOW_MS = 30_000;
 const SETTINGS_OVERLAY_TRANSITION_MS = 220;
 const LOCALE_SWITCH_RELOAD_ANIMATION_FLAG_KEY = "ui.localeSwitchReloadAnimation";
+const ONBOARDING_SPOTLIGHT_CLASS = "onboarding-spotlight-target";
+const ONBOARDING_SPOTLIGHT_FOCUS_CLASS = "onboarding-spotlight-target-focus";
+const ONBOARDING_EXIT_ANIMATION_MS = 340;
 type MainTabId = "home" | "report" | "announce" | "preset" | "settings";
 type SettingsCategoryId = "general" | "epic" | "migration" | "credit" | "app-version";
 type MigrationMode = "export" | "import";
@@ -114,6 +118,41 @@ type MigrationOverlayStep = "select" | "password" | "processing" | "result";
 type PresetOverlayMode = "import" | "export";
 type PresetFeedbackMode = "none" | "confirmImport" | "result";
 const DEFAULT_SETTINGS_CATEGORY: SettingsCategoryId = "general";
+const ONBOARDING_STEP_GUIDES: ReadonlyArray<OnboardingStepGuide> = [
+  {
+    step: "welcome",
+    tab: "home",
+  },
+  {
+    step: "launch",
+    tab: "home",
+    selector: "#launch-modded",
+    focus: true,
+  },
+  {
+    step: "reporting",
+    tab: "report",
+    selector: "#report-center-root",
+  },
+  {
+    step: "preset",
+    tab: "preset",
+    selector: "#tab-preset .preset-remake-root",
+  },
+  {
+    step: "migration",
+    tab: "settings",
+    settingsCategory: "migration",
+    selector: "#settings-panel-migration .settings-migration-action-stack",
+  },
+  {
+    step: "connect",
+  },
+  {
+    step: "complete",
+    tab: "home",
+  },
+];
 
 function isMainTabId(value: string | undefined): value is MainTabId {
   return (
@@ -593,6 +632,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let gameStatePolling = false;
   const reportingNotificationEnabled = initialReportingNotificationEnabled;
   let onboardingRoot: Root | null = null;
+  let onboardingSpotlightTarget: HTMLElement | null = null;
+  let onboardingGuideAnimationFrame: number | null = null;
+  let onboardingReturnTab: MainTabId | null = null;
   let reportCenterRoot: Root | null = null;
   let announceCenterRoot: Root | null = null;
   let activeTab: MainTabId = "home";
@@ -624,6 +666,104 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   const overlayAnimationTimers = new WeakMap<HTMLDivElement, number>();
   const overlayCloseTimers = new WeakMap<HTMLDivElement, number>();
 
+  function clearPendingOnboardingGuideAnimation(): void {
+    if (onboardingGuideAnimationFrame === null) {
+      return;
+    }
+    window.cancelAnimationFrame(onboardingGuideAnimationFrame);
+    onboardingGuideAnimationFrame = null;
+  }
+
+  function clearOnboardingSpotlight(): void {
+    clearPendingOnboardingGuideAnimation();
+    if (!onboardingSpotlightTarget) {
+      return;
+    }
+    onboardingSpotlightTarget.classList.remove(
+      ONBOARDING_SPOTLIGHT_CLASS,
+      ONBOARDING_SPOTLIGHT_FOCUS_CLASS,
+    );
+    onboardingSpotlightTarget = null;
+  }
+
+  function applyOnboardingSpotlight(target: HTMLElement | null, withFocus: boolean): void {
+    clearOnboardingSpotlight();
+    if (!target) {
+      return;
+    }
+
+    onboardingSpotlightTarget = target;
+    target.classList.add(ONBOARDING_SPOTLIGHT_CLASS);
+    if (!withFocus) {
+      return;
+    }
+
+    target.classList.add(ONBOARDING_SPOTLIGHT_FOCUS_CLASS);
+    if (typeof target.focus === "function") {
+      target.focus();
+    }
+  }
+
+  function applyOnboardingGuide(step: OnboardingStep): void {
+    const guide = ONBOARDING_STEP_GUIDES.find((item) => item.step === step);
+    if (!guide) {
+      clearOnboardingSpotlight();
+      return;
+    }
+
+    if (guide.tab && isMainTabId(guide.tab)) {
+      switchTab(guide.tab);
+    }
+
+    if (guide.settingsCategory && isSettingsCategoryId(guide.settingsCategory)) {
+      switchSettingsCategory(guide.settingsCategory);
+    }
+
+    if (!guide.selector) {
+      clearOnboardingSpotlight();
+      return;
+    }
+
+    clearPendingOnboardingGuideAnimation();
+    onboardingGuideAnimationFrame = window.requestAnimationFrame(() => {
+      onboardingGuideAnimationFrame = null;
+      const target = document.querySelector<HTMLElement>(guide.selector ?? "");
+      applyOnboardingSpotlight(target, Boolean(guide.focus));
+    });
+  }
+
+  async function playOnboardingCompleteTransition(container: HTMLElement | null): Promise<void> {
+    const overlay = container?.querySelector<HTMLElement>(".onboarding-wizard");
+    if (!overlay) {
+      return;
+    }
+    overlay.classList.add("onboarding-wizard-exit");
+
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        resolve();
+      };
+
+      overlay.addEventListener(
+        "animationend",
+        (event) => {
+          if (event.target !== overlay || event.animationName !== "onboarding-overlay-exit") {
+            return;
+          }
+          finish();
+        },
+        { once: true },
+      );
+
+      window.setTimeout(finish, ONBOARDING_EXIT_ANIMATION_MS + 120);
+    });
+  }
+
   function mountOnboarding() {
     const containerId = "onboarding-root";
     let container = document.getElementById(containerId);
@@ -637,12 +777,24 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       onboardingRoot = createRoot(container);
     }
 
-    const handleComplete = async () => {
+    onboardingReturnTab = activeTab;
+    clearOnboardingSpotlight();
+
+    const handleComplete = async (reason: "skip" | "complete") => {
       try {
         settings = await settingsUpdate({ onboardingCompleted: true });
       } catch (error) {
         console.warn("Failed to persist onboarding completion:", error);
       } finally {
+        const tabToRestore = onboardingReturnTab;
+        onboardingReturnTab = null;
+        clearOnboardingSpotlight();
+        if (reason === "complete") {
+          switchTab("home");
+          await playOnboardingCompleteTransition(container);
+        } else if (tabToRestore && isMainTabId(tabToRestore)) {
+          switchTab(tabToRestore);
+        }
         if (onboardingRoot) {
           onboardingRoot.unmount();
           onboardingRoot = null;
@@ -651,7 +803,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       }
     };
 
-    onboardingRoot.render(<OnboardingWizard onComplete={handleComplete} />);
+    onboardingRoot.render(
+      <OnboardingWizard onComplete={handleComplete} onStepChange={applyOnboardingGuide} />,
+    );
   }
 
   function mountReportCenter() {
@@ -2393,7 +2547,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     } catch (error) {
       archivePresets = [];
       renderArchivePresetList();
-      setGeneralStatusLine(t("preset.statusInspectFailed", { error: String(error) }), "error");
+      showPresetResultOverlay(
+        t("preset.statusInspectFailed", { error: String(error) }),
+        t("preset.title"),
+        [],
+        false,
+      );
       return false;
     } finally {
       presetInspecting = false;

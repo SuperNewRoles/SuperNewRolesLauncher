@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createTranslator, resolveInitialLocale } from "../i18n";
 import StepTransition from "./StepTransition";
 import { CompleteStep } from "./steps/CompleteStep";
@@ -11,14 +11,19 @@ import { WelcomeStep } from "./steps/WelcomeStep";
 import type { OnboardingStep } from "./types";
 
 interface OnboardingWizardProps {
-  onComplete: () => void;
+  onComplete: (reason: "skip" | "complete") => void;
+  onStepChange?: (step: OnboardingStep) => void;
 }
 
-export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
+export default function OnboardingWizard({ onComplete, onStepChange }: OnboardingWizardProps) {
   const [step, setStep] = useState<OnboardingStep>("welcome");
   // Note: ideally we should lift locale state up if we want dynamic language switching,
   // but for now reusing resolveInitialLocale is fine as it respects saved setting.
   const t = createTranslator(resolveInitialLocale());
+
+  useEffect(() => {
+    onStepChange?.(step);
+  }, [onStepChange, step]);
 
   const handleNext = useCallback(() => {
     switch (step) {
@@ -41,7 +46,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         setStep("complete");
         break;
       case "complete":
-        onComplete();
+        onComplete("complete");
         break;
     }
   }, [step, onComplete]);
@@ -72,7 +77,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   }, [step]);
 
   const handleSkip = useCallback(() => {
-    onComplete();
+    onComplete("skip");
   }, [onComplete]);
 
   const renderStep = (s: OnboardingStep, isExiting: boolean, _direction: "forward" | "back") => {
@@ -122,8 +127,13 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     }
   };
 
+  const isFullscreenStep = step === "welcome" || step === "connect" || step === "complete";
+  const onboardingModeClass = isFullscreenStep
+    ? "onboarding-mode-fullscreen"
+    : "onboarding-mode-spotlight";
+
   return (
-    <div className="install-wizard onboarding-wizard">
+    <div className={`install-wizard onboarding-wizard ${onboardingModeClass}`}>
       <div className="onboarding-main-container">
         <div className="onboarding-header">
           <div className="onboarding-title">{getStepTitle(step)}</div>
