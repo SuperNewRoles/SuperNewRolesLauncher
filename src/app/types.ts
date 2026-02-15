@@ -111,6 +111,11 @@ export interface SaveDataImportResult {
   importedPresets: number;
 }
 
+export interface SaveDataPresetMergeResult {
+  sourceSaveDataPath: string;
+  importedPresets: number;
+}
+
 export interface InstallProgressPayload {
   stage: string;
   progress: number;

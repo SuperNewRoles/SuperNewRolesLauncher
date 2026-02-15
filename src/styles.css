@@ -1489,6 +1489,10 @@ progress {
   margin-top: 16px;
 }
 
+.install-step-confirm {
+  padding-bottom: 24px;
+}
+
 .progress-character {
   display: flex;
   justify-content: center;

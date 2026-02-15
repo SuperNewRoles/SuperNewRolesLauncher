@@ -14,6 +14,7 @@ import type {
   PresetImportSelectionInput,
   PresetSummary,
   SaveDataImportResult,
+  SaveDataPresetMergeResult,
   SaveDataPreviewResult,
   ReportMessage,
   ReportThread,
@@ -92,6 +93,16 @@ export function snrSaveDataPreview(sourceAmongUsPath: string): Promise<SaveDataP
 
 export function snrSaveDataImport(sourceAmongUsPath: string): Promise<SaveDataImportResult> {
   return invoke<SaveDataImportResult>("snr_savedata_import", { sourceAmongUsPath });
+}
+
+export function snrSaveDataMergePresets(
+  sourceAmongUsPath: string,
+): Promise<SaveDataPresetMergeResult> {
+  return invoke<SaveDataPresetMergeResult>("snr_savedata_merge_presets", { sourceAmongUsPath });
+}
+
+export function snrPreservedSaveDataMergePresets(): Promise<SaveDataPresetMergeResult> {
+  return invoke<SaveDataPresetMergeResult>("snr_preserved_savedata_merge_presets");
 }
 
 // マイグレーション関連API

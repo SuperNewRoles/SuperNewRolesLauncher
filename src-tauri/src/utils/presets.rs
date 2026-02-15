@@ -668,6 +668,159 @@ pub fn inspect_preset_archive(archive_path: &Path) -> Result<Vec<PresetEntrySumm
     Ok(presets)
 }
 
+pub fn import_presets_from_save_data_dir<R: Runtime>(
+    app: &AppHandle<R>,
+    source_save_data_dir: &Path,
+) -> Result<PresetImportSummary, String> {
+    if !source_save_data_dir.is_dir() {
+        return Err(format!(
+            "Source SaveData directory was not found: {}",
+            source_save_data_dir.display()
+        ));
+    }
+
+    let source_options_path = source_save_data_dir.join(OPTIONS_FILE_NAME);
+    let source_options = load_options_data(&source_options_path)?.ok_or_else(|| {
+        format!(
+            "Options.data was not found in source SaveData: {}",
+            source_options_path.display()
+        )
+    })?;
+    let source_version = if source_options.version == 0 {
+        1
+    } else {
+        source_options.version
+    };
+
+    let mut source_entries = Vec::new();
+    for (source_id, source_name) in source_options.preset_names {
+        if source_id < 0 {
+            continue;
+        }
+
+        let source_data_path = preset_file_path(source_save_data_dir, source_id);
+        if !source_data_path.is_file() {
+            continue;
+        }
+
+        let source_data = fs::read(&source_data_path).map_err(|e| {
+            format!(
+                "Failed to read source preset data file '{}': {e}",
+                source_data_path.display()
+            )
+        })?;
+
+        let normalized_name = if source_name.trim().is_empty() {
+            make_default_preset_name(source_id)
+        } else {
+            source_name.trim().to_string()
+        };
+
+        source_entries.push((source_id, normalized_name, source_data));
+    }
+
+    if source_entries.is_empty() {
+        return Err(
+            "No importable presets were found in the source SaveData directory.".to_string(),
+        );
+    }
+
+    let save_data_dir = profile_save_data_dir(app)?;
+    fs::create_dir_all(&save_data_dir).map_err(|e| {
+        format!(
+            "Failed to create profile SaveData directory '{}': {e}",
+            save_data_dir.display()
+        )
+    })?;
+
+    let options_path = save_data_dir.join(OPTIONS_FILE_NAME);
+    let mut local_options = match load_options_data(&options_path)? {
+        Some(existing) => existing,
+        None => OptionsData {
+            version: source_version,
+            current_preset: 0,
+            preset_names: BTreeMap::new(),
+        },
+    };
+    if local_options.version == 0 {
+        local_options.version = source_version;
+    }
+
+    let mut used_ids = collect_existing_preset_ids(&save_data_dir)?;
+    used_ids.extend(
+        local_options
+            .preset_names
+            .keys()
+            .copied()
+            .filter(|id| *id >= 0),
+    );
+
+    let mut used_names: HashSet<String> = local_options
+        .preset_names
+        .values()
+        .map(|name| normalize_name_key(name))
+        .collect();
+
+    let mut imported = Vec::new();
+    for (source_id, source_name, source_data) in source_entries {
+        let final_name = make_unique_name(&source_name, &used_names);
+        used_names.insert(normalize_name_key(&final_name));
+
+        let target_id = used_ids
+            .iter()
+            .next_back()
+            .copied()
+            .unwrap_or(-1)
+            .checked_add(1)
+            .ok_or_else(|| "No free preset id remains for import.".to_string())?;
+        used_ids.insert(target_id);
+
+        let target_path = preset_file_path(&save_data_dir, target_id);
+        fs::write(&target_path, &source_data).map_err(|e| {
+            format!(
+                "Failed to write imported preset file '{}': {e}",
+                target_path.display()
+            )
+        })?;
+
+        local_options
+            .preset_names
+            .insert(target_id, final_name.clone());
+
+        imported.push(ImportedPresetSummary {
+            source_id,
+            target_id,
+            name: final_name,
+        });
+    }
+
+    if imported.is_empty() {
+        return Err(
+            "No presets were imported from the source SaveData directory.".to_string(),
+        );
+    }
+
+    if !local_options
+        .preset_names
+        .contains_key(&local_options.current_preset)
+    {
+        local_options.current_preset = imported[0].target_id;
+    }
+
+    let updated_options = build_options_data(&local_options)?;
+    fs::write(&options_path, updated_options).map_err(|e| {
+        format!(
+            "Failed to write updated Options.data '{}': {e}",
+            options_path.display()
+        )
+    })?;
+
+    Ok(PresetImportSummary {
+        imported_presets: imported.len(),
+        imported,
+    })
+}
+
 pub fn import_presets_from_archive<R: Runtime>(
     app: &AppHandle<R>,
     archive_path: &Path,

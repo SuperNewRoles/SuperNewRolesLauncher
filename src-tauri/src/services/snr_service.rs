@@ -118,6 +118,13 @@ pub struct SaveDataImportResult {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SaveDataPresetMergeResult {
+    pub source_save_data_path: String,
+    pub imported_presets: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct InstallProgressPayload {
     stage: String,
     progress: f64,
@@ -633,6 +640,33 @@ pub fn import_savedata_from_among_us_into_profile<R: Runtime>(
         target_save_data_path: target_save_data_path.to_string_lossy().to_string(),
         imported_files: preview.file_count,
         imported_presets: preview.presets.len(),
+    })
+}
+
+pub fn merge_savedata_presets_from_among_us_into_profile<R: Runtime>(
+    app: &AppHandle<R>,
+    source_among_us_path: String,
+) -> Result<SaveDataPresetMergeResult, String> {
+    let (_, source_save_data_path) = resolve_source_save_data_path(&source_among_us_path)?;
+    let imported = presets::import_presets_from_save_data_dir(app, &source_save_data_path)?;
+
+    Ok(SaveDataPresetMergeResult {
+        source_save_data_path: source_save_data_path.to_string_lossy().to_string(),
+        imported_presets: imported.imported_presets,
+    })
+}
+
+pub fn merge_preserved_savedata_presets_into_profile<R: Runtime>(
+    app: &AppHandle<R>,
+) -> Result<SaveDataPresetMergeResult, String> {
+    let source_save_data_path = preserved_save_data_path(app)?
+        .join(SOURCE_SAVE_DATA_RELATIVE_PATH[0])
+        .join(SOURCE_SAVE_DATA_RELATIVE_PATH[1]);
+    let imported = presets::import_presets_from_save_data_dir(app, &source_save_data_path)?;
+
+    Ok(SaveDataPresetMergeResult {
+        source_save_data_path: source_save_data_path.to_string_lossy().to_string(),
+        imported_presets: imported.imported_presets,
     })
 }
 

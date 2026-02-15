@@ -223,6 +223,8 @@ pub fn run() {
             commands::snr::snr_preserved_save_data_status,
             commands::snr::snr_savedata_preview,
             commands::snr::snr_savedata_import,
+            commands::snr::snr_savedata_merge_presets,
+            commands::snr::snr_preserved_savedata_merge_presets,
             commands::reporting::reporting_prepare,
             commands::reporting::reporting_threads_list,
             commands::reporting::reporting_messages_list,

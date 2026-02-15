@@ -282,8 +282,8 @@ const en: Record<keyof typeof ja, string> = {
   "migration.unencrypted": "unencrypted",
 
   "preset.title": "Preset Sharing (.snrpresets)",
-  "preset.importActionSubtitle": "Inspect archive",
-  "preset.exportActionSubtitle": "Refresh local list",
+  "preset.importActionSubtitle": "Import preset files into the game",
+  "preset.exportActionSubtitle": "Export in-game presets",
   "preset.refreshLocal": "Refresh local list",
   "preset.selectAll": "Select all",
   "preset.clearSelection": "Clear selection",
@@ -396,7 +396,7 @@ const en: Record<keyof typeof ja, string> = {
     "The selected folder is not an Among Us installation folder. Please select a folder containing Among Us.exe.",
   "installFlow.importTitle": "Import Existing SaveData",
   "installFlow.importDescription":
-    "If needed, import data from an existing SNR folder or a migration archive before finishing installation.",
+    "If needed, import data from an existing SNR folder or a migration archive before finishing installation.\nIf this is your first time playing, press \"Next\" to continue.",
   "installFlow.importEnable": "Import SaveData from existing SNR",
   "installFlow.importArchiveEnable": "Import data from migration archive",
   "installFlow.importSelectSource": "Select source folder",
@@ -421,10 +421,17 @@ const en: Record<keyof typeof ja, string> = {
   "installFlow.importSummaryDisabled": "Disabled",
   "installFlow.importingSaveData": "Importing SaveData...",
   "installFlow.importingMigrationData": "Importing migration archive...",
+  "installFlow.importingSaveDataPresetMerge": "Merging presets from existing SaveData...",
+  "installFlow.importingPreservedSaveDataPresetMerge":
+    "Merging presets from preserved SaveData...",
   "installFlow.importRetrySkipPrompt":
     "Failed to import SaveData.\\n\\n{error}\\n\\nOK: Retry / Cancel: Skip",
   "installFlow.importRetrySkipPromptMigration":
     "Failed to import migration archive.\\n\\n{error}\\n\\nOK: Retry / Cancel: Skip",
+  "installFlow.importRetrySkipPromptSaveDataPresetMerge":
+    "Failed to merge presets from existing SaveData.\\n\\n{error}\\n\\nOK: Retry / Cancel: Skip",
+  "installFlow.importRetrySkipPromptPreservedSaveDataPresetMerge":
+    "Failed to merge presets from preserved SaveData.\\n\\n{error}\\n\\nOK: Retry / Cancel: Skip",
   "installFlow.importSkippedNotice":
     "Data import was skipped. You can retry later if needed. Reason: {reason}",
 

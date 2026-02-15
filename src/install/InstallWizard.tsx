@@ -9,9 +9,11 @@ import {
   migrationValidateArchivePassword,
   settingsUpdate,
   snrInstall,
+  snrPreservedSaveDataMergePresets,
   snrPreservedSaveDataStatus,
   snrReleasesList,
   snrSaveDataImport,
+  snrSaveDataMergePresets,
   snrSaveDataPreview,
 } from "../app/services/tauriClient";
 import { type ThemePreference, applyTheme, getStoredTheme, setStoredTheme } from "../app/theme";
@@ -353,13 +355,13 @@ export default function InstallWizard() {
       setImportSkipReason((current) => (current ? `${current} / ${reason}` : reason));
     };
 
-    const runSaveDataImportFlow = async () => {
+    const runSaveDataImportFlow = async (): Promise<boolean> => {
       setProgress(99);
       setProgressMessage(t("installFlow.importingSaveData"));
       while (true) {
         try {
           await snrSaveDataImport(importSourceAmongUsPath);
-          return;
+          return true;
         } catch (importError) {
           const message = String(importError);
           const shouldRetry = window.confirm(t("installFlow.importRetrySkipPrompt", { error: message }));
@@ -367,12 +369,12 @@ export default function InstallWizard() {
             continue;
           }
           markImportSkipped(message);
-          return;
+          return false;
         }
       }
     };
 
-    const runMigrationImportFlow = async () => {
+    const runMigrationImportFlow = async (): Promise<boolean> => {
       setProgress(99);
       setProgressMessage(t("installFlow.importingMigrationData"));
       while (true) {
@@ -381,7 +383,7 @@ export default function InstallWizard() {
             archivePath: migrationArchivePath.trim(),
             password: migrationPassword.trim(),
           });
-          return;
+          return true;
         } catch (importError) {
           const message = String(importError);
           const shouldRetry = window.confirm(
@@ -391,7 +393,49 @@ export default function InstallWizard() {
             continue;
           }
           markImportSkipped(message);
-          return;
+          return false;
+        }
+      }
+    };
+
+    const runSaveDataPresetMergeFlow = async (): Promise<boolean> => {
+      setProgress(99);
+      setProgressMessage(t("installFlow.importingSaveDataPresetMerge"));
+      while (true) {
+        try {
+          await snrSaveDataMergePresets(importSourceAmongUsPath);
+          return true;
+        } catch (mergeError) {
+          const message = String(mergeError);
+          const shouldRetry = window.confirm(
+            t("installFlow.importRetrySkipPromptSaveDataPresetMerge", { error: message }),
+          );
+          if (shouldRetry) {
+            continue;
+          }
+          markImportSkipped(message);
+          return false;
+        }
+      }
+    };
+
+    const runPreservedSaveDataPresetMergeFlow = async (): Promise<boolean> => {
+      setProgress(99);
+      setProgressMessage(t("installFlow.importingPreservedSaveDataPresetMerge"));
+      while (true) {
+        try {
+          await snrPreservedSaveDataMergePresets();
+          return true;
+        } catch (mergeError) {
+          const message = String(mergeError);
+          const shouldRetry = window.confirm(
+            t("installFlow.importRetrySkipPromptPreservedSaveDataPresetMerge", { error: message }),
+          );
+          if (shouldRetry) {
+            continue;
+          }
+          markImportSkipped(message);
+          return false;
         }
       }
     };
@@ -415,11 +459,24 @@ export default function InstallWizard() {
         restorePreservedSaveData: preservedSaveDataAvailable && restoreSaveData,
       });
 
+      let saveDataImported = false;
+      let migrationImported = false;
+
       if (importEnabled) {
-        await runSaveDataImportFlow();
+        saveDataImported = await runSaveDataImportFlow();
       }
       if (migrationImportEnabled) {
-        await runMigrationImportFlow();
+        migrationImported = await runMigrationImportFlow();
+      }
+      if (importEnabled && migrationImportEnabled && saveDataImported && migrationImported) {
+        await runSaveDataPresetMergeFlow();
+      }
+      if (
+        preservedSaveDataAvailable &&
+        restoreSaveData &&
+        (saveDataImported || migrationImported)
+      ) {
+        await runPreservedSaveDataPresetMergeFlow();
       }
 
       setStep("complete");

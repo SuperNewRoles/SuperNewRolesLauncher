@@ -9,6 +9,7 @@ pub use snr_service::{
     InstallResult,
     PreservedSaveDataStatus,
     SaveDataImportResult,
+    SaveDataPresetMergeResult,
     SaveDataPreviewResult,
     SnrReleaseSummary,
     UninstallResult,
@@ -41,6 +42,23 @@ pub fn snr_savedata_import<R: Runtime>(
     source_among_us_path: String,
 ) -> Result<SaveDataImportResult, String> {
     snr_service::import_savedata_from_among_us_into_profile(&app, source_among_us_path)
+}
+
+/// 指定したAmong UsフォルダのSaveDataからプリセットのみを現在のプロファイルへ追加取り込みする。
+#[tauri::command]
+pub fn snr_savedata_merge_presets<R: Runtime>(
+    app: AppHandle<R>,
+    source_among_us_path: String,
+) -> Result<SaveDataPresetMergeResult, String> {
+    snr_service::merge_savedata_presets_from_among_us_into_profile(&app, source_among_us_path)
+}
+
+/// 保持済みSaveDataからプリセットのみを現在のプロファイルへ追加取り込みする。
+#[tauri::command]
+pub fn snr_preserved_savedata_merge_presets<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<SaveDataPresetMergeResult, String> {
+    snr_service::merge_preserved_savedata_presets_into_profile(&app)
 }
 
 /// プロファイルをアンインストールし、必要ならセーブデータを退避する。

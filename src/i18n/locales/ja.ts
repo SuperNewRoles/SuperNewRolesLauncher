@@ -29,7 +29,7 @@ const ja = {
   "launcher.openProfileFolder": "プロファイルフォルダを開く",
   "launcher.closeToTrayOnClose": "閉じる時にバックグラウンド常駐する",
   "launcher.installSnr": "SNRをインストール",
-  "launcher.restoreSavedDataOnInstall": "セーブデータを復元する",
+  "launcher.restoreSavedDataOnInstall": "アンインストール時に保持したセーブデータを復元する",
   "launcher.uninstallMod": "Modをアンインストール",
   "launcher.preserveCurrentSaveData": "現行4ファイルを保持",
   "launcher.launchModded": "Mod起動",
@@ -389,7 +389,7 @@ const ja = {
     "選択されたフォルダはAmong Usのインストールフォルダではありません。Among Us.exeが存在するフォルダを選択してください。",
   "installFlow.importTitle": "既存データの取り込み",
   "installFlow.importDescription":
-    "必要な場合は、既存SNRフォルダまたはお引越しアーカイブからデータを取り込みできます。\n初めてプレイする場合はそのまま[次へ」を押してください。",
+    "必要な場合は、既存SNRフォルダまたはお引越しアーカイブからデータを取り込みできます。\n初めてプレイする場合はそのまま「次へ」を押してください。",
   "installFlow.importEnable": "インストール済みのSuperNewRolesからデータを取り込む",
   "installFlow.importArchiveEnable": "お引越しアーカイブからデータを取り込む",
   "installFlow.importSelectSource": "取り込み元フォルダを選択",
@@ -414,10 +414,17 @@ const ja = {
   "installFlow.importSummaryDisabled": "無効",
   "installFlow.importingSaveData": "SaveDataを取り込み中...",
   "installFlow.importingMigrationData": "お引越しアーカイブを取り込み中...",
+  "installFlow.importingSaveDataPresetMerge": "既存SaveDataのプリセットを統合中...",
+  "installFlow.importingPreservedSaveDataPresetMerge":
+    "保持セーブデータのプリセットを統合中...",
   "installFlow.importRetrySkipPrompt":
     "SaveDataの取り込みに失敗しました。\\n\\n{error}\\n\\nOK: 再試行 / キャンセル: スキップ",
   "installFlow.importRetrySkipPromptMigration":
     "お引越しアーカイブの取り込みに失敗しました。\\n\\n{error}\\n\\nOK: 再試行 / キャンセル: スキップ",
+  "installFlow.importRetrySkipPromptSaveDataPresetMerge":
+    "既存SaveDataプリセットの統合に失敗しました。\\n\\n{error}\\n\\nOK: 再試行 / キャンセル: スキップ",
+  "installFlow.importRetrySkipPromptPreservedSaveDataPresetMerge":
+    "保持セーブデータプリセットの統合に失敗しました。\\n\\n{error}\\n\\nOK: 再試行 / キャンセル: スキップ",
   "installFlow.importSkippedNotice":
     "データ取り込みはスキップされました。必要なら後で再実行してください。理由: {reason}",
 
