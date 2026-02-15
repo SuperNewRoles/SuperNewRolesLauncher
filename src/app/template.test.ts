@@ -16,6 +16,10 @@ describe("renderAppTemplate (settings general)", () => {
     expect(html).toContain('id="settings-shortcut-status"');
     expect(html).toContain('id="uninstall-snr"');
     expect(html).toContain('id="install-status"');
+    expect(html).toContain('id="report-tab-badge"');
+    expect(html).toContain('id="tab-announce"');
+    expect(html).toContain('id="announce-center-root"');
+    expect(html).toContain('data-tab="announce"');
   });
 
   it("includes among us reselect and uninstall overlays", () => {
@@ -33,6 +37,7 @@ describe("renderAppTemplate (settings general)", () => {
     expect(html).toContain('id="settings-migration-step-password"');
     expect(html).toContain('id="settings-migration-step-processing"');
     expect(html).toContain('id="settings-migration-step-result"');
+    expect(html).toContain('id="settings-migration-result-close"');
   });
 
   it("includes redesigned preset split layout with fullscreen overlay", () => {
@@ -48,6 +53,7 @@ describe("renderAppTemplate (settings general)", () => {
     expect(html).toContain('id="preset-local-list"');
     expect(html).toContain('id="preset-archive-list"');
     expect(html).toContain('class="preset-remake-launch-grid"');
+    expect(html).not.toContain('id="preset-export-path"');
   });
 
   it("does not include removed legacy migration controls", () => {

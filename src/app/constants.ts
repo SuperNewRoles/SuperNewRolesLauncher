@@ -5,6 +5,7 @@ import type { OfficialLink } from "./types";
  * 複数ファイルから参照されるため、ここに集約して変更点を追いやすくする。
  */
 export const REPORTING_NOTIFICATION_STORAGE_KEY = "reporting.notification.enabled";
+export const ANNOUNCE_API_BASE_URL = "https://announce.supernewroles.com/api/v1/";
 
 export const OFFICIAL_LINKS: OfficialLink[] = [
   {

@@ -75,6 +75,11 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
         <div id="report-center-root" class="tab-inner tab-report-root"></div>
       </section>
 
+      <!-- アナウンスタブ -->
+      <section id="tab-announce" class="tab-panel" data-tab="announce">
+        <div id="announce-center-root" class="tab-inner tab-announce-root"></div>
+      </section>
+
       <!-- プリセットタブ -->
       <section id="tab-preset" class="tab-panel" data-tab="preset">
         <div class="tab-inner tab-settings-scroll tab-preset-scroll preset-remake-root">
@@ -127,9 +132,6 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                 <button id="preset-clear-local" type="button">${t("preset.clearSelection")}</button>
               </div>
               <div id="preset-local-list" class="preset-overlay-list"></div>
-              <div class="row preset-remake-row">
-                <input id="preset-export-path" class="preset-remake-path" type="text" placeholder="${t("preset.exportPathPlaceholder")}" />
-              </div>
               <footer class="settings-fullscreen-overlay-actions preset-overlay-actions">
                 <button id="preset-export" type="button">${t("preset.exportSelected")}</button>
               </footer>
@@ -270,6 +272,7 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                     <p id="settings-migration-result-message" class="settings-migration-result-message"></p>
                     <footer class="settings-fullscreen-overlay-actions settings-migration-step-actions">
                       <button id="settings-migration-result-retry" type="button" class="ghost">${t("migration.overlay.retry")}</button>
+                      <button id="settings-migration-result-close" type="button">${t("migration.overlay.close")}</button>
                     </footer>
                   </section>
                 </section>
@@ -363,7 +366,11 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
 
     <nav class="tab-bar" role="tablist" aria-label="メインナビゲーション">
       <button type="button" class="tab-bar-item tab-bar-item-active" data-tab="home" role="tab" aria-selected="true">${t("home.tab")}</button>
-      <button type="button" class="tab-bar-item tab-bar-item-report" data-tab="report" role="tab" aria-selected="false">${t("report.title")}<span id="report-tab-badge" class="report-center-badge report-tab-badge" aria-hidden="true"></span></button>
+      <button type="button" class="tab-bar-item tab-bar-item-report" data-tab="report" role="tab" aria-selected="false">
+        ${t("report.title")}
+        <span id="report-tab-badge" class="report-center-badge report-tab-badge" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="tab-bar-item" data-tab="announce" role="tab" aria-selected="false">${t("announce.tab")}</button>
       <button type="button" class="tab-bar-item" data-tab="preset" role="tab" aria-selected="false">${t("preset.tab")}</button>
       <button type="button" class="tab-bar-item" data-tab="settings" role="tab" aria-selected="false">${t("settings.tab")}</button>
     </nav>

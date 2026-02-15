@@ -19,6 +19,7 @@ import {
   resolveInitialLocale,
   saveLocale,
 } from "../i18n";
+import { AnnounceCenter } from "../announce/AnnounceCenter";
 import OnboardingWizard from "../onboarding/OnboardingWizard";
 import { ReportCenter } from "../report/ReportCenter";
 import { OFFICIAL_LINKS, REPORTING_NOTIFICATION_STORAGE_KEY } from "./constants";
@@ -94,11 +95,11 @@ import type {
  */
 const REPORT_HOME_NOTIFICATION_FETCH_GAP_MS = 30_000;
 const REPORT_HOME_NOTIFICATION_POLL_INTERVAL_MS = 180_000;
-const LAUNCHER_MINIMIZE_EFFECT_DURATION_MS = 240;
+const LAUNCHER_MINIMIZE_EFFECT_DURATION_MS = 260;
 const LAUNCHER_AUTO_MINIMIZE_WINDOW_MS = 30_000;
 const SETTINGS_OVERLAY_TRANSITION_MS = 220;
 const LOCALE_SWITCH_RELOAD_ANIMATION_FLAG_KEY = "ui.localeSwitchReloadAnimation";
-type MainTabId = "home" | "report" | "preset" | "settings";
+type MainTabId = "home" | "report" | "announce" | "preset" | "settings";
 type SettingsCategoryId = "general" | "epic" | "migration" | "credit" | "app-version";
 type MigrationMode = "export" | "import";
 type MigrationOverlayStep = "select" | "password" | "processing" | "result";
@@ -106,7 +107,13 @@ type PresetOverlayMode = "import" | "export";
 const DEFAULT_SETTINGS_CATEGORY: SettingsCategoryId = "general";
 
 function isMainTabId(value: string | undefined): value is MainTabId {
-  return value === "home" || value === "report" || value === "preset" || value === "settings";
+  return (
+    value === "home" ||
+    value === "report" ||
+    value === "announce" ||
+    value === "preset" ||
+    value === "settings"
+  );
 }
 
 function isSettingsCategoryId(value: string | undefined): value is SettingsCategoryId {
@@ -264,6 +271,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     settingsMigrationResultTitle,
     settingsMigrationResultMessage,
     settingsMigrationResultRetryButton,
+    settingsMigrationResultCloseButton,
     installStatus,
     launchModdedButton,
     launchVanillaButton,
@@ -284,7 +292,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     presetSelectAllLocalButton,
     presetClearLocalButton,
     presetLocalList,
-    presetExportPathInput,
     presetExportButton,
     presetImportPathInput,
     presetInspectButton,
@@ -338,7 +345,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     activeTab = tabId;
 
     const reportPanel = document.querySelector<HTMLDivElement>("#tab-report");
+    const announcePanel = document.querySelector<HTMLDivElement>("#tab-announce");
     const settingsPanel = document.querySelector<HTMLDivElement>("#tab-settings");
+    const presetPanel = document.querySelector<HTMLDivElement>("#tab-preset");
     const homeContent = document.querySelector<HTMLDivElement>("#tab-home .home-content");
 
     for (const panel of document.querySelectorAll(".tab-panel")) {
@@ -348,8 +357,14 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     if (reportPanel) {
       reportPanel.classList.remove("tab-report-enter");
     }
+    if (announcePanel) {
+      announcePanel.classList.remove("tab-announce-enter");
+    }
     if (settingsPanel) {
       settingsPanel.classList.remove("tab-settings-enter");
+    }
+    if (presetPanel) {
+      presetPanel.classList.remove("tab-preset-enter");
     }
 
     if (homeContent) {
@@ -364,6 +379,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     // Mount/unmount ReportCenter based on tab
     if (tabId === "report") {
       mountReportCenter();
+      unmountAnnounceCenter();
       if (reportPanel) {
         requestAnimationFrame(() => {
           reportPanel.classList.add("tab-report-enter");
@@ -380,8 +396,31 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
           { once: true },
         );
       }
+    } else if (tabId === "announce") {
+      unmountReportCenter();
+      mountAnnounceCenter();
+      if (announcePanel) {
+        requestAnimationFrame(() => {
+          announcePanel.classList.add("tab-announce-enter");
+        });
+
+        announcePanel.addEventListener(
+          "animationend",
+          (event) => {
+            if (
+              event.target !== announcePanel ||
+              event.animationName !== "announce-tab-enter"
+            ) {
+              return;
+            }
+            announcePanel.classList.remove("tab-announce-enter");
+          },
+          { once: true },
+        );
+      }
     } else if (tabId === "settings" && settingsPanel) {
       unmountReportCenter();
+      unmountAnnounceCenter();
       requestAnimationFrame(() => {
         settingsPanel.classList.add("tab-settings-enter");
       });
@@ -396,8 +435,26 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         },
         { once: true },
       );
+    } else if (tabId === "preset" && presetPanel) {
+      unmountReportCenter();
+      unmountAnnounceCenter();
+      requestAnimationFrame(() => {
+        presetPanel.classList.add("tab-preset-enter");
+      });
+
+      presetPanel.addEventListener(
+        "animationend",
+        (event) => {
+          if (event.target !== presetPanel || event.animationName !== "preset-tab-enter") {
+            return;
+          }
+          presetPanel.classList.remove("tab-preset-enter");
+        },
+        { once: true },
+      );
     } else {
       unmountReportCenter();
+      unmountAnnounceCenter();
       if (tabId === "home" && homeContent) {
         requestAnimationFrame(() => {
           homeContent.classList.add("home-content-enter");
@@ -523,6 +580,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   const reportingNotificationEnabled = initialReportingNotificationEnabled;
   let onboardingRoot: Root | null = null;
   let reportCenterRoot: Root | null = null;
+  let announceCenterRoot: Root | null = null;
   let activeTab: MainTabId = "home";
   let reportHomeNotificationLastFetchedAt = 0;
   let reportHomeNotificationFetching = false;
@@ -584,10 +642,29 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     reportCenterRoot.render(<ReportCenter t={t} />);
   }
 
+  function mountAnnounceCenter() {
+    const containerId = "announce-center-root";
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (!announceCenterRoot) {
+      announceCenterRoot = createRoot(container);
+    }
+
+    announceCenterRoot.render(<AnnounceCenter locale={currentLocale} t={t} />);
+  }
+
   function unmountReportCenter() {
     if (reportCenterRoot) {
       reportCenterRoot.unmount();
       reportCenterRoot = null;
+    }
+  }
+
+  function unmountAnnounceCenter() {
+    if (announceCenterRoot) {
+      announceCenterRoot.unmount();
+      announceCenterRoot = null;
     }
   }
 
@@ -854,6 +931,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     settingsMigrationStepPasswordNextButton.disabled =
       migrationProcessing || migrationPassword.trim().length === 0;
     settingsMigrationResultRetryButton.disabled = migrationProcessing;
+    settingsMigrationResultCloseButton.disabled = migrationProcessing;
     const presetProcessing = presetLoading || presetExporting || presetInspecting || presetImporting;
     presetOpenImportButton.disabled = control.presetInspectButtonDisabled;
     presetOpenExportButton.disabled = control.presetRefreshButtonDisabled;
@@ -861,7 +939,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     presetRefreshButton.disabled = control.presetRefreshButtonDisabled;
     presetSelectAllLocalButton.disabled = control.presetSelectAllLocalButtonDisabled;
     presetClearLocalButton.disabled = control.presetClearLocalButtonDisabled;
-    presetExportPathInput.disabled = control.presetExportPathInputDisabled;
     presetExportButton.disabled = control.presetExportButtonDisabled;
     presetImportPathInput.disabled = control.presetImportPathInputDisabled;
     presetInspectButton.disabled = control.presetInspectButtonDisabled;
@@ -1519,8 +1596,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     settingsMigrationStepPassword.hidden = migrationOverlayStep !== "password";
     settingsMigrationStepProcessing.hidden = migrationOverlayStep !== "processing";
     settingsMigrationStepResult.hidden = migrationOverlayStep !== "result";
+    settingsMigrationOverlayCloseButton.hidden = false;
 
     settingsMigrationResultRetryButton.hidden = migrationResultSuccess;
+    settingsMigrationResultCloseButton.hidden = !migrationResultSuccess;
     settingsMigrationResultTitle.textContent = migrationResultSuccess
       ? exportMode
         ? t("migration.overlay.exportCompleteTitle")
@@ -1804,6 +1883,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       void startMigrationFlow(migrationOverlayMode);
     }
   });
+  settingsMigrationResultCloseButton.addEventListener("click", () => {
+    closeMigrationOverlay();
+  });
 
   function isPresetProcessing(): boolean {
     return presetLoading || presetExporting || presetInspecting || presetImporting;
@@ -1820,7 +1902,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     const importMode = presetOverlayMode === "import";
     presetOverlayImportScreen.hidden = !importMode;
     presetOverlayExportScreen.hidden = importMode;
-    presetOverlayTitle.textContent = importMode ? t("preset.importSelected") : t("preset.exportSelected");
+    presetOverlayTitle.textContent = importMode
+      ? t("preset.importSelected")
+      : t("preset.exportSelected");
   }
 
   function openPresetOverlay(mode: PresetOverlayMode): void {
@@ -1844,7 +1928,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   presetOpenImportButton.addEventListener("click", () => {
-    openPresetOverlay("import");
+    void startPresetImportFlow();
   });
 
   presetOpenExportButton.addEventListener("click", () => {
@@ -1880,6 +1964,113 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
   });
 
+  async function resolvePresetExportDefaultPath(): Promise<string | undefined> {
+    try {
+      const downloadsPath = await downloadDir();
+      return join(downloadsPath, "presets.snrpresets");
+    } catch {
+      return "presets.snrpresets";
+    }
+  }
+
+  async function pickPresetExportPath(): Promise<string | null> {
+    const defaultPath = await resolvePresetExportDefaultPath();
+    try {
+      const selectedPath = await save({
+        title: t("preset.exportDialogTitle"),
+        defaultPath,
+        filters: [{ name: "snrpresets", extensions: ["snrpresets"] }],
+      });
+      return selectedPath ?? null;
+    } catch {
+      // user cancelled
+      return null;
+    }
+  }
+
+  async function resolvePresetImportDefaultPath(): Promise<string | undefined> {
+    try {
+      return await downloadDir();
+    } catch {
+      return undefined;
+    }
+  }
+
+  async function pickPresetImportPath(): Promise<string | null> {
+    const defaultPath = await resolvePresetImportDefaultPath();
+    try {
+      const selectedPath = await open({
+        title: t("preset.importDialogTitle"),
+        multiple: false,
+        directory: false,
+        defaultPath,
+        filters: [{ name: "snrpresets", extensions: ["snrpresets"] }],
+      });
+      if (!selectedPath || Array.isArray(selectedPath)) {
+        return null;
+      }
+      return selectedPath;
+    } catch {
+      // user cancelled
+      return null;
+    }
+  }
+
+  async function inspectPresetArchiveWithStatus(archivePath: string): Promise<boolean> {
+    if (!archivePath) {
+      setStatusLine(presetStatus, t("preset.inspectPathRequired"), "warn");
+      return false;
+    }
+
+    presetInspecting = true;
+    updateButtons();
+    setStatusLine(presetStatus, t("preset.statusInspecting"));
+
+    try {
+      archivePresets = await presetsInspectArchive(archivePath);
+      renderArchivePresetList();
+
+      const importable = archivePresets.filter((preset) => preset.hasDataFile).length;
+      const missing = archivePresets.length - importable;
+      setStatusLine(
+        presetStatus,
+        t("preset.statusInspectDone", {
+          total: archivePresets.length,
+          importable,
+          missing,
+        }),
+        importable > 0 ? "success" : "warn",
+      );
+      return true;
+    } catch (error) {
+      archivePresets = [];
+      renderArchivePresetList();
+      setStatusLine(
+        presetStatus,
+        t("preset.statusInspectFailed", { error: String(error) }),
+        "error",
+      );
+      return false;
+    } finally {
+      presetInspecting = false;
+      updateButtons();
+    }
+  }
+
+  async function startPresetImportFlow(): Promise<void> {
+    if (isPresetProcessing()) {
+      return;
+    }
+    closePresetOverlay(true);
+    const archivePath = await pickPresetImportPath();
+    if (!archivePath) {
+      return;
+    }
+    openPresetOverlay("import");
+    presetImportPathInput.value = archivePath;
+    await inspectPresetArchiveWithStatus(archivePath);
+  }
+
   presetRefreshButton.addEventListener("click", async () => {
     await refreshLocalPresets();
   });
@@ -1898,8 +2089,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       setStatusLine(presetStatus, t("preset.exportSelectRequired"), "warn");
       return;
     }
-
-    const outputPath = presetExportPathInput.value.trim();
+    const outputPath = await pickPresetExportPath();
+    if (!outputPath) {
+      return;
+    }
 
     presetExporting = true;
     updateButtons();
@@ -1908,7 +2101,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     try {
       const result = await presetsExport({
         presetIds: selectedIds,
-        outputPath: outputPath.length > 0 ? outputPath : undefined,
+        outputPath,
       });
 
       presetImportPathInput.value = result.archivePath;
@@ -1934,42 +2127,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   presetInspectButton.addEventListener("click", async () => {
     const archivePath = presetImportPathInput.value.trim();
-    if (!archivePath) {
-      setStatusLine(presetStatus, t("preset.inspectPathRequired"), "warn");
-      return;
-    }
-
-    presetInspecting = true;
-    updateButtons();
-    setStatusLine(presetStatus, t("preset.statusInspecting"));
-
-    try {
-      archivePresets = await presetsInspectArchive(archivePath);
-      renderArchivePresetList();
-
-      const importable = archivePresets.filter((preset) => preset.hasDataFile).length;
-      const missing = archivePresets.length - importable;
-      setStatusLine(
-        presetStatus,
-        t("preset.statusInspectDone", {
-          total: archivePresets.length,
-          importable,
-          missing,
-        }),
-        importable > 0 ? "success" : "warn",
-      );
-    } catch (error) {
-      archivePresets = [];
-      renderArchivePresetList();
-      setStatusLine(
-        presetStatus,
-        t("preset.statusInspectFailed", { error: String(error) }),
-        "error",
-      );
-    } finally {
-      presetInspecting = false;
-      updateButtons();
-    }
+    await inspectPresetArchiveWithStatus(archivePath);
   });
 
   presetSelectAllArchiveButton.addEventListener("click", () => {
@@ -2206,7 +2364,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   renderLocalPresetList();
   renderArchivePresetList();
   renderPresetOverlayContent();
-  setStatusLine(presetStatus, t("preset.statusReadyToRefresh"));
 
   async function runUpdateCheck(source: "manual" | "startup"): Promise<void> {
     if (checkingUpdate) {

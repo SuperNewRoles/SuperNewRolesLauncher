@@ -49,6 +49,7 @@ export interface AppDom {
   settingsMigrationResultTitle: HTMLHeadingElement;
   settingsMigrationResultMessage: HTMLParagraphElement;
   settingsMigrationResultRetryButton: HTMLButtonElement;
+  settingsMigrationResultCloseButton: HTMLButtonElement;
   installStatus: HTMLSpanElement;
   launchModdedButton: HTMLButtonElement;
   launchVanillaButton: HTMLButtonElement;
@@ -69,7 +70,6 @@ export interface AppDom {
   presetSelectAllLocalButton: HTMLButtonElement;
   presetClearLocalButton: HTMLButtonElement;
   presetLocalList: HTMLDivElement;
-  presetExportPathInput: HTMLInputElement;
   presetExportButton: HTMLButtonElement;
   presetImportPathInput: HTMLInputElement;
   presetInspectButton: HTMLButtonElement;
@@ -199,6 +199,9 @@ export function collectAppDom(): AppDom {
     settingsMigrationResultRetryButton: mustElement<HTMLButtonElement>(
       "#settings-migration-result-retry",
     ),
+    settingsMigrationResultCloseButton: mustElement<HTMLButtonElement>(
+      "#settings-migration-result-close",
+    ),
     installStatus: mustElement<HTMLSpanElement>("#install-status"),
     launchModdedButton: mustElement<HTMLButtonElement>("#launch-modded"),
     launchVanillaButton: mustElement<HTMLButtonElement>("#launch-vanilla"),
@@ -219,7 +222,6 @@ export function collectAppDom(): AppDom {
     presetSelectAllLocalButton: mustElement<HTMLButtonElement>("#preset-select-all-local"),
     presetClearLocalButton: mustElement<HTMLButtonElement>("#preset-clear-local"),
     presetLocalList: mustElement<HTMLDivElement>("#preset-local-list"),
-    presetExportPathInput: mustElement<HTMLInputElement>("#preset-export-path"),
     presetExportButton: mustElement<HTMLButtonElement>("#preset-export"),
     presetImportPathInput: mustElement<HTMLInputElement>("#preset-import-path"),
     presetInspectButton: mustElement<HTMLButtonElement>("#preset-inspect"),
