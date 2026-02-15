@@ -349,7 +349,8 @@ async fn download_patchers_into_staging<R: Runtime>(
         }
 
         let destination = patchers_dir.join(name);
-        let url = format!("{PATCHER_BASE_URL}{name}");
+        let encoded_name = urlencoding::encode(name);
+        let url = format!("{PATCHER_BASE_URL}{encoded_name}");
 
         let download_result = download::download_file(
             client,
@@ -380,12 +381,13 @@ async fn download_patchers_into_staging<R: Runtime>(
                 app,
                 "patchers",
                 (index as f64 / total_patchers as f64) * 100.0,
-                format!("Download failed ({index}/{total_patchers})"),
+                format!("Download failed ({index}/{total_patchers}): {error}"),
                 None,
                 None,
                 Some(index),
                 Some(total_patchers),
             );
+            eprintln!("Failed to download patcher '{name}': {error}");
             let _ = fs::remove_file(&destination);
             continue;
         }
@@ -397,12 +399,13 @@ async fn download_patchers_into_staging<R: Runtime>(
                     app,
                     "patchers",
                     (index as f64 / total_patchers as f64) * 100.0,
-                    format!("MD5 mismatch ({index}/{total_patchers})"),
+                    format!("MD5 mismatch ({index}/{total_patchers}): {error}"),
                     None,
                     None,
                     Some(index),
                     Some(total_patchers),
                 );
+                eprintln!("Failed to verify patcher '{name}': {error}");
                 let _ = fs::remove_file(&destination);
                 continue;
             }
@@ -1153,12 +1156,13 @@ async fn install_snr_release_inner<R: Runtime>(
             app,
             "patchers",
             100.0,
-            "Skipping patchers synchronization",
+            format!("Skipping patchers synchronization: {error}"),
             None,
             None,
             None,
             None,
         );
+        eprintln!("Failed to synchronize patchers: {error}");
     }
 
     let restored_save_files = if restore_preserved_save_data {
