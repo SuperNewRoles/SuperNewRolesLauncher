@@ -377,7 +377,7 @@ async fn download_patchers_into_staging<R: Runtime>(
             })
             .await;
 
-        if download_result.is_err() {
+        if let Err(error) = download_result {
             skipped.push(name.to_string());
             emit_progress(
                 app,
@@ -395,7 +395,7 @@ async fn download_patchers_into_staging<R: Runtime>(
         }
 
         if let Some(expected_md5) = patcher.expected_md5.as_deref() {
-            if verify_md5(&destination, expected_md5).is_err() {
+            if let Err(error) = verify_md5(&destination, expected_md5) {
                 skipped.push(name.to_string());
                 emit_progress(
                     app,
@@ -1158,10 +1158,7 @@ async fn install_snr_release_inner<R: Runtime>(
         );
     })?;
 
-    if download_patchers_into_staging(app, &client, &staging_path)
-        .await
-        .is_err()
-    {
+    if let Err(error) = download_patchers_into_staging(app, &client, &staging_path).await {
         emit_progress(
             app,
             "patchers",
