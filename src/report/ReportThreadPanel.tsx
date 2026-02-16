@@ -76,7 +76,7 @@ export function ReportThreadPanel({
 
       container.scrollTop = container.scrollHeight;
     });
-  }, [isOpen, isLoading]);
+  }, [isOpen, isLoading, normalizedMessages]);
 
   const handleSend = useCallback(async () => {
     if (!replyText.trim()) return;

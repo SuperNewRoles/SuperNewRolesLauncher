@@ -8,6 +8,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Runtime};
 
 const RELEASES_API_URL: &str =
@@ -28,6 +29,9 @@ const INSTALL_DOWNLOAD_END: f64 = 80.0;
 const INSTALL_EXTRACT_END: f64 = 98.0;
 const INSTALL_PATCHERS_END: f64 = 99.0;
 const INSTALL_RESTORE_END: f64 = 100.0;
+const PATCHER_SYNC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+const PATCHER_SYNC_REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
+const PATCHER_SYNC_MAX_DURATION: Duration = Duration::from_secs(45);
 
 fn scale_progress(stage_percent: f64, start: f64, end: f64) -> f64 {
     let ratio = stage_percent.clamp(0.0, 100.0) / 100.0;
@@ -182,6 +186,29 @@ fn emit_progress<R: Runtime>(
     );
 }
 
+fn patcher_sync_client() -> Result<Client, String> {
+    Client::builder()
+        .user_agent(format!(
+            "SuperNewRolesLauncher/{}",
+            env!("CARGO_PKG_VERSION")
+        ))
+        .connect_timeout(PATCHER_SYNC_CONNECT_TIMEOUT)
+        .timeout(PATCHER_SYNC_REQUEST_TIMEOUT)
+        .build()
+        .map_err(|e| format!("Failed to create patcher HTTP client: {e}"))
+}
+
+fn ensure_patcher_sync_within_time(started_at: Instant) -> Result<(), String> {
+    if started_at.elapsed() <= PATCHER_SYNC_MAX_DURATION {
+        return Ok(());
+    }
+
+    Err(format!(
+        "Patcher synchronization timed out after {} seconds",
+        PATCHER_SYNC_MAX_DURATION.as_secs()
+    ))
+}
+
 async fn fetch_patcher_manifest(client: &Client) -> Result<Vec<PatchFile>, String> {
     let response = client
         .get(PATCHER_MANIFEST_URL)
@@ -297,6 +324,7 @@ async fn download_patchers_into_staging<R: Runtime>(
     client: &Client,
     staging_path: &Path,
 ) -> Result<Vec<String>, String> {
+    let started_at = Instant::now();
     let patchers = fetch_patcher_manifest(client).await?;
     if patchers.is_empty() {
         emit_progress(
@@ -335,6 +363,7 @@ async fn download_patchers_into_staging<R: Runtime>(
     let mut skipped: Vec<String> = Vec::new();
 
     for (index, patcher) in patchers.iter().enumerate() {
+        ensure_patcher_sync_within_time(started_at)?;
         let index = index + 1;
         let name = patcher.name.trim();
         let base_progress = ((index - 1) as f64 / total_patchers as f64) * 100.0;
@@ -1158,7 +1187,13 @@ async fn install_snr_release_inner<R: Runtime>(
         );
     })?;
 
-    if let Err(error) = download_patchers_into_staging(app, &client, &staging_path).await {
+    let patcher_sync_result = match patcher_sync_client() {
+        Ok(patcher_client) => {
+            download_patchers_into_staging(app, &patcher_client, &staging_path).await
+        }
+        Err(error) => Err(error),
+    };
+    if let Err(error) = patcher_sync_result {
         emit_progress(
             app,
             "patchers",

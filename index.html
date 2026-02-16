@@ -4,9 +4,44 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SuperNewRolesLauncher</title>
+    <style>
+      .startup-loader {
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .startup-loader-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(15, 106, 191, 0.25);
+        border-top-color: #0f6abf;
+        border-radius: 50%;
+        animation: startup-loader-spin 0.9s linear infinite;
+      }
+
+      @keyframes startup-loader-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .startup-loader-spinner {
+          border-color: rgba(90, 176, 255, 0.28);
+          border-top-color: #5ab0ff;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div class="startup-loader" aria-hidden="true">
+        <div class="startup-loader-spinner" aria-hidden="true"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
