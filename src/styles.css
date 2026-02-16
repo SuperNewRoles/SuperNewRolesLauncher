@@ -1705,8 +1705,7 @@ progress {
   flex-direction: column;
   border-radius: 16px;
   border: 1px solid rgba(148, 163, 184, 0.32);
-  background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.92), rgba(245, 250, 255, 0.82)),
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.92), rgba(245, 250, 255, 0.82)),
     var(--card);
   box-shadow: 0 24px 52px rgba(15, 23, 42, 0.34);
   padding: 12px;
@@ -1769,9 +1768,7 @@ progress {
 }
 
 :root[data-theme="dark"] .onboarding-main-container {
-  background:
-    linear-gradient(165deg, rgba(10, 18, 34, 0.96), rgba(12, 24, 44, 0.9)),
-    var(--card);
+  background: linear-gradient(165deg, rgba(10, 18, 34, 0.96), rgba(12, 24, 44, 0.9)), var(--card);
   border-color: rgba(90, 176, 255, 0.42);
   box-shadow: 0 26px 56px rgba(0, 0, 0, 0.56);
 }
@@ -1808,9 +1805,7 @@ progress {
   padding: 12px;
   background: linear-gradient(165deg, rgba(255, 255, 255, 0.9), rgba(246, 251, 255, 0.84));
   border-color: rgba(125, 149, 180, 0.34);
-  box-shadow:
-    0 14px 34px rgba(15, 23, 42, 0.2),
-    0 4px 12px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.2), 0 4px 12px rgba(15, 23, 42, 0.1);
   backdrop-filter: blur(10px) saturate(1.08);
   -webkit-backdrop-filter: blur(10px) saturate(1.08);
 }
@@ -1818,9 +1813,7 @@ progress {
 :root[data-theme="dark"] .onboarding-wizard.onboarding-mode-spotlight .onboarding-main-container {
   background: linear-gradient(165deg, rgba(9, 18, 34, 0.86), rgba(12, 24, 44, 0.78));
   border-color: rgba(90, 176, 255, 0.38);
-  box-shadow:
-    0 16px 36px rgba(0, 0, 0, 0.52),
-    0 4px 10px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.52), 0 4px 10px rgba(0, 0, 0, 0.32);
   backdrop-filter: blur(8px) saturate(1.06);
   -webkit-backdrop-filter: blur(8px) saturate(1.06);
 }
@@ -1859,7 +1852,9 @@ progress {
   overflow: visible;
 }
 
-.onboarding-wizard.onboarding-mode-spotlight .onboarding-slide-container .step-transition-container {
+.onboarding-wizard.onboarding-mode-spotlight
+  .onboarding-slide-container
+  .step-transition-container {
   height: auto;
 }
 
@@ -1877,8 +1872,6 @@ progress {
 
 .onboarding-slide-container .step-transition-slide.step-static {
   position: relative;
-  top: auto;
-  left: auto;
   inset: auto;
   width: 100%;
   animation: none;
@@ -1891,20 +1884,28 @@ progress {
   min-height: 0;
 }
 
-.onboarding-wizard.onboarding-mode-fullscreen .onboarding-slide-container .step-transition-slide.step-static {
+.onboarding-wizard.onboarding-mode-fullscreen
+  .onboarding-slide-container
+  .step-transition-slide.step-static {
   height: 100%;
   overflow: auto;
   padding-right: 2px;
 }
 
-.onboarding-wizard.onboarding-mode-spotlight .onboarding-slide-container .step-transition-slide.step-static {
+.onboarding-wizard.onboarding-mode-spotlight
+  .onboarding-slide-container
+  .step-transition-slide.step-static {
   height: auto;
   overflow: visible;
   padding-right: 0;
 }
 
-.onboarding-wizard.onboarding-mode-fullscreen .onboarding-slide-container .step-transition-slide.step-enter,
-.onboarding-wizard.onboarding-mode-fullscreen .onboarding-slide-container .step-transition-slide.step-exit {
+.onboarding-wizard.onboarding-mode-fullscreen
+  .onboarding-slide-container
+  .step-transition-slide.step-enter,
+.onboarding-wizard.onboarding-mode-fullscreen
+  .onboarding-slide-container
+  .step-transition-slide.step-exit {
   position: absolute;
   inset: 0;
   height: 100%;
@@ -2089,17 +2090,13 @@ progress {
   pointer-events: none !important;
   outline: 2px solid rgba(255, 255, 255, 0.96);
   outline-offset: 4px;
-  box-shadow:
-    0 0 0 8px rgba(var(--accent-rgb), 0.28),
-    0 0 26px rgba(var(--accent-rgb), 0.52);
+  box-shadow: 0 0 0 8px rgba(var(--accent-rgb), 0.28), 0 0 26px rgba(var(--accent-rgb), 0.52);
   transition: box-shadow 180ms ease, transform 180ms ease;
 }
 
 .onboarding-spotlight-target.onboarding-spotlight-target-focus {
   transform: translateY(-2px);
-  box-shadow:
-    0 0 0 8px rgba(var(--accent-rgb), 0.34),
-    0 0 34px rgba(var(--accent-rgb), 0.62);
+  box-shadow: 0 0 0 8px rgba(var(--accent-rgb), 0.34), 0 0 34px rgba(var(--accent-rgb), 0.62);
 }
 
 /* Connect Step Buttons */

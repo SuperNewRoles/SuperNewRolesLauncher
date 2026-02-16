@@ -159,7 +159,9 @@ export default function OnboardingWizard({ onComplete, onStepChange }: Onboardin
   const onboardingMorphClass = isModeMorphing ? "onboarding-mode-morphing" : "";
 
   return (
-    <div className={`install-wizard onboarding-wizard ${onboardingModeClass} ${onboardingMorphClass}`}>
+    <div
+      className={`install-wizard onboarding-wizard ${onboardingModeClass} ${onboardingMorphClass}`}
+    >
       <div className="onboarding-main-container">
         <div className="onboarding-header">
           <div className="onboarding-title">{getStepTitle(step)}</div>
