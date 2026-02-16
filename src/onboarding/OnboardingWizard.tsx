@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createTranslator, resolveInitialLocale } from "../i18n";
 import StepTransition from "./StepTransition";
 import { CompleteStep } from "./steps/CompleteStep";
@@ -128,12 +128,32 @@ export default function OnboardingWizard({ onComplete, onStepChange }: Onboardin
   };
 
   const isFullscreenStep = step === "welcome" || step === "connect" || step === "complete";
+  const [modeTransitionClass, setModeTransitionClass] = useState("");
+  const previousFullscreenStepRef = useRef(isFullscreenStep);
+
+  useEffect(() => {
+    if (previousFullscreenStepRef.current === isFullscreenStep) {
+      return;
+    }
+
+    previousFullscreenStepRef.current = isFullscreenStep;
+    setModeTransitionClass(
+      isFullscreenStep ? "onboarding-transition-to-fullscreen" : "onboarding-transition-to-spotlight",
+    );
+
+    const timer = window.setTimeout(() => {
+      setModeTransitionClass("");
+    }, 420);
+
+    return () => window.clearTimeout(timer);
+  }, [isFullscreenStep]);
+
   const onboardingModeClass = isFullscreenStep
     ? "onboarding-mode-fullscreen"
     : "onboarding-mode-spotlight";
 
   return (
-    <div className={`install-wizard onboarding-wizard ${onboardingModeClass}`}>
+    <div className={`install-wizard onboarding-wizard ${onboardingModeClass} ${modeTransitionClass}`}>
       <div className="onboarding-main-container">
         <div className="onboarding-header">
           <div className="onboarding-title">{getStepTitle(step)}</div>
