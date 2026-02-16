@@ -15,6 +15,10 @@ interface OnboardingWizardProps {
   onStepChange?: (step: OnboardingStep) => void;
 }
 
+const isFullscreenOnboardingStep = (candidate: OnboardingStep): boolean =>
+  candidate === "welcome" || candidate === "connect" || candidate === "complete";
+const ONBOARDING_MODE_MORPH_MS = 320;
+
 export default function OnboardingWizard({ onComplete, onStepChange }: OnboardingWizardProps) {
   const [step, setStep] = useState<OnboardingStep>("welcome");
   // Note: ideally we should lift locale state up if we want dynamic language switching,
@@ -80,7 +84,7 @@ export default function OnboardingWizard({ onComplete, onStepChange }: Onboardin
     onComplete("skip");
   }, [onComplete]);
 
-  const renderStep = (s: OnboardingStep, isExiting: boolean, _direction: "forward" | "back") => {
+  const renderStep = (s: OnboardingStep, _isExiting: boolean, _direction: "forward" | "back") => {
     const commonProps = {
       t,
       onNext: handleNext,
@@ -127,33 +131,35 @@ export default function OnboardingWizard({ onComplete, onStepChange }: Onboardin
     }
   };
 
-  const isFullscreenStep = step === "welcome" || step === "connect" || step === "complete";
-  const [modeTransitionClass, setModeTransitionClass] = useState("");
-  const previousFullscreenStepRef = useRef(isFullscreenStep);
+  const isFullscreenStep = isFullscreenOnboardingStep(step);
+  const shouldAnimateStepTransition = useCallback(
+    (from: OnboardingStep, to: OnboardingStep) =>
+      isFullscreenOnboardingStep(from) === isFullscreenOnboardingStep(to),
+    [],
+  );
+  const [isModeMorphing, setIsModeMorphing] = useState(false);
+  const prevFullscreenStepRef = useRef(isFullscreenStep);
 
   useEffect(() => {
-    if (previousFullscreenStepRef.current === isFullscreenStep) {
+    if (prevFullscreenStepRef.current === isFullscreenStep) {
       return;
     }
 
-    previousFullscreenStepRef.current = isFullscreenStep;
-    setModeTransitionClass(
-      isFullscreenStep ? "onboarding-transition-to-fullscreen" : "onboarding-transition-to-spotlight",
-    );
-
+    prevFullscreenStepRef.current = isFullscreenStep;
+    setIsModeMorphing(true);
     const timer = window.setTimeout(() => {
-      setModeTransitionClass("");
-    }, 420);
-
+      setIsModeMorphing(false);
+    }, ONBOARDING_MODE_MORPH_MS);
     return () => window.clearTimeout(timer);
   }, [isFullscreenStep]);
 
   const onboardingModeClass = isFullscreenStep
     ? "onboarding-mode-fullscreen"
     : "onboarding-mode-spotlight";
+  const onboardingMorphClass = isModeMorphing ? "onboarding-mode-morphing" : "";
 
   return (
-    <div className={`install-wizard onboarding-wizard ${onboardingModeClass} ${modeTransitionClass}`}>
+    <div className={`install-wizard onboarding-wizard ${onboardingModeClass} ${onboardingMorphClass}`}>
       <div className="onboarding-main-container">
         <div className="onboarding-header">
           <div className="onboarding-title">{getStepTitle(step)}</div>
@@ -164,7 +170,9 @@ export default function OnboardingWizard({ onComplete, onStepChange }: Onboardin
           )}
         </div>
         <div className="onboarding-slide-container">
-          <StepTransition step={step}>{renderStep}</StepTransition>
+          <StepTransition step={step} shouldAnimateTransition={shouldAnimateStepTransition}>
+            {renderStep}
+          </StepTransition>
         </div>
       </div>
     </div>
