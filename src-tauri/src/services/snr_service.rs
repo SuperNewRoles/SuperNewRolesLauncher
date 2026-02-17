@@ -46,8 +46,17 @@ fn patcher_manifest_url() -> &'static str {
     mod_profile::get().distribution.patchers.manifest_url.as_str()
 }
 
-fn patcher_base_url() -> &'static str {
-    mod_profile::get().distribution.patchers.base_url.as_str()
+fn patcher_base_url() -> String {
+    let mut base = mod_profile::get()
+        .distribution
+        .patchers
+        .base_url
+        .trim()
+        .to_string();
+    if !base.ends_with('/') {
+        base.push('/');
+    }
+    base
 }
 
 fn asset_regex_for_platform(platform: &settings::GamePlatform) -> Result<Regex, String> {

@@ -193,11 +193,16 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
         ));
     }
     non_empty("distribution.githubRepo", &profile.distribution.github_repo)?;
-    if !profile.distribution.github_repo.contains('/') {
+    let github_repo = profile.distribution.github_repo.trim();
+    let is_valid_repo_format = github_repo
+        .split_once('/')
+        .is_some_and(|(owner, repo)| !owner.is_empty() && !repo.is_empty() && !repo.contains('/'));
+    if !is_valid_repo_format {
         return Err(
             "Invalid mod config: distribution.githubRepo must be '<owner>/<repo>'".to_string(),
         );
     }
+    profile.distribution.github_repo = github_repo.to_string();
     non_empty(
         "distribution.assetRegex.steam",
         &profile.distribution.asset_regex.steam,

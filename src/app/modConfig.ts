@@ -131,6 +131,20 @@ function assertModConfig(input: ModConfig): ModConfig {
   if (!Array.isArray(input.migration.profileIncludePatterns) || input.migration.profileIncludePatterns.length === 0) {
     throw new Error("Invalid mod config: 'migration.profileIncludePatterns' must contain at least one entry.");
   }
+  if (!Array.isArray(input.links.official)) {
+    throw new Error("Invalid mod config: 'links.official' must be an array.");
+  }
+  for (const [index, item] of input.links.official.entries()) {
+    ensureNonEmpty(item.label, `links.official[${index}].label`);
+    ensureNonEmpty(item.url, `links.official[${index}].url`);
+    ensureNonEmpty(item.backgroundColor, `links.official[${index}].backgroundColor`);
+    const iconId = ensureNonEmpty(String(item.iconId ?? ""), `links.official[${index}].iconId`);
+    if (!(iconId in SOCIAL_ICON_SPECS)) {
+      throw new Error(
+        `Invalid mod config: 'links.official[${index}].iconId' must be one of ${Object.keys(SOCIAL_ICON_SPECS).join(", ")}.`,
+      );
+    }
+  }
 
   return input;
 }
