@@ -203,6 +203,10 @@ export function launchShortcutCreate(): Promise<string> {
   return invoke<string>("launch_shortcut_create");
 }
 
+export function launchModdedFirstSetupPending(gameExe: string): Promise<boolean> {
+  return invoke<boolean>("launch_modded_first_setup_pending", { gameExe });
+}
+
 export function launchAutolaunchErrorTake(): Promise<string | null> {
   return invoke<string | null>("launch_autolaunch_error_take");
 }

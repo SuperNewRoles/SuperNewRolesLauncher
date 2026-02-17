@@ -138,11 +138,17 @@ export interface EpicLoginStatus {
   profileError: string | null;
 }
 
+export type SocialBrandId = "fanbox" | "discord" | "youtube" | "github" | "x";
+
+export type SocialIcon =
+  | { kind: "svg-path"; viewBox: string; pathD: string }
+  | { kind: "image"; src: string; imageClassName?: string };
+
 export interface OfficialLink {
   label: string;
   url: string;
   backgroundColor: string;
-  iconSvg: string;
+  icon: SocialIcon;
 }
 
 export interface ReportingPrepareResult {

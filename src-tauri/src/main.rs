@@ -235,6 +235,7 @@ pub fn run() {
             commands::launch::launch_modded,
             commands::launch::launch_vanilla,
             commands::launch::launch_shortcut_create,
+            commands::launch::launch_modded_first_setup_pending,
             commands::launch::launch_autolaunch_error_take,
             commands::launch::launch_game_running_get,
             commands::epic_commands::epic_auth_url_get,

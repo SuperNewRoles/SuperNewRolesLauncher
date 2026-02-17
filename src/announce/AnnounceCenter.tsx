@@ -219,9 +219,16 @@ export function AnnounceCenter({
                 onClick={() => {
                   void refreshArticles(true);
                 }}
+                aria-label={t("announce.refresh")}
+                title={t("announce.refresh")}
                 disabled={loadingList || loadingDetail}
               >
-                {t("announce.refresh")}
+                <span
+                  className={`announce-refresh-icon${loadingList ? " is-spinning" : ""}`}
+                  aria-hidden="true"
+                >
+                  ↻
+                </span>
               </button>
             </div>
           </header>

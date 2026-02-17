@@ -1,172 +1,188 @@
-# SuperNewRolesLauncher (Tauri)
+<div align="center">
 
-このリポジトリは **Tauri v2 + Vite(バニラTypeScript)** の雛形を含みます。
+# SuperNewRolesLauncher
 
-## 必要なもの
+![SuperNewRolesのロゴ](./docs/SNRImage.png)
 
-- Node.js (既に入っていればOK)
-- Rust toolchain (rustup)
-- Windowsの場合はビルドツール (MSVC)
+[![GitHub Release](https://img.shields.io/github/v/release/SuperNewRoles/SuperNewRolesLauncher?style=for-the-badge&logo=github&label=Latest)](https://github.com/SuperNewRoles/SuperNewRolesLauncher/releases/latest)
+[![License](https://img.shields.io/github/license/SuperNewRoles/SuperNewRolesLauncher?style=for-the-badge)](./LICENSE)
+![Platform](https://img.shields.io/badge/platform-Windows-blue?style=for-the-badge&logo=windows)
 
-### Rustの導入
+**AmongUs非公式Mod「[SuperNewRoles](https://supernewroles.com)」を簡単にインストール・起動できるランチャーです。**
 
-```powershell
-winget install Rustlang.Rustup
-rustup default stable
-```
+[<kbd> <br> ダウンロード <br> </kbd>](https://github.com/SuperNewRoles/SuperNewRolesLauncher/releases/latest/download/SuperNewRolesLauncher_x64-setup.exe)
+<br>
+日本語<br>
+[導入方法](#-導入方法) · [機能](#-機能) · [クレジット](#-クレジット) <br>
+English<br>
+[Installation](#-installation) · [Feature](#-features) · [Credits](#-credits)<br>
 
-## 開発起動
+</div>
 
-```powershell
-npm install
-npm run tauri:dev
-```
+> [!NOTE]
+> Windowsのみサポートしています。Android版は [Starlight](https://wiki.supernewroles.com/Android%E7%89%88%E3%81%AE%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB%E6%96%B9%E6%B3%95) をお使いください。
 
-## ビルド
+---
 
-```powershell
-npm run tauri:build
-```
+## 📥 導入方法
 
-## 品質チェック
+### 1. インストーラーをダウンロード
 
-開発時は以下を実行してください。
+[**こちら**](https://github.com/SuperNewRoles/SuperNewRolesLauncher/releases/latest/download/SuperNewRolesLauncher_x64-setup.exe) から最新版のインストーラーをダウンロードして実行します。
 
-```powershell
-npm run lint
-npm run test
-npm run build
-cd src-tauri
-cargo fmt --check
-cargo clippy -- -D warnings
-cargo test
-```
+### 2. Windows Defenderの警告が出た場合
 
-アーキテクチャ方針は `docs/ARCHITECTURE.md` を参照してください。
+「**詳細情報**」をクリック → 「**実行**」を押してください。
 
-## 自動アップデート (in-app updater)
+| 詳細情報をクリック | 実行をクリック |
+|:---:|:---:|
+| ![詳細情報をクリック](./docs/DefenderSS_Information.png) | ![実行をクリック](./docs/DefenderSS_Run.png) |
 
-このプロジェクトは `@tauri-apps/plugin-updater` を組み込み済みです。  
-`src-tauri/tauri.conf.json` の以下2項目は必ず実値に置き換えてください。
+### 3. インストーラーの指示に従う
 
-- `plugins.updater.endpoints` (更新メタデータ `latest.json` のURL)
-- `plugins.updater.pubkey` (Tauri updater の公開鍵)
+基本的に全て「**次へ**」をクリックすれば問題ありません。
 
-GitHub Releases で運用する場合、`endpoints` は次の形式です。
+### 4. SuperNewRolesをセットアップ
 
-```json
-"endpoints": ["https://github.com/<OWNER>/<REPO>/releases/latest/download/latest.json"]
-```
+SuperNewRoles Launcherが起動したら、画面の指示に沿ってSuperNewRolesをインストールしてください。
 
-### プライベートリポジトリでのテスト
+> [!TIP]
+> 既にSuperNewRolesを導入している場合は、「**既存データの取り込み**」から「**インストール済みのSuperNewRolesからデータを取り込む**」を有効にすると、設定などを引き継ぐことができます。
 
-`endpoints` は同じ URL 形式のままで、アプリ側から `Authorization` ヘッダーを付けて更新チェックできます。  
-このプロジェクトでは更新UIに `Private repo test token` 入力欄を追加しているため、以下でテスト可能です。
+### 5. 起動！
 
-1. GitHub の Personal Access Token (PAT) を発行（対象リポジトリへの読み取り権限付き）
-2. アプリの更新セクションで token を入力
-3. 必要なら `トークン保存` を押してローカル保存（`localStorage`）
-4. `更新を確認` を実行
+「**起動**」ボタンを押すだけでSuperNewRolesがスタートします！
 
-注意: token は平文でローカル保存されるため、本番配布ビルドでの恒久運用には使わず、テスト用途に限定してください。
+---
 
-### 鍵の生成 (初回のみ)
+## ✨ 機能
 
-```powershell
-npx tauri signer generate --write-keys "$env:USERPROFILE\\.tauri\\supernewroles.key"
-```
+### 🎮 SuperNewRolesの起動
 
-生成時に表示される公開鍵を `src-tauri/tauri.conf.json` の `plugins.updater.pubkey` に設定します。
+Steam / Epic版のAmongUsに対して、SuperNewRolesを導入した状態で起動できます。設定からショートカットを作成すれば、ランチャーを開かずに直接起動することも可能です。
 
-### 署名付きアップデート成果物を作る
+| プラットフォーム | 備考 |
+|:---|:---|
+| **Steam** | Steamが起動している必要があります |
+| **Epic Games** | SNRLauncher内でEpic認証を行えば、Epic Games Launcherなしでもログイン済み状態で起動できます |
 
-PowerShell セッションで秘密鍵を環境変数に設定してからビルドします。
+### 📢 報告センター
 
-```powershell
-$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content "$env:USERPROFILE\\.tauri\\supernewroles.key" -Raw
-npm run tauri:build
-```
+ゲーム内報告機能が使えます。新しい報告の作成や、開発者からのメッセージの確認ができます。
 
-`bundle.createUpdaterArtifacts` は有効化済みなので、ビルド時に updater 用ファイルと署名が生成されます。
+### 📣 アナウンス
 
-## SNR Releases ZIP インストール機能
+SuperNewRolesからのお知らせがランチャー上に表示されます。
 
-ランチャーは `SuperNewRoles/SuperNewRoles` の GitHub Releases から `Steam/Epic` 用 zip を取得し、  
-`%AppData%/SuperNewRolesLauncher/profiles/default` に展開できます。
+### 📋 プリセット
 
-- `SNRタグ` は UI で毎回選択
-- インストール時は `snr-install-progress` イベントで進捗を通知
-- 展開時は staging (`default._staging`) を使い、成功時のみ `default` へ切り替え
-- `Modをアンインストール` でプロファイル中身を全削除
-- アンインストール時に「現行4ファイル」を保持し、次回インストール時に復元オプションで再利用可能
-- 必須ファイル検証:
-  - `winhttp.dll`
-  - `doorstop_config.ini`
-  - `BepInEx/core/BepInEx.Unity.IL2CPP.dll`
-  - `dotnet/coreclr.dll`
+ゲーム内の**設定プリセット**をエクスポート/インポートできます。他のプレイヤーと設定を共有するのに便利です。
 
-### Mod起動
+### 📦 データお引越し
 
-`launch_modded` は Among Us 実行時に doorstop 引数を付与して、展開先プロファイルを参照して起動します。  
-`launch_vanilla` は通常起動です。
+SuperNewRolesに関連するデータを1つのファイルにまとめて保存・復元できます。
 
-ランチャーUIには「Mod起動ショートカット作成」ボタンがあります。作成されるショートカットは
-`--autolaunch-modded` 付きでランチャーを起動し、通常は画面を表示せずにMod起動を試みます。
-起動に失敗した場合のみランチャー画面を表示して、失敗理由をステータスに表示します。
+> [!WARNING]
+> データお引越しファイルには個人データが含まれます。他のプレイヤーに渡さないでください。設定の共有には**プリセット機能**を使用してください。
 
-## データお引越し (.snrdata)
+---
 
-ランチャーの「データお引越し」機能で、移行用アーカイブ (`.snrdata`) を書き出し/読み込みできます。
+## 🙏 クレジット
 
-- 書き出し対象（プロファイル内、正規表現マッチ）
-  - `SuperNewRolesNext/SaveData/Options.data`
-  - `SuperNewRolesNext/SaveData/PresetOptions_(0|[1-9]\d*).data`
-  - `SuperNewRolesNext/SaveData/SuperTrophyData.dat`
-  - `SuperNewRolesNext/SaveData/CustomCosmetics.data`
-- 追加で `LocalLow/Innersloth/SuperNewRoles` 配下も含めます（ゲーム内報告アカウント等）
-- 書き出し時は「パスワード暗号化」を ON/OFF できます（ON の場合は復元時に同じパスワードが必要）
-- 読み込み時は「完全同期」で復元します
-  - プロファイル側は管理対象ファイルを一度クリアしてから復元
-  - `LocalLow/Innersloth/SuperNewRoles` は一度クリアしてから復元
-  - 復元失敗時はバックアップからロールバックを試みます
+| プロジェクト | 用途 |
+|:---|:---|
+| [Tauri](https://github.com/tauri-apps/tauri) | アプリケーションフレームワーク |
+| [Vite](https://github.com/vitejs/vite) | フロントエンド開発 |
+| [All-Of-Us-Mods/Starlight-PC](https://github.com/All-Of-Us-Mods/Starlight-PC) | BepInEx分離起動 & Epicログインの参考 |
 
-### Epic認証
+---
 
-Epic は以下の両方に対応しています。
+<div align="center">
 
-- WebView ログイン (`epic_login_webview`)
-- 認証コード手入力 (`epic_login_code`)
+# English
 
-セッションは keyring に保存し、`settings.json` には保存しません。
+</div>
 
-## CI/CD (GitHub Actions)
+## SuperNewRolesLauncher
 
-以下の workflow を追加済みです。
+![SuperNewRoles Logo](./docs/SNRImage.png)
 
-- `.github/workflows/ci.yml`
-  - `main` への push / PR で `npm run lint` / `npm run test` / `npm run build` / `cargo fmt --check` / `cargo clippy -- -D warnings` / `cargo test` を実行
-- `.github/workflows/release.yml`
-  - `v*` タグ push で Tauri ビルドし、GitHub Release に成果物を公開
-  - `latest.json` も自動アップロード (`uploadUpdaterJson: true`)
+**A launcher that makes it easy to install and launch [SuperNewRoles](https://supernewroles.com), an unofficial mod for Among Us.**
 
-### 必要な GitHub Secrets
+[<kbd> <br> Download <br> </kbd>](https://github.com/SuperNewRoles/SuperNewRolesLauncher/releases/latest/download/SuperNewRolesLauncher_x64-setup.exe)
 
-- `TAURI_SIGNING_PRIVATE_KEY`
-  - `tauri signer generate` で作った秘密鍵の中身
-- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
-  - 鍵生成時に設定したパスワード（空なら空文字で登録）
+> [!NOTE]
+> Windows only. For Android, please use [Starlight](https://wiki.supernewroles.com/Android%E7%89%88%E3%81%AE%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB%E6%96%B9%E6%B3%95).
 
-### リリース手順
+---
 
-- 推奨手順（GitHub Actions）と、ローカルコマンドのみで完結する手順を
-  `docs/RELEASE.md` にまとめています。
-- 手順書: `docs/RELEASE.md`
+## 📥 Installation
 
-## 次にやること
+### 1. Download the Installer
 
-- `src-tauri/tauri.conf.json` の `identifier` を自分のものに変更
-- アイコンを作る場合は `src-tauri/icons/icon.png` を用意して `npm run tauri icon` を実行
+Download and run the latest installer from [**here**](https://github.com/SuperNewRoles/SuperNewRolesLauncher/releases/latest/download/SuperNewRolesLauncher_x64-setup.exe).
 
-# クレジット
-- [All-Of-Us-Mods/Starlight-PC](https://github.com/All-Of-Us-Mods/Starlight-PC)
-  - BepInExを分離して起動する仕組みとEpicログインの参考。
+### 2. If Windows Defender shows a warning
+
+Click "**More info**" → then click "**Run anyway**".
+
+| Click "More info" | Click "Run anyway" |
+|:---:|:---:|
+| ![Click More info](./docs/DefenderSS_Information.png) | ![Click Run anyway](./docs/DefenderSS_Run.png) |
+
+### 3. Follow the installer instructions
+
+Just click "**Next**" through all the steps.
+
+### 4. Set up SuperNewRoles
+
+Once SuperNewRoles Launcher starts, follow the on-screen instructions to install SuperNewRoles.
+
+> [!TIP]
+> If you already have SuperNewRoles installed, enable "**Import data from installed SuperNewRoles**" under "**Import existing data**" and select the Among Us folder with SuperNewRoles to carry over your settings.
+
+### 5. Launch!
+
+Press the "**Launch**" button and SuperNewRoles will start!
+
+---
+
+## ✨ Features
+
+### 🎮 Launch SuperNewRoles
+
+Launch Among Us (Steam / Epic) with SuperNewRoles installed. You can also create a shortcut from settings to launch directly without opening the launcher.
+
+| Platform | Notes |
+|:---|:---|
+| **Steam** | Steam must be running |
+| **Epic Games** | If you authenticate with Epic inside SNRLauncher, you can launch without Epic Games Launcher |
+
+### 📢 Report Center
+
+Use the in-game report feature. Create new reports and check messages from the developers.
+
+### 📣 Announcements
+
+View announcements from SuperNewRoles directly in the launcher.
+
+### 📋 Presets
+
+Export / import in-game **settings presets**. Useful for sharing settings with other players.
+
+### 📦 Data Migration
+
+Save and restore all SuperNewRoles-related data in a single file.
+
+> [!WARNING]
+> Data migration files contain personal data. Do not share them with other players. Use the **Preset** feature to share settings instead.
+
+---
+
+## 🙏 Credits
+
+| Project | Usage |
+|:---|:---|
+| [Tauri](https://github.com/tauri-apps/tauri) | Application framework |
+| [Vite](https://github.com/vitejs/vite) | Frontend development |
+| [All-Of-Us-Mods/Starlight-PC](https://github.com/All-Of-Us-Mods/Starlight-PC) | Reference for BepInEx separation & Epic login |

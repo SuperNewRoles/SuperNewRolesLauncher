@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createTranslator, resolveInitialLocale } from "../i18n";
 import StepTransition from "./StepTransition";
 import { CompleteStep } from "./steps/CompleteStep";
@@ -17,7 +17,6 @@ interface OnboardingWizardProps {
 
 const isFullscreenOnboardingStep = (candidate: OnboardingStep): boolean =>
   candidate === "welcome" || candidate === "connect" || candidate === "complete";
-const ONBOARDING_MODE_MORPH_MS = 320;
 
 export default function OnboardingWizard({ onComplete, onStepChange }: OnboardingWizardProps) {
   const [step, setStep] = useState<OnboardingStep>("welcome");
@@ -137,31 +136,13 @@ export default function OnboardingWizard({ onComplete, onStepChange }: Onboardin
       isFullscreenOnboardingStep(from) === isFullscreenOnboardingStep(to),
     [],
   );
-  const [isModeMorphing, setIsModeMorphing] = useState(false);
-  const prevFullscreenStepRef = useRef(isFullscreenStep);
-
-  useEffect(() => {
-    if (prevFullscreenStepRef.current === isFullscreenStep) {
-      return;
-    }
-
-    prevFullscreenStepRef.current = isFullscreenStep;
-    setIsModeMorphing(true);
-    const timer = window.setTimeout(() => {
-      setIsModeMorphing(false);
-    }, ONBOARDING_MODE_MORPH_MS);
-    return () => window.clearTimeout(timer);
-  }, [isFullscreenStep]);
 
   const onboardingModeClass = isFullscreenStep
     ? "onboarding-mode-fullscreen"
     : "onboarding-mode-spotlight";
-  const onboardingMorphClass = isModeMorphing ? "onboarding-mode-morphing" : "";
 
   return (
-    <div
-      className={`install-wizard onboarding-wizard ${onboardingModeClass} ${onboardingMorphClass}`}
-    >
+    <div className={`install-wizard onboarding-wizard ${onboardingModeClass}`}>
       <div className="onboarding-main-container">
         <div className="onboarding-header">
           <div className="onboarding-title">{getStepTitle(step)}</div>

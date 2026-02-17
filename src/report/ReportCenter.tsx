@@ -22,6 +22,11 @@ interface ReportCenterProps {
   t: Translator;
 }
 
+function formatActionError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  return raw.replace(/^Error invoking '[^']+':\s*/u, "").trim() || raw;
+}
+
 export function ReportCenter({ t }: ReportCenterProps) {
   const [isReady, setIsReady] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -38,6 +43,8 @@ export function ReportCenter({ t }: ReportCenterProps) {
   const closePanelTimeoutRef = useRef<number | null>(null);
   const reportThreadsLastFetchAtRef = useRef(0);
   const reportThreadsLoadingRef = useRef(false);
+  const messageCacheRef = useRef<Map<string, ReportMessage[]>>(new Map());
+  const messageRequestIdRef = useRef(0);
 
   const clearClosePanelTimeout = useCallback(() => {
     if (closePanelTimeoutRef.current !== null) {
@@ -119,22 +126,39 @@ export function ReportCenter({ t }: ReportCenterProps) {
   // Load messages when thread is selected
   useEffect(() => {
     if (!selectedThread) {
+      messageRequestIdRef.current += 1;
       setMessages([]);
+      setIsLoadingMessages(false);
       return;
     }
 
-    const loadMessages = async () => {
+    const threadId = selectedThread.threadId;
+    const requestId = messageRequestIdRef.current + 1;
+    messageRequestIdRef.current = requestId;
+    const cachedMessages = messageCacheRef.current.get(threadId);
+
+    if (cachedMessages) {
+      setMessages(cachedMessages);
+      setIsLoadingMessages(false);
+    } else {
+      setMessages([]);
       setIsLoadingMessages(true);
+    }
+
+    const loadMessages = async () => {
       try {
-        const result = await reportingMessagesList(selectedThread.threadId);
-        if (!isMountedRef.current) {
+        const result = await reportingMessagesList(threadId);
+        if (!isMountedRef.current || requestId !== messageRequestIdRef.current) {
           return;
         }
+        messageCacheRef.current.set(threadId, result);
         setMessages(result);
       } catch (e) {
-        console.error("Failed to load messages:", e);
+        if (requestId === messageRequestIdRef.current) {
+          console.error("Failed to load messages:", e);
+        }
       } finally {
-        if (isMountedRef.current) {
+        if (!cachedMessages && isMountedRef.current && requestId === messageRequestIdRef.current) {
           setIsLoadingMessages(false);
         }
       }
@@ -202,15 +226,16 @@ export function ReportCenter({ t }: ReportCenterProps) {
     }) => {
       try {
         await reportingReportSend(reportData);
-        setStatusMessage(t("report.sent"));
-        await loadThreads({ force: true });
-        setIsNewReportModalOpen(false);
+        setStatusMessage("");
+        void loadThreads({ force: true });
       } catch (e) {
+        const message = formatActionError(e);
         console.error("Failed to send report:", e);
-        setStatusMessage(t("report.sendFailed", { error: String(e) }));
+        setStatusMessage("");
+        throw new Error(message);
       }
     },
-    [t, loadThreads],
+    [loadThreads],
   );
 
   const handleSendReply = useCallback(
@@ -222,6 +247,7 @@ export function ReportCenter({ t }: ReportCenterProps) {
         // Reload messages
         const result = await reportingMessagesList(selectedThread.threadId);
         if (isMountedRef.current) {
+          messageCacheRef.current.set(selectedThread.threadId, result);
           setMessages(result);
         }
       } catch (e) {

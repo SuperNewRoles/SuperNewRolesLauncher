@@ -3,6 +3,7 @@ use base64::Engine;
 use brotli::CompressorWriter;
 use cbc::cipher::{block_padding::Pkcs7, BlockEncryptMut, KeyIvInit};
 use cbc::Encryptor;
+use futures_util::stream;
 use rand::RngCore;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -12,7 +13,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::time::SystemTime;
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Emitter, Runtime};
 
 use crate::utils::settings;
 
@@ -22,6 +23,12 @@ const LOG_OUTPUT_RELATIVE_PATH: &str = "BepInEx/LogOutput.log";
 const USER_AGENT: &str = "SuperNewRolesLauncher/0.1";
 const LOG_ENCRYPTION_KEY_SOURCE: &[u8] = b"SNRLogKey2024!@#";
 const B64: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+const REPORT_SEND_PROGRESS_EVENT: &str = "reporting-send-progress";
+const REPORT_SEND_UPLOAD_CHUNK_SIZE: usize = 16 * 1024;
+const REPORT_SEND_PREPARE_PROGRESS_MAX: f64 = 32.0;
+const REPORT_SEND_UPLOAD_PROGRESS_MIN: f64 = 32.0;
+const REPORT_SEND_UPLOAD_PROGRESS_MAX: f64 = 96.0;
+const REPORT_SEND_PROCESSING_PROGRESS: f64 = 99.0;
 
 static TOKEN_CACHE: OnceLock<Mutex<Option<String>>> = OnceLock::new();
 
@@ -129,6 +136,15 @@ struct GetMessagesItem {
 #[derive(Debug, Deserialize)]
 struct NotificationResponse {
     notification: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ReportSendProgressPayload {
+    stage: String,
+    progress: f64,
+    uploaded_bytes: u64,
+    total_bytes: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -362,10 +378,63 @@ fn report_log_source_info<R: Runtime>(app: &AppHandle<R>) -> Result<LogSourceInf
     })
 }
 
+fn emit_report_send_progress<R: Runtime>(
+    app: &AppHandle<R>,
+    stage: &str,
+    progress: f64,
+    uploaded_bytes: u64,
+    total_bytes: u64,
+) {
+    let _ = app.emit(
+        REPORT_SEND_PROGRESS_EVENT,
+        ReportSendProgressPayload {
+            stage: stage.to_string(),
+            progress: progress.clamp(0.0, 100.0),
+            uploaded_bytes,
+            total_bytes,
+        },
+    );
+}
+
 fn version_field(selected_release_tag: &str) -> String {
     let tag = selected_release_tag.trim();
     let snr = if tag.is_empty() { "unknown" } else { tag };
     format!("SNR:{snr}&AmongUs:unknown")
+}
+
+fn format_report_message<R: Runtime>(app: &AppHandle<R>, input: &SendReportInput) -> String {
+    let mut lines = vec![format!("送信元: SNR Launcher v{}", app.package_info().version)];
+
+    if let Some(map_value) = input
+        .map
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        lines.push(format!("マップ: {map_value}"));
+    }
+
+    if let Some(role_value) = input
+        .role
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        lines.push(format!("役職/機能: {role_value}"));
+    }
+
+    if let Some(timing_value) = input
+        .timing
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        lines.push(format!("発生タイミング: {timing_value}"));
+    }
+
+    lines.push("---".to_string());
+    lines.push(input.description.trim().to_string());
+    lines.join("\n")
 }
 
 fn make_log_encryption_key() -> [u8; 32] {
@@ -587,14 +656,27 @@ pub async fn send_report<R: Runtime>(
         return Err("Report description is required".to_string());
     }
 
-    let launcher_settings = settings::load_or_init_settings(app)?;
-    let client = reporting_client()?;
-    let (token, _, _) = resolve_valid_token(app, &client, true).await?;
+    emit_report_send_progress(app, "preparing", 0.0, 0, 0);
+
+    let formatted_message = format_report_message(app, &input);
+
+    let launcher_settings = settings::load_or_init_settings(app).map_err(|e| {
+        emit_report_send_progress(app, "failed", 0.0, 0, 0);
+        e
+    })?;
+    let client = reporting_client().map_err(|e| {
+        emit_report_send_progress(app, "failed", 0.0, 0, 0);
+        e
+    })?;
+    let (token, _, _) = resolve_valid_token(app, &client, true).await.map_err(|e| {
+        emit_report_send_progress(app, "failed", 0.0, 0, 0);
+        e
+    })?;
 
     let mut payload = Map::new();
     payload.insert(
         "message".to_string(),
-        Value::String(description.to_string()),
+        Value::String(formatted_message),
     );
     payload.insert("title".to_string(), Value::String(title.to_string()));
     payload.insert(
@@ -606,23 +688,44 @@ pub async fn send_report<R: Runtime>(
         Value::String(launcher_settings.game_platform.as_str().to_string()),
     );
 
+    emit_report_send_progress(app, "preparing", 12.0, 0, 0);
+
     if report_type == "Bug" {
-        let log_info = report_log_source_info(app)?;
+        let log_info = match report_log_source_info(app) {
+            Ok(info) => info,
+            Err(e) => {
+                emit_report_send_progress(app, "failed", 12.0, 0, 0);
+                return Err(e);
+            }
+        };
         let Some(log_path) = log_info.selected_path else {
+            emit_report_send_progress(app, "failed", 12.0, 0, 0);
             return Err(
                 "BepInEx/LogOutput.log が見つかりません。先にModを起動してログを生成してください。"
                     .to_string(),
             );
         };
 
-        let log_bytes = fs::read(&log_path).map_err(|e| {
-            format!(
-                "Failed to read BepInEx LogOutput for bug report '{}': {e}",
-                log_path
-            )
-        })?;
+        let log_bytes = match fs::read(&log_path) {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                emit_report_send_progress(app, "failed", 12.0, 0, 0);
+                return Err(format!(
+                    "Failed to read BepInEx LogOutput for bug report '{}': {e}",
+                    log_path
+                ));
+            }
+        };
+        emit_report_send_progress(app, "preparing", 22.0, 0, 0);
         let log_text = String::from_utf8_lossy(&log_bytes).to_string();
-        let compressed = compress_and_encrypt_log(&log_text)?;
+        let compressed = match compress_and_encrypt_log(&log_text) {
+            Ok(value) => value,
+            Err(e) => {
+                emit_report_send_progress(app, "failed", 22.0, 0, 0);
+                return Err(e);
+            }
+        };
+        emit_report_send_progress(app, "preparing", REPORT_SEND_PREPARE_PROGRESS_MAX, 0, 0);
 
         payload.insert("mode".to_string(), Value::String("Launcher".to_string()));
         payload.insert("log_compressed".to_string(), Value::String(compressed));
@@ -656,21 +759,111 @@ pub async fn send_report<R: Runtime>(
         }
     }
 
-    let response = client
+    let request_body = match serde_json::to_vec(&payload) {
+        Ok(body) => body,
+        Err(e) => {
+            let failed_progress = if report_type == "Bug" {
+                REPORT_SEND_PREPARE_PROGRESS_MAX
+            } else {
+                12.0
+            };
+            emit_report_send_progress(app, "failed", failed_progress, 0, 0);
+            return Err(format!("Failed to serialize report request body: {e}"));
+        }
+    };
+    if report_type != "Bug" {
+        emit_report_send_progress(app, "preparing", REPORT_SEND_PREPARE_PROGRESS_MAX, 0, 0);
+    }
+
+    let total_bytes = request_body.len() as u64;
+    let initial_upload_progress = if total_bytes == 0 {
+        REPORT_SEND_UPLOAD_PROGRESS_MAX
+    } else {
+        REPORT_SEND_UPLOAD_PROGRESS_MIN
+    };
+    emit_report_send_progress(
+        app,
+        "uploading",
+        initial_upload_progress,
+        0,
+        total_bytes,
+    );
+
+    let upload_stream = stream::unfold(
+        (request_body, 0usize, app.clone(), total_bytes),
+        |(request_body, offset, app, total_bytes)| async move {
+            if offset >= request_body.len() {
+                return None;
+            }
+
+            let end = (offset + REPORT_SEND_UPLOAD_CHUNK_SIZE).min(request_body.len());
+            let uploaded_bytes = end as u64;
+            let progress = if total_bytes == 0 {
+                REPORT_SEND_UPLOAD_PROGRESS_MAX
+            } else {
+                let ratio = uploaded_bytes as f64 / total_bytes as f64;
+                (REPORT_SEND_UPLOAD_PROGRESS_MIN
+                    + ratio * (REPORT_SEND_UPLOAD_PROGRESS_MAX - REPORT_SEND_UPLOAD_PROGRESS_MIN))
+                    .clamp(
+                        REPORT_SEND_UPLOAD_PROGRESS_MIN,
+                        REPORT_SEND_UPLOAD_PROGRESS_MAX,
+                    )
+            };
+            emit_report_send_progress(&app, "uploading", progress, uploaded_bytes, total_bytes);
+
+            Some((
+                Ok::<Vec<u8>, std::io::Error>(request_body[offset..end].to_vec()),
+                (request_body, end, app, total_bytes),
+            ))
+        },
+    );
+
+    // Intentionally send plain JSON (no HTTP Content-Encoding) for current API compatibility.
+    let response = match client
         .post(format!(
             "{REPORTING_API_BASE_URL}/sendRequest/{report_type}"
         ))
         .header("Authorization", format!("Bearer {token}"))
-        .json(&payload)
+        .header("Content-Type", "application/json")
+        .body(reqwest::Body::wrap_stream(upload_stream))
         .send()
         .await
-        .map_err(|e| format!("Failed to send report: {e}"))?;
+    {
+        Ok(response) => response,
+        Err(e) => {
+            emit_report_send_progress(
+                app,
+                "failed",
+                REPORT_SEND_UPLOAD_PROGRESS_MAX,
+                total_bytes,
+                total_bytes,
+            );
+            return Err(format!("Failed to send report: {e}"));
+        }
+    };
+
+    emit_report_send_progress(
+        app,
+        "processing",
+        REPORT_SEND_PROCESSING_PROGRESS,
+        total_bytes,
+        total_bytes,
+    );
 
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
+        emit_report_send_progress(
+            app,
+            "failed",
+            REPORT_SEND_PROCESSING_PROGRESS,
+            total_bytes,
+            total_bytes,
+        );
         return Err(format!("Failed to send report ({status}): {body}"));
     }
+
+    emit_report_send_progress(app, "complete", 100.0, total_bytes, total_bytes);
 
     Ok(())
 }

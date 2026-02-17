@@ -46,6 +46,7 @@ import {
   launchAutolaunchErrorTake,
   launchGameRunningGet,
   launchModded,
+  launchModdedFirstSetupPending,
   launchShortcutCreate,
   launchVanilla,
   migrationExport,
@@ -93,6 +94,7 @@ import type {
   ReportingSendResult,
   SendReportInput,
   SnrReleaseSummary,
+  SocialIcon,
   UninstallResult,
 } from "./types";
 
@@ -106,6 +108,7 @@ const ANNOUNCE_BADGE_FETCH_GAP_MS = 30_000;
 const ANNOUNCE_BADGE_POLL_INTERVAL_MS = 300_000;
 const LAUNCHER_MINIMIZE_EFFECT_DURATION_MS = 260;
 const LAUNCHER_AUTO_MINIMIZE_WINDOW_MS = 30_000;
+const LAUNCH_ERROR_DISPLAY_MS = 20_000;
 const SETTINGS_OVERLAY_TRANSITION_MS = 220;
 const LOCALE_SWITCH_RELOAD_ANIMATION_FLAG_KEY = "ui.localeSwitchReloadAnimation";
 const ONBOARDING_SPOTLIGHT_CLASS = "onboarding-spotlight-target";
@@ -649,8 +652,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let launcherAutoMinimizePending = false;
   let launcherAutoMinimizeTimer: number | null = null;
   let launcherMinimizing = false;
+  let launchStatusLockUntil = 0;
+  let launchStatusLockTimer: number | null = null;
   let localeSwitchInProgress = false;
   let amongUsOverlayLoading = false;
+  let amongUsReselectPulseTimer: number | null = null;
   let migrationOverlayMode: MigrationMode | null = null;
   let migrationOverlayStep: MigrationOverlayStep = "select";
   let migrationSelectedPath = "";
@@ -711,7 +717,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       return;
     }
 
-    if (guide.tab && isMainTabId(guide.tab)) {
+    if (guide.tab && isMainTabId(guide.tab) && activeTab !== guide.tab) {
       switchTab(guide.tab);
     }
 
@@ -1125,6 +1131,40 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     setStatusLine(settingsShortcutStatus, message, tone);
   }
 
+  function createSocialIconElement(
+    icon: SocialIcon,
+    size: number,
+  ): SVGSVGElement | HTMLImageElement {
+    if (icon.kind === "image") {
+      const img = document.createElement("img");
+      img.src = icon.src;
+      img.width = size;
+      img.height = size;
+      img.alt = "";
+      img.setAttribute("aria-hidden", "true");
+      img.decoding = "async";
+      if (icon.imageClassName) {
+        img.classList.add(icon.imageClassName);
+      }
+      return img;
+    }
+
+    const svgNamespace = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNamespace, "svg");
+    svg.setAttribute("viewBox", icon.viewBox);
+    svg.setAttribute("width", String(size));
+    svg.setAttribute("height", String(size));
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+
+    const path = document.createElementNS(svgNamespace, "path");
+    path.setAttribute("fill", "currentColor");
+    path.setAttribute("d", icon.pathD);
+    svg.append(path);
+
+    return svg;
+  }
+
   function renderOfficialLinksInto(container: HTMLDivElement, iconOnly: boolean): void {
     container.replaceChildren();
     for (const link of OFFICIAL_LINKS) {
@@ -1134,7 +1174,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       button.style.background = link.backgroundColor;
       button.setAttribute("aria-label", t("official.openInBrowserAria", { label: link.label }));
       button.title = link.label;
-      button.innerHTML = iconOnly ? link.iconSvg : `${link.iconSvg}<span>${link.label}</span>`;
+      const iconElement = createSocialIconElement(link.icon, iconOnly ? 14 : 16);
+      button.append(iconElement);
+      if (!iconOnly) {
+        const label = document.createElement("span");
+        label.textContent = link.label;
+        button.append(label);
+      }
 
       button.addEventListener("click", async () => {
         try {
@@ -1269,6 +1315,38 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     presetFeedbackSecondaryButton.disabled = presetProcessing;
   }
 
+  function clearLaunchStatusLock(): void {
+    launchStatusLockUntil = 0;
+    if (launchStatusLockTimer !== null) {
+      window.clearTimeout(launchStatusLockTimer);
+      launchStatusLockTimer = null;
+    }
+  }
+
+  function isLaunchStatusLocked(): boolean {
+    return Date.now() < launchStatusLockUntil;
+  }
+
+  function setLaunchStatus(message: string): void {
+    clearLaunchStatusLock();
+    launchStatus.textContent = message;
+  }
+
+  function setLaunchStatusWithLock(message: string, durationMs: number): void {
+    clearLaunchStatusLock();
+    launchStatus.textContent = message;
+    launchStatusLockUntil = Date.now() + durationMs;
+    launchStatusLockTimer = window.setTimeout(() => {
+      launchStatusLockTimer = null;
+      launchStatusLockUntil = 0;
+      if (gameRunning) {
+        launchStatus.textContent = t("launch.gameRunning");
+      } else if (!launchInProgress) {
+        launchStatus.textContent = t("launch.gameStopped");
+      }
+    }, durationMs);
+  }
+
   function applyGameRunningState(running: boolean): void {
     const runningBefore = gameRunning;
     gameRunning = running;
@@ -1278,10 +1356,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       void minimizeLauncherWindowWithEffect();
     }
 
-    if (gameRunning) {
-      launchStatus.textContent = t("launch.gameRunning");
-    } else if (!launchInProgress) {
-      launchStatus.textContent = t("launch.gameStopped");
+    if (!isLaunchStatusLocked()) {
+      if (gameRunning) {
+        launchStatus.textContent = t("launch.gameRunning");
+      } else if (!launchInProgress) {
+        launchStatus.textContent = t("launch.gameStopped");
+      }
     }
     updateButtons();
   }
@@ -1702,6 +1782,22 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     openSettingsOverlay(settingsAmongUsOverlay);
   }
 
+  function animateAmongUsReselection(): void {
+    if (amongUsReselectPulseTimer !== null) {
+      window.clearTimeout(amongUsReselectPulseTimer);
+      amongUsReselectPulseTimer = null;
+    }
+
+    void restartLayoutAnimation(
+      reselectAmongUsButton,
+      "settings-general-primary-action-reselected",
+    );
+    amongUsReselectPulseTimer = window.setTimeout(() => {
+      reselectAmongUsButton.classList.remove("settings-general-primary-action-reselected");
+      amongUsReselectPulseTimer = null;
+    }, 760);
+  }
+
   async function applyAmongUsSelection(path: string, platform: GamePlatform): Promise<void> {
     amongUsOverlayLoading = true;
     updateButtons();
@@ -1713,7 +1809,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       });
       await refreshProfileReady();
       setGeneralStatusLine(t("detect.success", { path, platform }), "success");
-      closeAmongUsOverlay(true);
+      amongUsOverlayLoading = false;
+      closeAmongUsOverlay();
+      animateAmongUsReselection();
     } catch (error) {
       setAmongUsOverlayError(t("detect.failed", { error: String(error) }));
     } finally {
@@ -1896,6 +1994,47 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   function isMigrationProcessing(): boolean {
     return migrationExporting || migrationImporting;
+  }
+
+  const EPIC_AUTH_REQUIRED_ERROR_PREFIX = "Epic launch requires Epic authentication";
+  const EPIC_AUTH_CHECK_FAILED_ERROR_PREFIX =
+    "Epic authentication check failed. Please log in to Epic and try again:";
+  const EPIC_AUTH_INIT_FAILED_ERROR_PREFIX = "Failed to initialize Epic authentication:";
+  const INVALID_AMONG_US_FOLDER_ERROR_PREFIX =
+    "The selected folder is not an Among Us installation directory:";
+  const INVALID_AMONG_US_EXE_TARGET_ERROR_PREFIX = "Launch target is not Among Us.exe:";
+
+  function localizeLaunchError(error: unknown): string {
+    const message = String(error);
+
+    if (message.startsWith(EPIC_AUTH_REQUIRED_ERROR_PREFIX)) {
+      return t("launch.errorEpicAuthRequired");
+    }
+
+    if (message.startsWith(EPIC_AUTH_CHECK_FAILED_ERROR_PREFIX)) {
+      const detail = message.slice(EPIC_AUTH_CHECK_FAILED_ERROR_PREFIX.length).trim();
+      if (detail.length > 0) {
+        return t("launch.errorEpicAuthCheckFailedWithDetail", { error: detail });
+      }
+      return t("launch.errorEpicAuthCheckFailed");
+    }
+
+    if (message.startsWith(EPIC_AUTH_INIT_FAILED_ERROR_PREFIX)) {
+      const detail = message.slice(EPIC_AUTH_INIT_FAILED_ERROR_PREFIX.length).trim();
+      if (detail.length > 0) {
+        return t("launch.errorEpicAuthInitFailedWithDetail", { error: detail });
+      }
+      return t("launch.errorEpicAuthInitFailed");
+    }
+
+    if (
+      message.startsWith(INVALID_AMONG_US_FOLDER_ERROR_PREFIX) ||
+      message.startsWith(INVALID_AMONG_US_EXE_TARGET_ERROR_PREFIX)
+    ) {
+      return t("installFlow.invalidAmongUsFolder");
+    }
+
+    return message;
   }
 
   function isMigrationPasswordError(message: string): boolean {
@@ -2710,20 +2849,31 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
     launchInProgress = true;
     queueLauncherAutoMinimize();
-    launchStatus.textContent = t("launch.moddedStarting");
+    setLaunchStatus(t("launch.moddedStarting"));
     updateButtons();
 
     try {
       const gameExe = await gameExePathFromSettings();
+      try {
+        const firstSetupPending = await launchModdedFirstSetupPending(gameExe);
+        if (firstSetupPending) {
+          setLaunchStatus(t("launch.moddedFirstSetupStarting"));
+        }
+      } catch {
+        // 判定失敗時は通常の起動文言を維持する。
+      }
       await launchModded({
         gameExe,
         profilePath: settings.profilePath,
         platform: settings.gamePlatform,
       });
-      launchStatus.textContent = t("launch.moddedSent");
+      setLaunchStatus(t("launch.moddedSent"));
     } catch (error) {
       clearLauncherAutoMinimizePending();
-      launchStatus.textContent = t("launch.moddedFailed", { error: String(error) });
+      setLaunchStatusWithLock(
+        t("launch.moddedFailed", { error: localizeLaunchError(error) }),
+        LAUNCH_ERROR_DISPLAY_MS,
+      );
     } finally {
       launchInProgress = false;
       updateButtons();
@@ -2736,7 +2886,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
     launchInProgress = true;
     queueLauncherAutoMinimize();
-    launchStatus.textContent = t("launch.vanillaStarting");
+    setLaunchStatus(t("launch.vanillaStarting"));
     updateButtons();
 
     try {
@@ -2745,10 +2895,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         gameExe,
         platform: settings.gamePlatform,
       });
-      launchStatus.textContent = t("launch.vanillaSent");
+      setLaunchStatus(t("launch.vanillaSent"));
     } catch (error) {
       clearLauncherAutoMinimizePending();
-      launchStatus.textContent = t("launch.vanillaFailed", { error: String(error) });
+      setLaunchStatusWithLock(
+        t("launch.vanillaFailed", { error: localizeLaunchError(error) }),
+        LAUNCH_ERROR_DISPLAY_MS,
+      );
     } finally {
       launchInProgress = false;
       updateButtons();
@@ -2870,6 +3023,29 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   renderArchivePresetList();
   renderPresetOverlayContent();
 
+  type VersionDisplayState = "loading" | "ready" | "error";
+  type UpdateStatusState =
+    | "idle"
+    | "checking"
+    | "latest"
+    | "skipped"
+    | "downloading"
+    | "applying"
+    | "success"
+    | "error";
+
+  function setVersionDisplay(text: string, state: VersionDisplayState): void {
+    appVersion.textContent = text;
+    appVersion.dataset.state = state;
+    settingsAppVersion.textContent = text;
+    settingsAppVersion.dataset.state = state;
+  }
+
+  function setUpdateStatus(text: string, state: UpdateStatusState): void {
+    updateStatus.textContent = text;
+    updateStatus.dataset.state = state;
+  }
+
   async function runUpdateCheck(source: "manual" | "startup"): Promise<void> {
     if (checkingUpdate) {
       return;
@@ -2877,18 +3053,18 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     checkingUpdate = true;
     checkUpdateButton.disabled = true;
-    updateStatus.textContent = t("update.checking");
+    setUpdateStatus(t("update.checking"), "checking");
 
     try {
       const update = await check();
       if (!update) {
-        updateStatus.textContent = t("update.latest");
+        setUpdateStatus(t("update.latest"), "latest");
         return;
       }
 
       const shouldInstall = window.confirm(t("update.confirmPrompt", { version: update.version }));
       if (!shouldInstall) {
-        updateStatus.textContent = t("update.skipped", { version: update.version });
+        setUpdateStatus(t("update.skipped", { version: update.version }), "skipped");
         return;
       }
 
@@ -2898,31 +3074,35 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       await update.downloadAndInstall((event) => {
         if (event.event === "Started") {
           totalBytes = event.data.contentLength ?? 0;
-          updateStatus.textContent = t("update.downloading");
+          setUpdateStatus(t("update.downloading"), "downloading");
           return;
         }
         if (event.event === "Progress") {
           downloadedBytes += event.data.chunkLength;
           if (totalBytes > 0) {
             const percent = Math.min(100, Math.floor((downloadedBytes / totalBytes) * 100));
-            updateStatus.textContent = t("update.downloadingPercent", { percent });
+            setUpdateStatus(t("update.downloadingPercent", { percent }), "downloading");
           } else {
-            updateStatus.textContent = t("update.downloading");
+            setUpdateStatus(t("update.downloading"), "downloading");
           }
           return;
         }
-        updateStatus.textContent = t("update.applying");
+        setUpdateStatus(t("update.applying"), "applying");
       });
 
-      updateStatus.textContent = t("update.appliedRestart");
+      setUpdateStatus(t("update.appliedRestart"), "success");
     } catch (error) {
       if (source === "manual") {
-        updateStatus.textContent = t("update.failed", {
-          error: String(error),
-        });
+        setUpdateStatus(
+          t("update.failed", {
+            error: String(error),
+          }),
+          "error",
+        );
       } else {
         // 起動時の自動チェック失敗は動作継続を優先してログのみ残す。
         console.warn("Auto update check failed:", error);
+        setUpdateStatus("", "idle");
       }
     } finally {
       checkingUpdate = false;
@@ -2934,15 +3114,16 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     await runUpdateCheck("manual");
   });
 
+  setVersionDisplay(t("launcher.currentVersionLoading"), "loading");
+  setUpdateStatus("", "idle");
+
   void (async () => {
     try {
       const version = `v${await getVersion()}`;
-      appVersion.textContent = version;
-      settingsAppVersion.textContent = version;
+      setVersionDisplay(version, "ready");
     } catch (error) {
       const errorMessage = t("app.versionFetchFailed", { error: String(error) });
-      appVersion.textContent = errorMessage;
-      settingsAppVersion.textContent = errorMessage;
+      setVersionDisplay(errorMessage, "error");
     }
   })();
 
@@ -3025,7 +3206,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     try {
       const autoLaunchError = await launchAutolaunchErrorTake();
       if (autoLaunchError) {
-        launchStatus.textContent = t("launch.autoModLaunchFailed", { error: autoLaunchError });
+        setLaunchStatusWithLock(
+          t("launch.autoModLaunchFailed", {
+            error: localizeLaunchError(autoLaunchError),
+          }),
+          LAUNCH_ERROR_DISPLAY_MS,
+        );
       }
     } catch {
       // ignore auto launch error retrieval errors

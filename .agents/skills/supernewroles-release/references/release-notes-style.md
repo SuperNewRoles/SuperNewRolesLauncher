@@ -19,11 +19,11 @@ Output must follow this exact order:
 
 ```markdown
 {Japanese release notes}
-## SuperNewRolesLauncher_{version}_x64-setup.exe をダウンロード
+## SuperNewRolesLauncher_x64-setup.exe をダウンロード
 {Japanese download notice}
 ---
 {English release notes}
-## Download SuperNewRolesLauncher_{version}_x64-setup.exe
+## Download SuperNewRolesLauncher_x64-setup.exe
 {English download notice}
 ```
 
@@ -56,10 +56,10 @@ Do not add irrelevant sections.
 ## Download Notice Rules (required)
 - Must be the final subsection in each language.
 - Must use `##` heading with installer filename.
-- Must clearly instruct users to download `SuperNewRolesLauncher_{version}_x64-setup.exe`.
+- Must clearly instruct users to download `SuperNewRolesLauncher_x64-setup.exe`.
 - Include both:
   - release page URL: `https://github.com/SuperNewRoles/SuperNewRolesLauncher/releases/tag/{tag}`
-  - direct asset URL: `https://github.com/SuperNewRoles/SuperNewRolesLauncher/releases/download/{tag}/SuperNewRolesLauncher_{version}_x64-setup.exe`
+  - direct asset URL: `https://github.com/SuperNewRoles/SuperNewRolesLauncher/releases/download/{tag}/SuperNewRolesLauncher_x64-setup.exe`
 
 ## Example (v0.1.1)
 ```markdown
@@ -72,10 +72,10 @@ Do not add irrelevant sections.
 ### 修正
 - 更新チェック時に発生し得る一部の失敗ケースを修正しました。
 
-## SuperNewRolesLauncher_0.1.1_x64-setup.exe をダウンロード
-以下から `SuperNewRolesLauncher_0.1.1_x64-setup.exe` をダウンロードしてください。
+## SuperNewRolesLauncher_x64-setup.exe をダウンロード
+以下から `SuperNewRolesLauncher_x64-setup.exe` をダウンロードしてください。
 - リリースページ: https://github.com/SuperNewRoles/SuperNewRolesLauncher/releases/tag/v0.1.1
-- 直接ダウンロード: https://github.com/SuperNewRoles/SuperNewRolesLauncher/releases/download/v0.1.1/SuperNewRolesLauncher_0.1.1_x64-setup.exe
+- 直接ダウンロード: https://github.com/SuperNewRoles/SuperNewRolesLauncher/releases/download/v0.1.1/SuperNewRolesLauncher_x64-setup.exe
 ---
 This release improves update flow and overall launcher stability.
 
@@ -86,8 +86,8 @@ This release improves update flow and overall launcher stability.
 ### Fixes
 - Fixed a failure path that could occur during update checks.
 
-## Download SuperNewRolesLauncher_0.1.1_x64-setup.exe
-Please download `SuperNewRolesLauncher_0.1.1_x64-setup.exe` from:
+## Download SuperNewRolesLauncher_x64-setup.exe
+Please download `SuperNewRolesLauncher_x64-setup.exe` from:
 - Release page: https://github.com/SuperNewRoles/SuperNewRolesLauncher/releases/tag/v0.1.1
-- Direct download: https://github.com/SuperNewRoles/SuperNewRolesLauncher/releases/download/v0.1.1/SuperNewRolesLauncher_0.1.1_x64-setup.exe
+- Direct download: https://github.com/SuperNewRoles/SuperNewRolesLauncher/releases/download/v0.1.1/SuperNewRolesLauncher_x64-setup.exe
 ```

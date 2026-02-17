@@ -19,6 +19,10 @@ pub const AUTOLAUNCH_MODDED_ARGUMENT: &str = "--autolaunch-modded";
 #[cfg(windows)]
 const MODDED_SHORTCUT_FILE_NAME: &str = "SuperNewRoles Mod Launch.lnk";
 const RUNNING_GAME_PID_FILE_NAME: &str = "running-game.pid";
+const STEAM_APP_ID_FILE_NAME: &str = "steam_appid.txt";
+const STEAM_APP_ID_VALUE: &str = "945360";
+const AMONG_US_EXE_FILE_NAME: &str = "Among Us.exe";
+const AMONG_US_DATA_DIR_NAME: &str = "Among Us_Data";
 
 #[derive(Clone, serde::Serialize)]
 pub struct GameStatePayload {
@@ -367,6 +371,93 @@ fn ensure_file_exists(path: &Path, label: &str) -> Result<(), String> {
     }
 }
 
+fn ensure_valid_among_us_launch_target<'a>(game_exe_path: &'a Path) -> Result<&'a Path, String> {
+    let game_dir = game_exe_path
+        .parent()
+        .ok_or_else(|| "Invalid game executable path".to_string())?;
+
+    if !game_dir.is_dir() {
+        return Err(format!(
+            "The selected folder is not an Among Us installation directory: {}",
+            game_dir.to_string_lossy()
+        ));
+    }
+
+    let is_among_us_exe = game_exe_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.eq_ignore_ascii_case(AMONG_US_EXE_FILE_NAME));
+    if !is_among_us_exe {
+        return Err(format!(
+            "Launch target is not Among Us.exe: {}",
+            game_exe_path.to_string_lossy()
+        ));
+    }
+
+    if !game_dir.join(AMONG_US_EXE_FILE_NAME).is_file()
+        || !game_dir.join(AMONG_US_DATA_DIR_NAME).is_dir()
+    {
+        return Err(format!(
+            "The selected folder is not an Among Us installation directory: {}",
+            game_dir.to_string_lossy()
+        ));
+    }
+
+    Ok(game_dir)
+}
+
+fn ensure_steam_appid_file_if_needed(game_dir: &Path, platform: &str) -> Result<(), String> {
+    if !platform.trim().eq_ignore_ascii_case("steam") {
+        return Ok(());
+    }
+
+    let steam_appid_path = game_dir.join(STEAM_APP_ID_FILE_NAME);
+    if steam_appid_path.exists() {
+        if steam_appid_path.is_file() {
+            return Ok(());
+        }
+        return Err(format!(
+            "steam_appid path is not a file: {}",
+            steam_appid_path.to_string_lossy()
+        ));
+    }
+
+    fs::write(&steam_appid_path, STEAM_APP_ID_VALUE)
+        .map_err(|error| format!("Failed to create steam_appid.txt: {error}"))?;
+    Ok(())
+}
+
+pub fn modded_first_setup_pending(game_exe: String) -> Result<bool, String> {
+    let game_exe_path = PathBuf::from(game_exe);
+    let game_dir = ensure_valid_among_us_launch_target(&game_exe_path)?;
+    let bepinex_config = game_dir.join("BepInEx").join("config").join("BepInEx.cfg");
+
+    Ok(!bepinex_config.is_file())
+}
+
+async fn add_epic_auth_argument_if_needed(
+    command: &mut Command,
+    platform: &str,
+) -> Result<(), String> {
+    if !platform.trim().eq_ignore_ascii_case("epic") {
+        return Ok(());
+    }
+
+    let session = epic_api::load_session().ok_or_else(|| {
+        "Epic launch requires Epic authentication. Please log in from the Epic settings tab."
+            .to_string()
+    })?;
+
+    let api =
+        EpicApi::new().map_err(|error| format!("Failed to initialize Epic authentication: {error}"))?;
+    let token = api.get_game_token(&session).await.map_err(|error| {
+        format!("Epic authentication check failed. Please log in to Epic and try again: {error}")
+    })?;
+
+    command.arg(format!("-AUTH_PASSWORD={token}"));
+    Ok(())
+}
+
 pub async fn launch_modded_from_saved_settings<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<(), String> {
@@ -398,7 +489,7 @@ pub async fn launch_modded<R: Runtime>(
     platform: String,
 ) -> Result<(), String> {
     let game_exe_path = PathBuf::from(&game_exe);
-    ensure_file_exists(&game_exe_path, "Game executable")?;
+    let game_dir = ensure_valid_among_us_launch_target(&game_exe_path)?;
 
     let profile_path = PathBuf::from(&profile_path);
     let bepinex_dll = profile_path
@@ -411,9 +502,7 @@ pub async fn launch_modded<R: Runtime>(
     ensure_file_exists(&bepinex_dll, "BepInEx IL2CPP DLL")?;
     ensure_file_exists(&coreclr_path, "dotnet coreclr")?;
 
-    let game_dir = game_exe_path
-        .parent()
-        .ok_or_else(|| "Invalid game executable path".to_string())?;
+    ensure_steam_appid_file_if_needed(game_dir, &platform)?;
 
     #[cfg(windows)]
     set_dll_directory(&profile_path.to_string_lossy())?;
@@ -430,20 +519,7 @@ pub async fn launch_modded<R: Runtime>(
         .args(["--doorstop-clr-corlib-dir", &dotnet_dir_str])
         .args(["--doorstop-clr-runtime-coreclr-path", &coreclr_path_str]);
 
-    if platform.trim().eq_ignore_ascii_case("epic") {
-        if let Some(session) = epic_api::load_session() {
-            if let Ok(api) = EpicApi::new() {
-                match api.get_game_token(&session).await {
-                    Ok(token) => {
-                        command.arg(format!("-AUTH_PASSWORD={token}"));
-                    }
-                    Err(error) => {
-                        eprintln!("Epic token request failed, launching anyway: {error}");
-                    }
-                }
-            }
-        }
-    }
+    add_epic_auth_argument_if_needed(&mut command, &platform).await?;
 
     launch_process(app, command)
 }
@@ -454,28 +530,13 @@ pub async fn launch_vanilla<R: Runtime>(
     platform: String,
 ) -> Result<(), String> {
     let game_exe_path = PathBuf::from(&game_exe);
-    ensure_file_exists(&game_exe_path, "Game executable")?;
-    let game_dir = game_exe_path
-        .parent()
-        .ok_or_else(|| "Invalid game executable path".to_string())?;
+    let game_dir = ensure_valid_among_us_launch_target(&game_exe_path)?;
+    ensure_steam_appid_file_if_needed(game_dir, &platform)?;
 
     let mut command = Command::new(&game_exe_path);
     command.current_dir(game_dir);
 
-    if platform.trim().eq_ignore_ascii_case("epic") {
-        if let Some(session) = epic_api::load_session() {
-            if let Ok(api) = EpicApi::new() {
-                match api.get_game_token(&session).await {
-                    Ok(token) => {
-                        command.arg(format!("-AUTH_PASSWORD={token}"));
-                    }
-                    Err(error) => {
-                        eprintln!("Epic token request failed, launching anyway: {error}");
-                    }
-                }
-            }
-        }
-    }
+    add_epic_auth_argument_if_needed(&mut command, &platform).await?;
 
     launch_process(app, command)
 }

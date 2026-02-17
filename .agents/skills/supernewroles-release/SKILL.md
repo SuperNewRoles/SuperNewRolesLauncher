@@ -51,7 +51,7 @@ Use the local flow only when the user explicitly requests local-only release or 
 - Never publish if `latest.json` is missing.
 - Never leave `msi` / `msi.sig` in assets.
 - Always use the required bilingual note format from `references/release-notes-style.md`.
-- The final section in each language must be a `##` heading that tells users to download `SuperNewRolesLauncher_{version}_x64-setup.exe`.
+- The final section in each language must be a `##` heading that tells users to download `SuperNewRolesLauncher_x64-setup.exe`.
 
 ## Validation Checklist
 
