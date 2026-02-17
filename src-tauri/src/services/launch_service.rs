@@ -448,8 +448,8 @@ async fn add_epic_auth_argument_if_needed(
             .to_string()
     })?;
 
-    let api =
-        EpicApi::new().map_err(|error| format!("Failed to initialize Epic authentication: {error}"))?;
+    let api = EpicApi::new()
+        .map_err(|error| format!("Failed to initialize Epic authentication: {error}"))?;
     let token = api.get_game_token(&session).await.map_err(|error| {
         format!("Epic authentication check failed. Please log in to Epic and try again: {error}")
     })?;

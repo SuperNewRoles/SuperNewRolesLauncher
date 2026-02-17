@@ -403,7 +403,10 @@ fn version_field(selected_release_tag: &str) -> String {
 }
 
 fn format_report_message<R: Runtime>(app: &AppHandle<R>, input: &SendReportInput) -> String {
-    let mut lines = vec![format!("送信元: SNR Launcher v{}", app.package_info().version)];
+    let mut lines = vec![format!(
+        "送信元: SNR Launcher v{}",
+        app.package_info().version
+    )];
 
     if let Some(map_value) = input
         .map
@@ -674,10 +677,7 @@ pub async fn send_report<R: Runtime>(
     })?;
 
     let mut payload = Map::new();
-    payload.insert(
-        "message".to_string(),
-        Value::String(formatted_message),
-    );
+    payload.insert("message".to_string(), Value::String(formatted_message));
     payload.insert("title".to_string(), Value::String(title.to_string()));
     payload.insert(
         "version".to_string(),
@@ -781,13 +781,7 @@ pub async fn send_report<R: Runtime>(
     } else {
         REPORT_SEND_UPLOAD_PROGRESS_MIN
     };
-    emit_report_send_progress(
-        app,
-        "uploading",
-        initial_upload_progress,
-        0,
-        total_bytes,
-    );
+    emit_report_send_progress(app, "uploading", initial_upload_progress, 0, total_bytes);
 
     let upload_stream = stream::unfold(
         (request_body, 0usize, app.clone(), total_bytes),
