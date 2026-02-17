@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub Actions CI Fix Loop"
+  short_description: "Troubleshoot GitHub Actions and iterate until CI passes"
+  default_prompt: "Use $github-actions-ci-fix-loop to investigate failing GitHub Actions, apply fixes, push commits, and wait until CI passes."
