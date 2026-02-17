@@ -1,5 +1,6 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useState } from "react";
+import { modConfig } from "../../app/modConfig";
 import { launchShortcutCreate } from "../../app/services/tauriClient";
 import { SOCIAL_ICON_SPECS } from "../../app/socialBrandIcons";
 import type { SocialIcon } from "../../app/types";
@@ -7,6 +8,18 @@ import { OnboardingLayout } from "../OnboardingLayout";
 import type { OnboardingStepProps } from "../types";
 
 const NEXT_BUTTON_UNLOCK_DELAY_MS = 500;
+const FALLBACK_DISCORD_URL = "https://discord.gg/Cqfwx82ynN";
+const FALLBACK_TWITTER_URL = "https://supernewroles.com/twitter";
+const FALLBACK_FANBOX_URL = "https://supernewroles.fanbox.cc/";
+
+const DISCORD_URL =
+  modConfig.links.official.find((link) => link.iconId === "discord")?.url ??
+  modConfig.links.supportDiscordUrl ??
+  FALLBACK_DISCORD_URL;
+const TWITTER_URL =
+  modConfig.links.official.find((link) => link.iconId === "x")?.url ?? FALLBACK_TWITTER_URL;
+const FANBOX_URL =
+  modConfig.links.official.find((link) => link.iconId === "fanbox")?.url ?? FALLBACK_FANBOX_URL;
 
 function formatActionError(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error);
@@ -42,6 +55,7 @@ function SocialIconGraphic({ icon }: { icon: SocialIcon }) {
 }
 
 export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
+  const showConnectLinks = modConfig.features.connectLinks;
   const [shortcutStatus, setShortcutStatus] = useState<"idle" | "creating" | "created" | "error">(
     "idle",
   );
@@ -56,9 +70,9 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
     return () => window.clearTimeout(timer);
   }, []);
 
-  const handleDiscord = () => openUrl("https://supernewroles.com/discord");
-  const handleTwitter = () => openUrl("https://supernewroles.com/twitter");
-  const handleFanbox = () => openUrl("https://supernewroles.fanbox.cc/");
+  const handleDiscord = () => openUrl(DISCORD_URL);
+  const handleTwitter = () => openUrl(TWITTER_URL);
+  const handleFanbox = () => openUrl(FANBOX_URL);
 
   const handleShortcut = async () => {
     try {
@@ -83,26 +97,28 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
       <div style={{ display: "flex", flexDirection: "column", gap: "16px", alignItems: "center" }}>
         <div>{t("onboarding.connect.body")}</div>
         <div className="connect-buttons-section">
-          <div className="connect-buttons-row connect-buttons-row-links">
-            <button type="button" className="connect-btn btn-discord" onClick={handleDiscord}>
-              <span className="icon" aria-hidden="true">
-                <SocialIconGraphic icon={SOCIAL_ICON_SPECS.discord} />
-              </span>
-              <span className="label">Discord</span>
-            </button>
-            <button type="button" className="connect-btn btn-twitter" onClick={handleTwitter}>
-              <span className="icon" aria-hidden="true">
-                <SocialIconGraphic icon={SOCIAL_ICON_SPECS.x} />
-              </span>
-              <span className="label">X (Twitter)</span>
-            </button>
-            <button type="button" className="connect-btn btn-fanbox" onClick={handleFanbox}>
-              <span className="icon" aria-hidden="true">
-                <SocialIconGraphic icon={SOCIAL_ICON_SPECS.fanbox} />
-              </span>
-              <span className="label">pixiv FANBOX</span>
-            </button>
-          </div>
+          {showConnectLinks && (
+            <div className="connect-buttons-row connect-buttons-row-links">
+              <button type="button" className="connect-btn btn-discord" onClick={handleDiscord}>
+                <span className="icon" aria-hidden="true">
+                  <SocialIconGraphic icon={SOCIAL_ICON_SPECS.discord} />
+                </span>
+                <span className="label">Discord</span>
+              </button>
+              <button type="button" className="connect-btn btn-twitter" onClick={handleTwitter}>
+                <span className="icon" aria-hidden="true">
+                  <SocialIconGraphic icon={SOCIAL_ICON_SPECS.x} />
+                </span>
+                <span className="label">X (Twitter)</span>
+              </button>
+              <button type="button" className="connect-btn btn-fanbox" onClick={handleFanbox}>
+                <span className="icon" aria-hidden="true">
+                  <SocialIconGraphic icon={SOCIAL_ICON_SPECS.fanbox} />
+                </span>
+                <span className="label">pixiv FANBOX</span>
+              </button>
+            </div>
+          )}
           <div className="connect-buttons-row connect-buttons-row-actions">
             <button
               type="button"

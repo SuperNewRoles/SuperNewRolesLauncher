@@ -1,0 +1,159 @@
+import rawConfig from "../shared/mod.config.json";
+import { SOCIAL_ICON_SPECS } from "./socialBrandIcons";
+import type { OfficialLink, SocialBrandId } from "./types";
+
+export interface ModConfig {
+  schemaVersion: number;
+  mod: {
+    id: string;
+    displayName: string;
+    shortName: string;
+  };
+  branding: {
+    launcherName: string;
+    windowTitle: string;
+    trayTooltip: string;
+    identifier: string;
+    moddedShortcutName: string;
+  };
+  features: {
+    announce: boolean;
+    reporting: boolean;
+    presets: boolean;
+    migration: boolean;
+    epicLogin: boolean;
+    connectLinks: boolean;
+  };
+  distribution: {
+    source: "github";
+    githubRepo: string;
+    assetRegex: {
+      steam: string;
+      epic: string;
+    };
+    patchers: {
+      enabled: boolean;
+      manifestUrl: string;
+      baseUrl: string;
+    };
+    updaterLatestJsonUrl: string;
+  };
+  paths: {
+    amongUsExe: string;
+    amongUsDataDir: string;
+    saveDataRoot: string;
+    localLowRoot: string;
+    reportTokenRelativePath: string;
+    profileRequiredFiles: string[];
+  };
+  migration: {
+    extension: string;
+    magic: string;
+    profileIncludePatterns: string[];
+  };
+  presets: {
+    extension: string;
+    optionsArchivePath: string;
+    saveDataRoot: string;
+  };
+  apis: {
+    announceBaseUrl: string;
+    reportingBaseUrl: string;
+    reportingTermsUrl: string;
+  };
+  links: {
+    wikiUrl: string;
+    supportDiscordUrl: string;
+    official: Array<{
+      label: string;
+      url: string;
+      backgroundColor: string;
+      iconId: SocialBrandId;
+    }>;
+  };
+  events: {
+    installProgress: string;
+    legacyInstallProgress: string;
+  };
+}
+
+const config = rawConfig as ModConfig;
+
+function ensureNonEmpty(value: string, name: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new Error(`Invalid mod config: '${name}' must not be empty.`);
+  }
+  return trimmed;
+}
+
+function normalizeBaseUrl(url: string, name: string): string {
+  const normalized = ensureNonEmpty(url, name);
+  return normalized.endsWith("/") ? normalized : `${normalized}/`;
+}
+
+function assertModConfig(input: ModConfig): ModConfig {
+  if (input.schemaVersion !== 1) {
+    throw new Error(`Unsupported mod config schemaVersion: ${input.schemaVersion}`);
+  }
+
+  ensureNonEmpty(input.mod.id, "mod.id");
+  ensureNonEmpty(input.mod.displayName, "mod.displayName");
+  ensureNonEmpty(input.mod.shortName, "mod.shortName");
+  ensureNonEmpty(input.branding.launcherName, "branding.launcherName");
+  ensureNonEmpty(input.branding.windowTitle, "branding.windowTitle");
+  ensureNonEmpty(input.branding.trayTooltip, "branding.trayTooltip");
+  ensureNonEmpty(input.branding.identifier, "branding.identifier");
+  ensureNonEmpty(input.branding.moddedShortcutName, "branding.moddedShortcutName");
+  ensureNonEmpty(input.distribution.githubRepo, "distribution.githubRepo");
+  ensureNonEmpty(input.distribution.assetRegex.steam, "distribution.assetRegex.steam");
+  ensureNonEmpty(input.distribution.assetRegex.epic, "distribution.assetRegex.epic");
+  ensureNonEmpty(input.distribution.updaterLatestJsonUrl, "distribution.updaterLatestJsonUrl");
+  ensureNonEmpty(input.paths.amongUsExe, "paths.amongUsExe");
+  ensureNonEmpty(input.paths.amongUsDataDir, "paths.amongUsDataDir");
+  ensureNonEmpty(input.paths.saveDataRoot, "paths.saveDataRoot");
+  ensureNonEmpty(input.paths.localLowRoot, "paths.localLowRoot");
+  ensureNonEmpty(input.paths.reportTokenRelativePath, "paths.reportTokenRelativePath");
+  ensureNonEmpty(input.migration.extension, "migration.extension");
+  ensureNonEmpty(input.migration.magic, "migration.magic");
+  ensureNonEmpty(input.presets.extension, "presets.extension");
+  ensureNonEmpty(input.presets.optionsArchivePath, "presets.optionsArchivePath");
+  ensureNonEmpty(input.presets.saveDataRoot, "presets.saveDataRoot");
+  ensureNonEmpty(input.events.installProgress, "events.installProgress");
+  ensureNonEmpty(input.events.legacyInstallProgress, "events.legacyInstallProgress");
+  input.apis.announceBaseUrl = normalizeBaseUrl(input.apis.announceBaseUrl, "apis.announceBaseUrl");
+  input.apis.reportingBaseUrl = ensureNonEmpty(input.apis.reportingBaseUrl, "apis.reportingBaseUrl");
+  input.apis.reportingTermsUrl = ensureNonEmpty(input.apis.reportingTermsUrl, "apis.reportingTermsUrl");
+
+  if (!Array.isArray(input.paths.profileRequiredFiles) || input.paths.profileRequiredFiles.length === 0) {
+    throw new Error("Invalid mod config: 'paths.profileRequiredFiles' must contain at least one entry.");
+  }
+  if (!Array.isArray(input.migration.profileIncludePatterns) || input.migration.profileIncludePatterns.length === 0) {
+    throw new Error("Invalid mod config: 'migration.profileIncludePatterns' must contain at least one entry.");
+  }
+
+  return input;
+}
+
+export const modConfig = assertModConfig(config);
+
+export const MOD_DISPLAY_NAME = modConfig.mod.displayName;
+export const MOD_SHORT_NAME = modConfig.mod.shortName;
+export const LAUNCHER_NAME = modConfig.branding.launcherName;
+
+export const ANNOUNCE_ENABLED = modConfig.features.announce;
+export const REPORTING_ENABLED = modConfig.features.reporting;
+export const PRESETS_ENABLED = modConfig.features.presets;
+export const MIGRATION_ENABLED = modConfig.features.migration;
+export const EPIC_LOGIN_ENABLED = modConfig.features.epicLogin;
+export const CONNECT_LINKS_ENABLED = modConfig.features.connectLinks;
+
+export const ANNOUNCE_API_BASE_URL = modConfig.apis.announceBaseUrl;
+export const REPORTING_TERMS_URL = modConfig.apis.reportingTermsUrl;
+
+export const OFFICIAL_LINKS: OfficialLink[] = modConfig.links.official.map((item) => ({
+  label: item.label,
+  url: item.url,
+  backgroundColor: item.backgroundColor,
+  icon: SOCIAL_ICON_SPECS[item.iconId],
+}));

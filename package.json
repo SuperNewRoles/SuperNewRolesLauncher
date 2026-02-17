@@ -12,9 +12,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
+    "tauri:prepare-config": "node scripts/generate-tauri-config.mjs",
     "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:dev": "npm run tauri:prepare-config && tauri dev --config src-tauri/tauri.generated.conf.json",
+    "tauri:build": "npm run tauri:prepare-config && tauri build --config src-tauri/tauri.generated.conf.json"
   },
   "dependencies": {
     "@preact/signals-core": "^1.12.1",

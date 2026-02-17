@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { REPORTING_TERMS_URL } from "../app/modConfig";
 import type { ReportType } from "../app/types";
 import type { createTranslator } from "../i18n";
 import { type ReportModalStep, ReportStepTransition } from "./ReportStepTransition";
@@ -47,7 +48,6 @@ const REPORT_TYPES: { type: ReportType; icon: string; color: string }[] = [
   { type: "Thanks", icon: "🙏", color: "#27ae60" },
   { type: "Other", icon: "📝", color: "#95a5a6" },
 ];
-const REPORTING_TERMS_URL = "https://wiki.supernewroles.com/reporting-in-game-terms";
 
 export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalProps) {
   const [step, setStep] = useState<ReportModalStep>("type");

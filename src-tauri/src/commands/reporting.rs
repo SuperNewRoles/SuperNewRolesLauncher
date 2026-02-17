@@ -1,6 +1,6 @@
 use tauri::{AppHandle, Runtime};
 
-use crate::utils::reporting_api;
+use crate::utils::{mod_profile, reporting_api};
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -15,11 +15,16 @@ pub struct ReportingSendResult {
     pub success: bool,
 }
 
+fn ensure_reporting_enabled() -> Result<(), String> {
+    mod_profile::ensure_feature_enabled(mod_profile::Feature::Reporting)
+}
+
 /// 報告アカウント準備を行う。
 #[tauri::command]
 pub async fn reporting_prepare<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<ReportingPrepareResult, String> {
+    ensure_reporting_enabled()?;
     let summary = reporting_api::prepare_account(&app).await?;
     Ok(ReportingPrepareResult {
         ready: true,
@@ -33,6 +38,7 @@ pub async fn reporting_prepare<R: Runtime>(
 pub async fn reporting_threads_list<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<Vec<reporting_api::ReportThread>, String> {
+    ensure_reporting_enabled()?;
     reporting_api::list_threads(&app).await
 }
 
@@ -42,6 +48,7 @@ pub async fn reporting_messages_list<R: Runtime>(
     app: AppHandle<R>,
     thread_id: String,
 ) -> Result<Vec<reporting_api::ReportMessage>, String> {
+    ensure_reporting_enabled()?;
     reporting_api::get_messages(&app, &thread_id).await
 }
 
@@ -52,6 +59,7 @@ pub async fn reporting_message_send<R: Runtime>(
     thread_id: String,
     content: String,
 ) -> Result<ReportingSendResult, String> {
+    ensure_reporting_enabled()?;
     reporting_api::send_message(&app, &thread_id, &content).await?;
     Ok(ReportingSendResult { success: true })
 }
@@ -62,6 +70,7 @@ pub async fn reporting_report_send<R: Runtime>(
     app: AppHandle<R>,
     input: reporting_api::SendReportInput,
 ) -> Result<ReportingSendResult, String> {
+    ensure_reporting_enabled()?;
     reporting_api::send_report(&app, input).await?;
     Ok(ReportingSendResult { success: true })
 }
@@ -71,6 +80,7 @@ pub async fn reporting_report_send<R: Runtime>(
 pub async fn reporting_notification_flag_get<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<bool, String> {
+    ensure_reporting_enabled()?;
     reporting_api::get_notification_flag(&app).await
 }
 
@@ -79,5 +89,6 @@ pub async fn reporting_notification_flag_get<R: Runtime>(
 pub fn reporting_log_source_get<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<reporting_api::LogSourceInfo, String> {
+    ensure_reporting_enabled()?;
     reporting_api::get_log_source_info(&app)
 }

@@ -1,4 +1,5 @@
 import type { GamePlatform, SnrReleaseSummary } from "../../app/types";
+import { MOD_DISPLAY_NAME } from "../../app/modConfig";
 import type { MessageKey } from "../../i18n";
 import { EPIC_SVG, STEAM_SVG } from "./PlatformStep";
 
@@ -104,7 +105,9 @@ export default function VersionStep({
               onClick={() => onSelect(latest.tag)}
             >
               <span className="version-label">{t("installFlow.versionLatest")}</span>
-              <span className="version-tag">SuperNewRoles v{latest.tag}</span>
+              <span className="version-tag">
+                {MOD_DISPLAY_NAME} v{latest.tag}
+              </span>
             </button>
           )}
           <div className="version-custom-area">

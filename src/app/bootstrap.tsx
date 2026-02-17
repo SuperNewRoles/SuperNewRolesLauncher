@@ -30,6 +30,15 @@ import {
   OFFICIAL_LINKS,
   REPORTING_NOTIFICATION_STORAGE_KEY,
 } from "./constants";
+import {
+  ANNOUNCE_ENABLED,
+  CONNECT_LINKS_ENABLED,
+  EPIC_LOGIN_ENABLED,
+  MIGRATION_ENABLED,
+  PRESETS_ENABLED,
+  REPORTING_ENABLED,
+  modConfig,
+} from "./modConfig";
 import { collectAppDom } from "./dom";
 import {
   getPlatformIconPath,
@@ -51,6 +60,8 @@ import {
   launchVanilla,
   migrationExport,
   migrationImport,
+  modPreservedSaveDataStatus,
+  modUninstall,
   presetsExport,
   presetsImportArchive,
   presetsInspectArchive,
@@ -66,8 +77,6 @@ import {
   settingsOpenFolder,
   settingsProfileReady,
   settingsUpdate,
-  snrPreservedSaveDataStatus,
-  snrUninstall,
 } from "./services/tauriClient";
 import { computeControlState } from "./state/selectors";
 import { createAppStore } from "./state/store";
@@ -121,41 +130,80 @@ type MigrationOverlayStep = "select" | "password" | "processing" | "result";
 type PresetOverlayMode = "import" | "export";
 type PresetFeedbackMode = "none" | "confirmImport" | "result";
 const DEFAULT_SETTINGS_CATEGORY: SettingsCategoryId = "general";
-const ONBOARDING_STEP_GUIDES: ReadonlyArray<OnboardingStepGuide> = [
-  {
-    step: "welcome",
-    tab: "home",
-  },
-  {
-    step: "launch",
-    tab: "home",
-    selector: "#launch-modded",
-    focus: true,
-  },
-  {
-    step: "reporting",
-    tab: "report",
-    selector: "#report-center-root",
-  },
-  {
-    step: "preset",
-    tab: "preset",
-    selector: "#tab-preset .preset-remake-root",
-  },
-  {
-    step: "migration",
-    tab: "settings",
-    settingsCategory: "migration",
-    selector: "#settings-panel-migration .settings-migration-action-stack",
-  },
-  {
-    step: "connect",
-  },
-  {
-    step: "complete",
-    tab: "home",
-  },
-];
+
+function isMainTabEnabled(tabId: MainTabId): boolean {
+  if (tabId === "report") {
+    return REPORTING_ENABLED;
+  }
+  if (tabId === "announce") {
+    return ANNOUNCE_ENABLED;
+  }
+  if (tabId === "preset") {
+    return PRESETS_ENABLED;
+  }
+  return true;
+}
+
+function isSettingsCategoryEnabled(category: SettingsCategoryId): boolean {
+  if (category === "epic") {
+    return EPIC_LOGIN_ENABLED;
+  }
+  if (category === "migration") {
+    return MIGRATION_ENABLED;
+  }
+  return true;
+}
+
+const ONBOARDING_STEP_GUIDES: ReadonlyArray<OnboardingStepGuide> = (() => {
+  const guides: OnboardingStepGuide[] = [
+    {
+      step: "welcome",
+      tab: "home",
+    },
+    {
+      step: "launch",
+      tab: "home",
+      selector: "#launch-modded",
+      focus: true,
+    },
+  ];
+
+  if (REPORTING_ENABLED) {
+    guides.push({
+      step: "reporting",
+      tab: "report",
+      selector: "#report-center-root",
+    });
+  }
+
+  if (PRESETS_ENABLED) {
+    guides.push({
+      step: "preset",
+      tab: "preset",
+      selector: "#tab-preset .preset-remake-root",
+    });
+  }
+
+  if (MIGRATION_ENABLED) {
+    guides.push({
+      step: "migration",
+      tab: "settings",
+      settingsCategory: "migration",
+      selector: "#settings-panel-migration .settings-migration-action-stack",
+    });
+  }
+
+  guides.push(
+    {
+      step: "connect",
+    },
+    {
+      step: "complete",
+      tab: "home",
+    },
+  );
+  return guides;
+})();
 
 function isMainTabId(value: string | undefined): value is MainTabId {
   return (
@@ -363,6 +411,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     themeToggleLight,
     themeToggleDark,
   } = collectAppDom();
+  const migrationExtension = modConfig.migration.extension;
+  const migrationLegacyExtension = "snrdata";
+  const presetExtension = modConfig.presets.extension;
+  const presetLegacyExtension = "snrpresets";
+  const installProgressEventName = modConfig.events.installProgress;
 
   function updateThemeButtons(theme: ThemePreference) {
     themeToggleSystem.classList.toggle("active", theme === "system");
@@ -394,6 +447,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   // タブ切り替え
   function switchTab(tabId: MainTabId) {
+    if (!isMainTabEnabled(tabId)) {
+      return;
+    }
+
     activeTab = tabId;
 
     const reportPanel = document.querySelector<HTMLDivElement>("#tab-report");
@@ -429,7 +486,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
 
     // Mount/unmount ReportCenter based on tab
-    if (tabId === "report") {
+    if (tabId === "report" && REPORTING_ENABLED) {
       mountReportCenter();
       unmountAnnounceCenter();
       if (reportPanel) {
@@ -448,7 +505,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
           { once: true },
         );
       }
-    } else if (tabId === "announce") {
+    } else if (tabId === "announce" && ANNOUNCE_ENABLED) {
       unmountReportCenter();
       mountAnnounceCenter();
       if (announcePanel) {
@@ -484,7 +541,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         },
         { once: true },
       );
-    } else if (tabId === "preset" && presetPanel) {
+    } else if (tabId === "preset" && PRESETS_ENABLED && presetPanel) {
       unmountReportCenter();
       unmountAnnounceCenter();
       requestAnimationFrame(() => {
@@ -522,13 +579,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       }
     }
 
-    if (tabId === "home") {
+    if (REPORTING_ENABLED && tabId === "home") {
       startHomeNotificationPolling();
     } else {
       stopHomeNotificationPolling();
     }
 
-    if (tabId === "announce") {
+    if (!ANNOUNCE_ENABLED || tabId === "announce") {
       stopAnnounceNotificationPolling();
     } else {
       startAnnounceNotificationPolling();
@@ -546,7 +603,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   const reportCenterTabButton = document.querySelector<HTMLButtonElement>("#report-center-tab");
   reportCenterTabButton?.addEventListener("click", () => {
-    switchTab("report");
+    if (REPORTING_ENABLED) {
+      switchTab("report");
+    }
   });
   const reportCenterBadge = document.querySelector<HTMLSpanElement>("#report-center-badge");
   const reportTabBadge = document.querySelector<HTMLSpanElement>("#report-tab-badge");
@@ -561,16 +620,27 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   );
 
   function switchSettingsCategory(category: SettingsCategoryId): void {
+    const nextCategory = isSettingsCategoryEnabled(category) ? category : DEFAULT_SETTINGS_CATEGORY;
+
     for (const button of settingsCategoryButtons) {
-      const selected = button.dataset.settingsCategory === category;
+      const rawCategory = button.dataset.settingsCategory;
+      const buttonEnabled = isSettingsCategoryId(rawCategory)
+        ? isSettingsCategoryEnabled(rawCategory)
+        : true;
+      const selected = buttonEnabled && button.dataset.settingsCategory === nextCategory;
+      button.hidden = !buttonEnabled;
       button.classList.toggle("is-active", selected);
       button.setAttribute("aria-selected", selected ? "true" : "false");
     }
 
     for (const panel of settingsCategoryPanels) {
-      const selected = panel.dataset.settingsPanel === category;
+      const rawCategory = panel.dataset.settingsPanel;
+      const panelEnabled = isSettingsCategoryId(rawCategory)
+        ? isSettingsCategoryEnabled(rawCategory)
+        : true;
+      const selected = panelEnabled && panel.dataset.settingsPanel === nextCategory;
       panel.classList.toggle("is-active", selected);
-      panel.hidden = !selected;
+      panel.hidden = !selected || !panelEnabled;
       panel.setAttribute("aria-hidden", selected ? "false" : "true");
     }
   }
@@ -586,6 +656,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   switchSettingsCategory(DEFAULT_SETTINGS_CATEGORY);
 
   function setEpicAuthVisualState(state: "logged-out" | "logged-in" | "error"): void {
+    if (!EPIC_LOGIN_ENABLED) {
+      return;
+    }
     if (!epicAuthStatusBox || !epicAuthStatusIcon) {
       return;
     }
@@ -595,6 +668,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   function renderEpicActionButtons(loggedIn: boolean): void {
+    if (!EPIC_LOGIN_ENABLED) {
+      epicLoginWebviewButton.hidden = true;
+      epicLogoutButton.hidden = true;
+      return;
+    }
     epicLoginWebviewButton.hidden = loggedIn;
     epicLogoutButton.hidden = !loggedIn;
     epicLoginWebviewButton.setAttribute("aria-hidden", loggedIn ? "true" : "false");
@@ -605,7 +683,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   // 通知設定は永続値を先に確定し、store初期値とローカル変数を揃える。
   const initialReportingNotificationEnabled =
-    localStorage.getItem(REPORTING_NOTIFICATION_STORAGE_KEY) === "1";
+    REPORTING_ENABLED && localStorage.getItem(REPORTING_NOTIFICATION_STORAGE_KEY) === "1";
   // signalsストアは段階移行用に導入し、ボタン活性判定の入力を一元化する。
   const appStore = createAppStore(initialReportingNotificationEnabled);
 
@@ -808,11 +886,20 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     };
 
     onboardingRoot.render(
-      <OnboardingWizard onComplete={handleComplete} onStepChange={applyOnboardingGuide} />,
+      <OnboardingWizard
+        onComplete={handleComplete}
+        onStepChange={applyOnboardingGuide}
+        reportingEnabled={REPORTING_ENABLED}
+        presetsEnabled={PRESETS_ENABLED}
+        migrationEnabled={MIGRATION_ENABLED}
+      />,
     );
   }
 
   function mountReportCenter() {
+    if (!REPORTING_ENABLED) {
+      return;
+    }
     const containerId = "report-center-root";
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -825,6 +912,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   function mountAnnounceCenter() {
+    if (!ANNOUNCE_ENABLED) {
+      return;
+    }
     const containerId = "announce-center-root";
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -857,6 +947,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   function setReportCenterNotificationBadge(hasUnread: boolean): void {
+    if (!REPORTING_ENABLED) {
+      return;
+    }
     for (const badge of [reportCenterBadge, reportTabBadge]) {
       if (!badge) {
         continue;
@@ -900,6 +993,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   function setAnnounceNotificationBadge(hasUnread: boolean): void {
+    if (!ANNOUNCE_ENABLED) {
+      return;
+    }
     if (!announceTabBadge) {
       return;
     }
@@ -980,6 +1076,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   async function refreshHomeNotificationState(force = false): Promise<void> {
+    if (!REPORTING_ENABLED) {
+      setReportCenterNotificationBadge(false);
+      return;
+    }
+
     const now = Date.now();
     if (
       !force &&
@@ -1005,6 +1106,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   function startHomeNotificationPolling(): void {
+    if (!REPORTING_ENABLED) {
+      return;
+    }
     if (activeTab !== "home") {
       return;
     }
@@ -1026,6 +1130,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   async function refreshAnnounceNotificationState(force = false): Promise<void> {
+    if (!ANNOUNCE_ENABLED) {
+      setAnnounceNotificationBadge(false);
+      return;
+    }
+
     if (activeTab === "announce") {
       return;
     }
@@ -1052,6 +1161,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   function startAnnounceNotificationPolling(): void {
+    if (!ANNOUNCE_ENABLED) {
+      return;
+    }
     if (activeTab === "announce") {
       return;
     }
@@ -1139,6 +1251,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   function renderOfficialLinksInto(container: HTMLDivElement, iconOnly: boolean): void {
     container.replaceChildren();
+    if (!CONNECT_LINKS_ENABLED) {
+      return;
+    }
     for (const link of OFFICIAL_LINKS) {
       const button = document.createElement("button");
       button.type = "button";
@@ -1167,6 +1282,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   function renderOfficialLinks(): void {
+    if (!CONNECT_LINKS_ENABLED) {
+      officialLinkIcons.replaceChildren();
+      officialLinkButtons.replaceChildren();
+      return;
+    }
     renderOfficialLinksInto(officialLinkIcons, true);
     renderOfficialLinksInto(officialLinkButtons, false);
   }
@@ -1194,7 +1314,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   async function refreshPreservedSaveDataStatus(): Promise<void> {
     try {
-      const status = await snrPreservedSaveDataStatus();
+      const status = await modPreservedSaveDataStatus();
       preservedSaveDataAvailable = status.available && status.files > 0;
       preservedSaveDataFiles = status.files;
     } catch (error) {
@@ -1244,7 +1364,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     )) {
       candidateButton.disabled = amongUsSelectionDisabled;
     }
-    settingsSupportDiscordLinkButton.disabled = false;
+    settingsSupportDiscordLinkButton.disabled = !CONNECT_LINKS_ENABLED;
     settingsUninstallConfirmAcceptButton.disabled =
       uninstallInProgress || control.uninstallButtonDisabled;
     settingsUninstallConfirmCancelButton.disabled = uninstallInProgress;
@@ -1252,14 +1372,14 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     launchModdedButton.disabled = control.launchModdedButtonDisabled;
     launchVanillaButton.disabled = control.launchVanillaButtonDisabled;
     createModdedShortcutButton.disabled = control.createModdedShortcutButtonDisabled;
-    epicLoginWebviewButton.disabled = control.epicLoginWebviewButtonDisabled;
-    epicLogoutButton.disabled = control.epicLogoutButtonDisabled;
+    epicLoginWebviewButton.disabled = !EPIC_LOGIN_ENABLED || control.epicLoginWebviewButtonDisabled;
+    epicLogoutButton.disabled = !EPIC_LOGIN_ENABLED || control.epicLogoutButtonDisabled;
     openAmongUsFolderButton.disabled = control.openAmongUsFolderButtonDisabled;
     openProfileFolderButton.disabled = control.openProfileFolderButtonDisabled;
     closeToTrayOnCloseInput.disabled = control.closeToTrayOnCloseInputDisabled;
     const migrationProcessing = migrationExporting || migrationImporting;
-    migrationExportButton.disabled = control.migrationExportButtonDisabled;
-    migrationImportButton.disabled = control.migrationImportButtonDisabled;
+    migrationExportButton.disabled = !MIGRATION_ENABLED || control.migrationExportButtonDisabled;
+    migrationImportButton.disabled = !MIGRATION_ENABLED || control.migrationImportButtonDisabled;
     settingsMigrationOverlayCloseButton.disabled = migrationProcessing;
     settingsMigrationOverlayCancelButton.disabled = migrationProcessing;
     settingsMigrationPickPathButton.disabled = migrationProcessing;
@@ -1273,16 +1393,16 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     settingsMigrationResultCloseButton.disabled = migrationProcessing;
     const presetProcessing =
       presetLoading || presetExporting || presetInspecting || presetImporting;
-    presetOpenImportButton.disabled = control.presetInspectButtonDisabled;
-    presetOpenExportButton.disabled = control.presetRefreshButtonDisabled;
+    presetOpenImportButton.disabled = !PRESETS_ENABLED || control.presetInspectButtonDisabled;
+    presetOpenExportButton.disabled = !PRESETS_ENABLED || control.presetRefreshButtonDisabled;
     presetOverlayCloseButton.disabled = presetProcessing;
-    presetRefreshButton.disabled = control.presetRefreshButtonDisabled;
-    presetSelectAllLocalButton.disabled = control.presetSelectAllLocalButtonDisabled;
-    presetClearLocalButton.disabled = control.presetClearLocalButtonDisabled;
-    presetExportButton.disabled = control.presetExportButtonDisabled;
-    presetSelectAllArchiveButton.disabled = control.presetSelectAllArchiveButtonDisabled;
-    presetClearArchiveButton.disabled = control.presetClearArchiveButtonDisabled;
-    presetImportButton.disabled = control.presetImportButtonDisabled;
+    presetRefreshButton.disabled = !PRESETS_ENABLED || control.presetRefreshButtonDisabled;
+    presetSelectAllLocalButton.disabled = !PRESETS_ENABLED || control.presetSelectAllLocalButtonDisabled;
+    presetClearLocalButton.disabled = !PRESETS_ENABLED || control.presetClearLocalButtonDisabled;
+    presetExportButton.disabled = !PRESETS_ENABLED || control.presetExportButtonDisabled;
+    presetSelectAllArchiveButton.disabled = !PRESETS_ENABLED || control.presetSelectAllArchiveButtonDisabled;
+    presetClearArchiveButton.disabled = !PRESETS_ENABLED || control.presetClearArchiveButtonDisabled;
+    presetImportButton.disabled = !PRESETS_ENABLED || control.presetImportButtonDisabled;
     presetFeedbackPrimaryButton.disabled = presetProcessing;
     presetFeedbackSecondaryButton.disabled = presetProcessing;
   }
@@ -1388,6 +1508,15 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   async function refreshEpicLoginState(): Promise<void> {
+    if (!EPIC_LOGIN_ENABLED) {
+      epicLoggedIn = false;
+      epicAuthStatus.textContent = t("epic.notLoggedIn");
+      renderEpicActionButtons(false);
+      setEpicAuthVisualState("logged-out");
+      updateButtons();
+      return;
+    }
+
     try {
       const status = await epicStatusGet();
       epicLoggedIn = status.loggedIn;
@@ -1617,6 +1746,14 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   async function refreshLocalPresets(_keepStatusMessage = false): Promise<void> {
+    if (!PRESETS_ENABLED) {
+      localPresets = [];
+      archivePresets = [];
+      renderLocalPresetList();
+      renderArchivePresetList();
+      return;
+    }
+
     presetLoading = true;
     updateButtons();
 
@@ -1637,12 +1774,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     if (!settings || !settings.amongUsPath.trim()) {
       throw new Error("Among Us path is not configured");
     }
-    return join(settings.amongUsPath, "Among Us.exe");
+    return join(settings.amongUsPath, modConfig.paths.amongUsExe);
   }
 
   const discordLink =
     OFFICIAL_LINKS.find((link) => link.label.toLowerCase() === "discord")?.url ??
-    "https://discord.gg/Cqfwx82ynN";
+    modConfig.links.supportDiscordUrl;
 
   function syncOverlayBodyLock(): void {
     const overlayOpen =
@@ -1947,7 +2084,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     installStatus.textContent = t("uninstall.starting");
 
     try {
-      const result = await snrUninstall(true);
+      const result = await modUninstall(true);
       installStatus.textContent = t("uninstall.doneWithPreserved", {
         count: result.preservedFiles,
       });
@@ -1974,7 +2111,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   const EPIC_AUTH_INIT_FAILED_ERROR_PREFIX = "Failed to initialize Epic authentication:";
   const INVALID_AMONG_US_FOLDER_ERROR_PREFIX =
     "The selected folder is not an Among Us installation directory:";
-  const INVALID_AMONG_US_EXE_TARGET_ERROR_PREFIX = "Launch target is not Among Us.exe:";
+  const INVALID_AMONG_US_EXE_TARGET_ERROR_PREFIX = `Launch target is not ${modConfig.paths.amongUsExe}:`;
 
   function localizeLaunchError(error: unknown): string {
     const message = String(error);
@@ -2115,12 +2252,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     try {
       const downloadsPath = await downloadDir();
       if (mode === "export") {
-        return join(downloadsPath, "migration.snrdata");
+        return join(downloadsPath, `migration.${migrationExtension}`);
       }
       return downloadsPath;
     } catch {
       if (mode === "export") {
-        return "migration.snrdata";
+        return `migration.${migrationExtension}`;
       }
       return undefined;
     }
@@ -2134,7 +2271,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         const selectedPath = await save({
           title: t("migration.overlay.exportDialogTitle"),
           defaultPath,
-          filters: [{ name: "snrdata", extensions: ["snrdata"] }],
+          filters: [{ name: migrationExtension, extensions: [migrationExtension] }],
         });
         return selectedPath ?? null;
       }
@@ -2143,7 +2280,14 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         multiple: false,
         directory: false,
         defaultPath,
-        filters: [{ name: "snrdata", extensions: ["snrdata"] }],
+        filters: [
+          {
+            name: migrationExtension,
+            extensions: Array.from(
+              new Set([migrationExtension, migrationLegacyExtension]),
+            ),
+          },
+        ],
       });
       if (!selectedPath || Array.isArray(selectedPath)) {
         return null;
@@ -2290,6 +2434,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   async function startMigrationFlow(mode: MigrationMode): Promise<void> {
+    if (!MIGRATION_ENABLED) {
+      return;
+    }
     if (isMigrationProcessing()) {
       return;
     }
@@ -2385,6 +2532,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   function openPresetOverlay(mode: PresetOverlayMode): void {
+    if (!PRESETS_ENABLED) {
+      return;
+    }
     if (isPresetProcessing()) {
       return;
     }
@@ -2594,9 +2744,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   async function resolvePresetExportDefaultPath(): Promise<string | undefined> {
     try {
       const downloadsPath = await downloadDir();
-      return join(downloadsPath, "presets.snrpresets");
+      return join(downloadsPath, `presets.${presetExtension}`);
     } catch {
-      return "presets.snrpresets";
+      return `presets.${presetExtension}`;
     }
   }
 
@@ -2606,7 +2756,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       const selectedPath = await save({
         title: t("preset.exportDialogTitle"),
         defaultPath,
-        filters: [{ name: "snrpresets", extensions: ["snrpresets"] }],
+        filters: [{ name: presetExtension, extensions: [presetExtension] }],
       });
       return selectedPath ?? null;
     } catch {
@@ -2631,7 +2781,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         multiple: false,
         directory: false,
         defaultPath,
-        filters: [{ name: "snrpresets", extensions: ["snrpresets"] }],
+        filters: [
+          {
+            name: presetExtension,
+            extensions: Array.from(new Set([presetExtension, presetLegacyExtension])),
+          },
+        ],
       });
       if (!selectedPath || Array.isArray(selectedPath)) {
         return null;
@@ -2672,6 +2827,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   async function startPresetImportFlow(): Promise<void> {
+    if (!PRESETS_ENABLED) {
+      return;
+    }
     if (isPresetProcessing()) {
       return;
     }
@@ -2743,6 +2901,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     archivePath: string,
     selections: PresetImportSelectionInput[],
   ): Promise<void> {
+    if (!PRESETS_ENABLED) {
+      return;
+    }
     closePresetResultOverlay(true);
     presetImporting = true;
     updateButtons();
@@ -2902,6 +3063,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   });
 
   epicLoginWebviewButton.addEventListener("click", async () => {
+    if (!EPIC_LOGIN_ENABLED) {
+      return;
+    }
     epicAuthStatus.textContent = t("epic.webviewStarting");
     setEpicAuthVisualState("logged-out");
     try {
@@ -2913,6 +3077,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   });
 
   epicLogoutButton.addEventListener("click", async () => {
+    if (!EPIC_LOGIN_ENABLED) {
+      return;
+    }
     try {
       await epicLogout();
       epicAuthStatus.textContent = t("epic.logoutDone");
@@ -2930,6 +3097,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   });
 
   settingsSupportDiscordLinkButton.addEventListener("click", async () => {
+    if (!CONNECT_LINKS_ENABLED) {
+      return;
+    }
     try {
       await openUrl(discordLink);
     } catch {
@@ -3099,7 +3269,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
   })();
 
-  void listen<InstallProgressPayload>("snr-install-progress", (event) => {
+  void listen<InstallProgressPayload>(installProgressEventName, (event) => {
     const payload = event.payload;
 
     if (
@@ -3143,16 +3313,25 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   });
 
   void listen("epic-login-success", async () => {
+    if (!EPIC_LOGIN_ENABLED) {
+      return;
+    }
     epicAuthStatus.textContent = t("epic.loginSuccess");
     await refreshEpicLoginState();
   });
 
   void listen<string>("epic-login-error", async (event) => {
+    if (!EPIC_LOGIN_ENABLED) {
+      return;
+    }
     epicAuthStatus.textContent = t("epic.loginFailed", { error: event.payload });
     await refreshEpicLoginState();
   });
 
   void listen("epic-login-cancelled", () => {
+    if (!EPIC_LOGIN_ENABLED) {
+      return;
+    }
     epicAuthStatus.textContent = t("epic.loginCancelled");
   });
 
@@ -3168,10 +3347,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     await refreshGameRunningState();
     startGameRunningPolling();
 
-    try {
-      await epicSessionRestore();
-    } catch {
-      // ignore restore errors; status is refreshed next.
+    if (EPIC_LOGIN_ENABLED) {
+      try {
+        await epicSessionRestore();
+      } catch {
+        // ignore restore errors; status is refreshed next.
+      }
     }
     await refreshEpicLoginState();
 

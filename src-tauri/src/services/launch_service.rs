@@ -3,6 +3,7 @@
 
 use crate::utils::{
     epic_api::{self, EpicApi},
+    mod_profile,
     settings,
 };
 use std::fs;
@@ -16,13 +17,29 @@ static GAME_PROCESS: LazyLock<Mutex<Option<Child>>> = LazyLock::new(|| Mutex::ne
 static LAST_AUTOLAUNCH_ERROR: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
 
 pub const AUTOLAUNCH_MODDED_ARGUMENT: &str = "--autolaunch-modded";
-#[cfg(windows)]
-const MODDED_SHORTCUT_FILE_NAME: &str = "SuperNewRoles Mod Launch.lnk";
 const RUNNING_GAME_PID_FILE_NAME: &str = "running-game.pid";
 const STEAM_APP_ID_FILE_NAME: &str = "steam_appid.txt";
 const STEAM_APP_ID_VALUE: &str = "945360";
-const AMONG_US_EXE_FILE_NAME: &str = "Among Us.exe";
-const AMONG_US_DATA_DIR_NAME: &str = "Among Us_Data";
+
+fn among_us_exe_file_name() -> &'static str {
+    mod_profile::get().paths.among_us_exe.as_str()
+}
+
+fn among_us_data_dir_name() -> &'static str {
+    mod_profile::get().paths.among_us_data_dir.as_str()
+}
+
+#[cfg(windows)]
+fn modded_shortcut_file_name() -> &'static str {
+    mod_profile::get().branding.modded_shortcut_name.as_str()
+}
+
+fn modded_shortcut_description() -> String {
+    format!(
+        "Launch {} modded",
+        mod_profile::get().mod_info.display_name
+    )
+}
 
 #[derive(Clone, serde::Serialize)]
 pub struct GameStatePayload {
@@ -161,13 +178,14 @@ fn is_pid_running(pid: u32) -> bool {
         return false;
     }
 
+    let among_us_exe = among_us_exe_file_name().to_ascii_lowercase();
+    let executable_prefix = format!("\"{among_us_exe}\"");
     let pid_fragment = format!(",\"{pid}\",");
     String::from_utf8_lossy(&output.stdout)
         .lines()
         .map(str::trim)
         .any(|line| {
-            line.to_ascii_lowercase().starts_with("\"among us.exe\"")
-                && line.contains(&pid_fragment)
+            line.to_ascii_lowercase().starts_with(&executable_prefix) && line.contains(&pid_fragment)
         })
 }
 
@@ -285,13 +303,14 @@ pub fn create_modded_launch_shortcut() -> Result<String, String> {
         fs::create_dir_all(&desktop_dir)
             .map_err(|e| format!("Failed to create desktop directory: {e}"))?;
 
-        let shortcut_path = desktop_dir.join(MODDED_SHORTCUT_FILE_NAME);
+        let shortcut_path = desktop_dir.join(modded_shortcut_file_name());
+        let description = modded_shortcut_description();
         create_shortcut_with_shell_link(
             &shortcut_path,
             &launcher_exe,
             AUTOLAUNCH_MODDED_ARGUMENT,
             working_directory,
-            "Launch SuperNewRoles modded",
+            &description,
         )?;
 
         Ok(shortcut_path.to_string_lossy().to_string())
@@ -386,16 +405,17 @@ fn ensure_valid_among_us_launch_target(game_exe_path: &Path) -> Result<&Path, St
     let is_among_us_exe = game_exe_path
         .file_name()
         .and_then(|name| name.to_str())
-        .is_some_and(|name| name.eq_ignore_ascii_case(AMONG_US_EXE_FILE_NAME));
+        .is_some_and(|name| name.eq_ignore_ascii_case(among_us_exe_file_name()));
     if !is_among_us_exe {
         return Err(format!(
-            "Launch target is not Among Us.exe: {}",
+            "Launch target is not {}: {}",
+            among_us_exe_file_name(),
             game_exe_path.to_string_lossy()
         ));
     }
 
-    if !game_dir.join(AMONG_US_EXE_FILE_NAME).is_file()
-        || !game_dir.join(AMONG_US_DATA_DIR_NAME).is_dir()
+    if !game_dir.join(among_us_exe_file_name()).is_file()
+        || !game_dir.join(among_us_data_dir_name()).is_dir()
     {
         return Err(format!(
             "The selected folder is not an Among Us installation directory: {}",
@@ -472,7 +492,7 @@ pub async fn launch_modded_from_saved_settings<R: Runtime>(
         return Err("Profile path is not configured".to_string());
     }
 
-    let game_exe_path = PathBuf::from(among_us_path).join("Among Us.exe");
+    let game_exe_path = PathBuf::from(among_us_path).join(among_us_exe_file_name());
     launch_modded(
         app,
         game_exe_path.to_string_lossy().to_string(),

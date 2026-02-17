@@ -6,16 +6,45 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Runtime};
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
-use crate::utils::settings;
+use crate::utils::{mod_profile, settings};
 
-const PRESET_ARCHIVE_EXTENSION: &str = "snrpresets";
+const LEGACY_PRESET_ARCHIVE_EXTENSION: &str = "snrpresets";
 const PRESET_ARCHIVE_DIR_NAME: &str = "presets";
-const SAVE_DATA_RELATIVE_PATH: &str = "SuperNewRolesNext/SaveData";
 const OPTIONS_FILE_NAME: &str = "Options.data";
 const PRESET_FILE_PREFIX: &str = "PresetOptions_";
 const PRESET_FILE_SUFFIX: &str = ".data";
-const OPTIONS_ARCHIVE_PATH: &str = "SuperNewRolesNext/SaveData/Options.data";
-const PRESET_ARCHIVE_FILE_PREFIX_LOWER: &str = "supernewrolesnext/savedata/presetoptions_";
+
+fn preset_archive_extension() -> &'static str {
+    mod_profile::get().presets.extension.as_str()
+}
+
+fn save_data_relative_path() -> PathBuf {
+    mod_profile::to_relative_path(&mod_profile::get().presets.save_data_root)
+}
+
+fn save_data_relative_path_normalized() -> String {
+    normalize_path_for_archive(&save_data_relative_path())
+}
+
+fn options_archive_path() -> String {
+    normalize_path_for_archive(&mod_profile::to_relative_path(
+        &mod_profile::get().presets.options_archive_path,
+    ))
+}
+
+fn preset_archive_prefix_candidates() -> [String; 2] {
+    [
+        format!(
+            "{}/{}",
+            save_data_relative_path_normalized().to_ascii_lowercase(),
+            PRESET_FILE_PREFIX.to_ascii_lowercase()
+        ),
+        format!(
+            "supernewrolesnext/savedata/{}",
+            PRESET_FILE_PREFIX.to_ascii_lowercase()
+        ),
+    ]
+}
 
 #[derive(Debug, Clone)]
 pub struct PresetEntrySummary {
@@ -91,12 +120,14 @@ fn parse_preset_id_from_archive_path(path: &str) -> Option<i32> {
     let normalized = path.replace('\\', "/");
     let lower = normalized.to_ascii_lowercase();
 
-    if !lower.starts_with(PRESET_ARCHIVE_FILE_PREFIX_LOWER) || !lower.ends_with(PRESET_FILE_SUFFIX)
-    {
+    let prefix = preset_archive_prefix_candidates()
+        .into_iter()
+        .find(|candidate| lower.starts_with(candidate))?;
+    if !lower.ends_with(PRESET_FILE_SUFFIX) {
         return None;
     }
 
-    let start = PRESET_ARCHIVE_FILE_PREFIX_LOWER.len();
+    let start = prefix.len();
     let end = normalized.len().saturating_sub(PRESET_FILE_SUFFIX.len());
     if end <= start {
         return None;
@@ -263,9 +294,7 @@ fn profile_save_data_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, Stri
         return Err("Profile path is not configured.".to_string());
     }
 
-    Ok(PathBuf::from(profile_path)
-        .join("SuperNewRolesNext")
-        .join("SaveData"))
+    Ok(PathBuf::from(profile_path).join(save_data_relative_path()))
 }
 
 fn load_options_data(path: &Path) -> Result<Option<OptionsData>, String> {
@@ -323,7 +352,9 @@ fn make_default_archive_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, 
         .as_secs();
 
     Ok(base_dir.join(PRESET_ARCHIVE_DIR_NAME).join(format!(
-        "snr-presets-{timestamp}.{PRESET_ARCHIVE_EXTENSION}"
+        "{}-presets-{timestamp}.{}",
+        mod_profile::get().mod_info.id,
+        preset_archive_extension()
     )))
 }
 
@@ -331,6 +362,7 @@ fn resolve_archive_output_path<R: Runtime>(
     app: &AppHandle<R>,
     output_path: Option<String>,
 ) -> Result<PathBuf, String> {
+    let extension = preset_archive_extension();
     let mut output = if let Some(path) = output_path {
         let trimmed = path.trim();
         if trimmed.is_empty() {
@@ -343,15 +375,15 @@ fn resolve_archive_output_path<R: Runtime>(
     };
 
     match output.extension().and_then(|ext| ext.to_str()) {
-        Some(ext) if ext.eq_ignore_ascii_case(PRESET_ARCHIVE_EXTENSION) => {}
+        Some(ext) if ext.eq_ignore_ascii_case(extension) => {}
         Some(_) => {
             return Err(format!(
-                "Export path must end with .{PRESET_ARCHIVE_EXTENSION}: {}",
+                "Export path must end with .{extension}: {}",
                 output.display()
             ));
         }
         None => {
-            output.set_extension(PRESET_ARCHIVE_EXTENSION);
+            output.set_extension(extension);
         }
     }
 
@@ -359,11 +391,14 @@ fn resolve_archive_output_path<R: Runtime>(
 }
 
 fn archive_extension_is_supported(path: &Path) -> bool {
+    let configured_extension = preset_archive_extension();
     path.extension()
         .and_then(|ext| ext.to_str())
         .map(|ext| {
             let ext_lower = ext.to_ascii_lowercase();
-            ext_lower == PRESET_ARCHIVE_EXTENSION || ext_lower == "zip"
+            ext_lower == configured_extension.to_ascii_lowercase()
+                || ext_lower == LEGACY_PRESET_ARCHIVE_EXTENSION
+                || ext_lower == "zip"
         })
         .unwrap_or(false)
 }
@@ -438,6 +473,8 @@ fn read_archive_contents(archive_path: &Path) -> Result<ArchiveContents, String>
 
     let mut options_bytes: Option<Vec<u8>> = None;
     let mut preset_files = HashMap::new();
+    let configured_options_path = options_archive_path();
+    let legacy_options_path = "SuperNewRolesNext/SaveData/Options.data".to_string();
 
     for index in 0..archive.len() {
         let mut entry = archive
@@ -464,7 +501,9 @@ fn read_archive_contents(archive_path: &Path) -> Result<ArchiveContents, String>
             )
         })?;
 
-        if normalized.eq_ignore_ascii_case(OPTIONS_ARCHIVE_PATH) {
+        if normalized.eq_ignore_ascii_case(&configured_options_path)
+            || normalized.eq_ignore_ascii_case(&legacy_options_path)
+        {
             options_bytes = Some(data);
             continue;
         }
@@ -477,7 +516,7 @@ fn read_archive_contents(archive_path: &Path) -> Result<ArchiveContents, String>
     let options_bytes = options_bytes.ok_or_else(|| {
         format!(
             "Preset archive does not contain '{}'.",
-            OPTIONS_ARCHIVE_PATH
+            configured_options_path
         )
     })?;
     let options = parse_options_data(&options_bytes)?;
@@ -633,10 +672,12 @@ pub fn export_selected_presets<R: Runtime>(
     })?;
     let mut zip = ZipWriter::new(output_file);
 
-    write_bytes_to_zip(&mut zip, OPTIONS_ARCHIVE_PATH, &options_bytes)?;
+    let options_archive_path = options_archive_path();
+    write_bytes_to_zip(&mut zip, &options_archive_path, &options_bytes)?;
+    let save_data_relative_path = save_data_relative_path_normalized();
 
     for (preset_id, source_path) in &selected_files {
-        let archive_entry = format!("{SAVE_DATA_RELATIVE_PATH}/{}", preset_file_name(*preset_id));
+        let archive_entry = format!("{save_data_relative_path}/{}", preset_file_name(*preset_id));
         write_file_to_zip(&mut zip, source_path, &archive_entry)?;
     }
 
