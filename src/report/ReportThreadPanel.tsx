@@ -64,7 +64,7 @@ export function ReportThreadPanel({
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen || isLoading) {
+    if (!isOpen || isLoading || normalizedMessages.length === 0) {
       return;
     }
 
