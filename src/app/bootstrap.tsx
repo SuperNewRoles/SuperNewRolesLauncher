@@ -647,8 +647,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let announceBadgeLastFetchedAt = 0;
   let announceBadgeFetching = false;
   let announceBadgePollTimer: number | null = null;
-  let announceLatestArticleId: string | null = null;
-  let announceLatestArticleCreatedAt = 0;
   let launcherAutoMinimizePending = false;
   let launcherAutoMinimizeTimer: number | null = null;
   let launcherMinimizing = false;
@@ -840,7 +838,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         locale={currentLocale}
         t={t}
         onArticlesUpdated={handleAnnounceArticlesUpdated}
-        onArticleSelectedByUser={handleAnnounceArticleSelectedByUser}
       />,
     );
   }
@@ -902,14 +899,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
   }
 
-  function setAnnounceReadCreatedAt(value: number): void {
-    try {
-      localStorage.setItem(ANNOUNCE_BADGE_READ_CREATED_AT_STORAGE_KEY, String(value));
-    } catch {
-      // ignore storage failures
-    }
-  }
-
   function setAnnounceNotificationBadge(hasUnread: boolean): void {
     if (!announceTabBadge) {
       return;
@@ -921,14 +910,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   function syncAnnounceBadgeFromItems(items: AnnounceArticleMinimal[]): void {
     const latest = resolveLatestAnnounceArticle(items);
     if (!latest) {
-      announceLatestArticleId = null;
-      announceLatestArticleCreatedAt = 0;
       setAnnounceNotificationBadge(false);
       return;
     }
 
-    announceLatestArticleId = latest.id;
-    announceLatestArticleCreatedAt = parseAnnounceCreatedAt(latest.created_at);
+    const latestCreatedAt = parseAnnounceCreatedAt(latest.created_at);
 
     const readCreatedAt = getAnnounceReadCreatedAt();
     if (readCreatedAt === null) {
@@ -936,26 +922,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       return;
     }
 
-    setAnnounceNotificationBadge(announceLatestArticleCreatedAt > readCreatedAt);
+    setAnnounceNotificationBadge(latestCreatedAt > readCreatedAt);
   }
 
   function handleAnnounceArticlesUpdated(items: AnnounceArticleMinimal[]): void {
     announceBadgeLastFetchedAt = Date.now();
     syncAnnounceBadgeFromItems(items);
-  }
-
-  function handleAnnounceArticleSelectedByUser(article: AnnounceArticleMinimal): void {
-    if (!announceLatestArticleId || article.id !== announceLatestArticleId) {
-      return;
-    }
-
-    const selectedCreatedAt = parseAnnounceCreatedAt(article.created_at);
-    if (selectedCreatedAt <= 0) {
-      return;
-    }
-
-    setAnnounceReadCreatedAt(selectedCreatedAt);
-    setAnnounceNotificationBadge(false);
   }
 
   function clearLauncherAutoMinimizePending(): void {

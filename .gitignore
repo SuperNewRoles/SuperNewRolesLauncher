@@ -15,3 +15,5 @@ pnpm-debug.log*
 .tmp/
 
 SuperNewRolesModded/
+RemotionPV/
+.agents/skills/remotion-best-practices/

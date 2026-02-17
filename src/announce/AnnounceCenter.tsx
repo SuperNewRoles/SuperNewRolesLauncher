@@ -17,7 +17,6 @@ interface AnnounceCenterProps {
   locale: LocaleCode;
   t: Translator;
   onArticlesUpdated?: (items: AnnounceArticleMinimal[]) => void;
-  onArticleSelectedByUser?: (article: AnnounceArticleMinimal) => void;
 }
 
 function formatDateTime(value: string, locale: LocaleCode): string {
@@ -46,13 +45,29 @@ function getAnnounceReadCreatedAt(): number | null {
   }
 }
 
-export function AnnounceCenter({
-  locale,
-  t,
-  onArticlesUpdated,
-  onArticleSelectedByUser,
-}: AnnounceCenterProps) {
-  const readCreatedAt = getAnnounceReadCreatedAt();
+function setAnnounceReadCreatedAt(value: number): void {
+  try {
+    localStorage.setItem(ANNOUNCE_BADGE_READ_CREATED_AT_STORAGE_KEY, String(value));
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function resolveLatestVisibleCreatedAt(items: AnnounceArticleMinimal[]): number {
+  let latestCreatedAt = 0;
+  for (const item of items) {
+    const createdAt = parseAnnounceCreatedAt(item.created_at);
+    if (createdAt > latestCreatedAt) {
+      latestCreatedAt = createdAt;
+    }
+  }
+  return latestCreatedAt;
+}
+
+export function AnnounceCenter({ locale, t, onArticlesUpdated }: AnnounceCenterProps) {
+  const [readCreatedAt, setReadCreatedAt] = useState<number | null>(() =>
+    getAnnounceReadCreatedAt(),
+  );
   const [items, setItems] = useState<AnnounceArticleMinimal[]>([]);
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<AnnounceArticle | null>(null);
@@ -61,13 +76,37 @@ export function AnnounceCenter({
   const [listError, setListError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>("");
+  const readCreatedAtRef = useRef<number | null>(readCreatedAt);
   const selectedArticleIdRef = useRef<string | null>(null);
+  const initialAutoReadPendingRef = useRef(true);
   const articleCacheRef = useRef<Map<string, AnnounceArticle>>(new Map());
   const isMountedRef = useRef(false);
 
   useEffect(() => {
+    readCreatedAtRef.current = readCreatedAt;
+  }, [readCreatedAt]);
+
+  useEffect(() => {
     selectedArticleIdRef.current = selectedArticleId;
   }, [selectedArticleId]);
+
+  const markReadUntil = useCallback((candidateCreatedAt: number): boolean => {
+    if (candidateCreatedAt <= 0) {
+      return false;
+    }
+
+    const currentValue = readCreatedAtRef.current;
+    const nextValue =
+      currentValue === null ? candidateCreatedAt : Math.max(currentValue, candidateCreatedAt);
+    if (currentValue === nextValue) {
+      return false;
+    }
+
+    readCreatedAtRef.current = nextValue;
+    setReadCreatedAt(nextValue);
+    setAnnounceReadCreatedAt(nextValue);
+    return true;
+  }, []);
 
   const openExternal = useCallback(async (url: string): Promise<void> => {
     try {
@@ -122,6 +161,11 @@ export function AnnounceCenter({
       setListError(null);
 
       try {
+        const shouldAutoReadVisibleOnThisRefresh = !manual && initialAutoReadPendingRef.current;
+        if (shouldAutoReadVisibleOnThisRefresh) {
+          initialAutoReadPendingRef.current = false;
+        }
+
         const response = await announceListArticles(locale);
         if (!isMountedRef.current) {
           return;
@@ -129,6 +173,12 @@ export function AnnounceCenter({
 
         const nextItems = response.items;
         setItems(nextItems);
+
+        if (shouldAutoReadVisibleOnThisRefresh && nextItems.length > 0) {
+          const latestVisibleCreatedAt = resolveLatestVisibleCreatedAt(nextItems);
+          markReadUntil(latestVisibleCreatedAt);
+        }
+
         onArticlesUpdated?.(nextItems);
 
         if (nextItems.length === 0) {
@@ -168,7 +218,7 @@ export function AnnounceCenter({
         }
       }
     },
-    [loadDetail, locale, onArticlesUpdated, t],
+    [loadDetail, locale, markReadUntil, onArticlesUpdated, t],
   );
 
   useEffect(() => {
@@ -192,11 +242,26 @@ export function AnnounceCenter({
       setSelectedArticleId(articleId);
       selectedArticleIdRef.current = articleId;
       setStatusMessage("");
-      onArticleSelectedByUser?.(item);
       void loadDetail(articleId);
     },
-    [loadDetail, onArticleSelectedByUser],
+    [loadDetail],
   );
+
+  const hasUnreadItems = items.some((item) => {
+    const itemCreatedAt = parseAnnounceCreatedAt(item.created_at);
+    return readCreatedAt === null || itemCreatedAt > readCreatedAt;
+  });
+
+  const handleMarkAllRead = useCallback((): void => {
+    const latestVisibleCreatedAt = resolveLatestVisibleCreatedAt(items);
+    if (latestVisibleCreatedAt <= 0) {
+      return;
+    }
+
+    if (markReadUntil(latestVisibleCreatedAt)) {
+      onArticlesUpdated?.(items);
+    }
+  }, [items, markReadUntil, onArticlesUpdated]);
 
   const listHeaderMessage = loadingList ? t("announce.loadingList") : statusMessage;
   const detailStatusMessage = loadingDetail ? t("announce.loadingDetail") : "";
@@ -213,23 +278,33 @@ export function AnnounceCenter({
                   {listHeaderMessage}
                 </div>
               ) : null}
-              <button
-                type="button"
-                className="announce-refresh-button"
-                onClick={() => {
-                  void refreshArticles(true);
-                }}
-                aria-label={t("announce.refresh")}
-                title={t("announce.refresh")}
-                disabled={loadingList || loadingDetail}
-              >
-                <span
-                  className={`announce-refresh-icon${loadingList ? " is-spinning" : ""}`}
-                  aria-hidden="true"
+              <div className="announce-list-action-buttons">
+                <button
+                  type="button"
+                  className="announce-mark-all-read-button"
+                  onClick={handleMarkAllRead}
+                  disabled={loadingList || loadingDetail || !hasUnreadItems}
                 >
-                  ↻
-                </span>
-              </button>
+                  {t("announce.markAllRead")}
+                </button>
+                <button
+                  type="button"
+                  className="announce-refresh-button"
+                  onClick={() => {
+                    void refreshArticles(true);
+                  }}
+                  aria-label={t("announce.refresh")}
+                  title={t("announce.refresh")}
+                  disabled={loadingList || loadingDetail}
+                >
+                  <span
+                    className={`announce-refresh-icon${loadingList ? " is-spinning" : ""}`}
+                    aria-hidden="true"
+                  >
+                    ↻
+                  </span>
+                </button>
+              </div>
             </div>
           </header>
 

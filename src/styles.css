@@ -5726,10 +5726,55 @@ body.locale-switch-animating {
   font-weight: 700;
 }
 
-.announce-refresh-button {
-  width: 28px;
-  height: 28px;
+.announce-list-action-buttons {
+  --announce-header-action-size: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.announce-mark-all-read-button {
+  height: var(--announce-header-action-size);
   min-width: auto;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.announce-mark-all-read-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.announce-mark-all-read-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.announce-mark-all-read-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.announce-refresh-button {
+  width: var(--announce-header-action-size);
+  height: var(--announce-header-action-size);
+  min-width: auto;
+  margin: 0;
+  position: relative;
+  top: -1px;
   padding: 0;
   border: none;
   border-radius: 999px;

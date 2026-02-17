@@ -151,6 +151,7 @@ const ja = {
 
   "announce.tab": "アナウンス",
   "announce.refresh": "更新",
+  "announce.markAllRead": "全て既読",
   "announce.loadingList": "アナウンスを読み込み中...",
   "announce.loadingDetail": "アナウンス詳細を読み込み中...",
   "announce.empty": "アナウンスがありません",

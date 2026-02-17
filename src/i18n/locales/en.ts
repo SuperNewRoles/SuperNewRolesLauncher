@@ -157,6 +157,7 @@ const en: Record<keyof typeof ja, string> = {
 
   "announce.tab": "Announcements",
   "announce.refresh": "Refresh",
+  "announce.markAllRead": "Mark all read",
   "announce.loadingList": "Loading announcements...",
   "announce.loadingDetail": "Loading announcement details...",
   "announce.empty": "No announcements available",
