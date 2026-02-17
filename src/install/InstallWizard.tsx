@@ -22,6 +22,7 @@ import {
   modSaveDataPreview,
   settingsUpdate,
 } from "../app/services/tauriClient";
+import { isPlatformSelectable } from "../app/platformSelection";
 import { type ThemePreference, applyTheme, getStoredTheme, setStoredTheme } from "../app/theme";
 import type {
   GamePlatform,
@@ -172,25 +173,45 @@ export default function InstallWizard() {
     }
   }, [fetchReleasesForInstall, resetImportState]);
 
-  const onPlatformSelect = useCallback((path: string, plat: GamePlatform) => {
-    setAmongUsPath(path);
-    setPlatform(plat);
-    if (plat === "epic" && EPIC_LOGIN_ENABLED) {
-      setStep("epic-login");
-    } else {
-      setStep("version");
-    }
-  }, []);
+  const onPlatformSelect = useCallback(
+    (path: string, plat: GamePlatform) => {
+      if (!isPlatformSelectable(plat, EPIC_LOGIN_ENABLED)) {
+        setError(t("launch.errorEpicFeatureDisabled"));
+        setStep("platform");
+        return;
+      }
 
-  const onManualFolderSelect = useCallback(async (path: string, plat: GamePlatform) => {
-    setAmongUsPath(path);
-    setPlatform(plat);
-    if (plat === "epic" && EPIC_LOGIN_ENABLED) {
-      setStep("epic-login");
-    } else {
-      setStep("version");
-    }
-  }, []);
+      setAmongUsPath(path);
+      setPlatform(plat);
+      setError(null);
+      if (plat === "epic" && EPIC_LOGIN_ENABLED) {
+        setStep("epic-login");
+      } else {
+        setStep("version");
+      }
+    },
+    [t],
+  );
+
+  const onManualFolderSelect = useCallback(
+    (path: string, plat: GamePlatform) => {
+      if (!isPlatformSelectable(plat, EPIC_LOGIN_ENABLED)) {
+        setError(t("launch.errorEpicFeatureDisabled"));
+        setStep("platform");
+        return;
+      }
+
+      setAmongUsPath(path);
+      setPlatform(plat);
+      setError(null);
+      if (plat === "epic" && EPIC_LOGIN_ENABLED) {
+        setStep("epic-login");
+      } else {
+        setStep("version");
+      }
+    },
+    [t],
+  );
 
   const onEpicLoginDone = useCallback(() => {
     setStep("version");
@@ -631,6 +652,7 @@ export default function InstallWizard() {
         <PlatformStep
           t={t}
           detectedPlatforms={detectedPlatforms}
+          epicEnabled={EPIC_LOGIN_ENABLED}
           onSelect={onPlatformSelect}
           onManualSelect={onManualFolderSelect}
           onBack={onBack}

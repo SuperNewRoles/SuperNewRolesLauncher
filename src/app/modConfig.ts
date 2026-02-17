@@ -71,6 +71,13 @@ export interface ModConfig {
       iconId: SocialBrandId;
     }>;
   };
+  theme: {
+    bodyAuraColors: {
+      orange: string;
+      green: string;
+      red: string;
+    };
+  };
   events: {
     installProgress: string;
     legacyInstallProgress: string;
@@ -90,6 +97,22 @@ function ensureNonEmpty(value: string, name: string): string {
 function normalizeBaseUrl(url: string, name: string): string {
   const normalized = ensureNonEmpty(url, name);
   return normalized.endsWith("/") ? normalized : `${normalized}/`;
+}
+
+function ensureHexColor(value: string, name: string): string {
+  const normalized = ensureNonEmpty(value, name);
+  if (!/^#[0-9A-Fa-f]{6}$/.test(normalized)) {
+    throw new Error(`Invalid mod config: '${name}' must be a 6-digit hex color (#RRGGBB).`);
+  }
+  return normalized.toUpperCase();
+}
+
+function hexToRgbTuple(hexColor: string): string {
+  const normalized = hexColor.slice(1);
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+  return `${red}, ${green}, ${blue}`;
 }
 
 function assertModConfig(input: ModConfig): ModConfig {
@@ -119,6 +142,18 @@ function assertModConfig(input: ModConfig): ModConfig {
   ensureNonEmpty(input.presets.extension, "presets.extension");
   ensureNonEmpty(input.presets.optionsArchivePath, "presets.optionsArchivePath");
   ensureNonEmpty(input.presets.saveDataRoot, "presets.saveDataRoot");
+  input.theme.bodyAuraColors.orange = ensureHexColor(
+    input.theme.bodyAuraColors.orange,
+    "theme.bodyAuraColors.orange",
+  );
+  input.theme.bodyAuraColors.green = ensureHexColor(
+    input.theme.bodyAuraColors.green,
+    "theme.bodyAuraColors.green",
+  );
+  input.theme.bodyAuraColors.red = ensureHexColor(
+    input.theme.bodyAuraColors.red,
+    "theme.bodyAuraColors.red",
+  );
   ensureNonEmpty(input.events.installProgress, "events.installProgress");
   ensureNonEmpty(input.events.legacyInstallProgress, "events.legacyInstallProgress");
   input.apis.announceBaseUrl = normalizeBaseUrl(input.apis.announceBaseUrl, "apis.announceBaseUrl");
@@ -164,6 +199,12 @@ export const CONNECT_LINKS_ENABLED = modConfig.features.connectLinks;
 
 export const ANNOUNCE_API_BASE_URL = modConfig.apis.announceBaseUrl;
 export const REPORTING_TERMS_URL = modConfig.apis.reportingTermsUrl;
+export const BODY_AURA_COLORS = modConfig.theme.bodyAuraColors;
+export const BODY_AURA_RGB = {
+  orange: hexToRgbTuple(BODY_AURA_COLORS.orange),
+  green: hexToRgbTuple(BODY_AURA_COLORS.green),
+  red: hexToRgbTuple(BODY_AURA_COLORS.red),
+} as const;
 
 export const OFFICIAL_LINKS: OfficialLink[] = modConfig.links.official.map((item) => ({
   label: item.label,

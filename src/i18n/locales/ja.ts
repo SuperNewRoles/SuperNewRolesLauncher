@@ -371,6 +371,8 @@ const ja = {
     "Epic認証の確認に失敗しました。Epicにログインして再試行してください。詳細: {error}",
   "launch.errorEpicAuthInitFailed": "Epic認証の初期化に失敗しました。",
   "launch.errorEpicAuthInitFailedWithDetail": "Epic認証の初期化に失敗しました。詳細: {error}",
+  "launch.errorEpicFeatureDisabled":
+    "このビルドではEpic起動は無効です。Among Usの再選択でSteamを選んでください。",
   "launch.gameRunning": "ゲーム実行中",
   "launch.gameStopped": "ゲーム停止中",
 

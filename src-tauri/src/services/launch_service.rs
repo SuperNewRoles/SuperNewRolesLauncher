@@ -462,6 +462,9 @@ async fn add_epic_auth_argument_if_needed(
     if !platform.trim().eq_ignore_ascii_case("epic") {
         return Ok(());
     }
+    if !mod_profile::feature_enabled(mod_profile::Feature::EpicLogin) {
+        return Err("Epic launch is disabled by mod.config.json.".to_string());
+    }
 
     let session = epic_api::load_session().ok_or_else(|| {
         "Epic launch requires Epic authentication. Please log in from the Epic settings tab."

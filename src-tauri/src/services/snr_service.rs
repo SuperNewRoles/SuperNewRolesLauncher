@@ -888,9 +888,8 @@ pub async fn list_snr_releases() -> Result<Vec<SnrReleaseSummary>, String> {
         .await
         .map_err(|e| format!("Failed to parse releases list: {e}"))?;
 
-    Ok(releases
+    let mut candidates: Vec<GitHubRelease> = releases
         .into_iter()
-        .filter(|release| !release.prerelease)
         .filter(|release| {
             release
                 .assets
@@ -901,6 +900,16 @@ pub async fn list_snr_releases() -> Result<Vec<SnrReleaseSummary>, String> {
                     .iter()
                     .any(|asset| epic_regex.is_match(&asset.name))
         })
+        .collect();
+
+    // 安定版が1件以上ある場合は従来通り安定版のみ表示する。
+    // 安定版が0件のMod（pre-release運用）では、空表示を避けるためpre-releaseを表示する。
+    if candidates.iter().any(|release| !release.prerelease) {
+        candidates.retain(|release| !release.prerelease);
+    }
+
+    Ok(candidates
+        .into_iter()
         .map(|release| SnrReleaseSummary {
             tag: release.tag_name,
             name: release.name.unwrap_or_default(),

@@ -40,9 +40,12 @@ import {
   modConfig,
 } from "./modConfig";
 import { collectAppDom } from "./dom";
+import { localizeLaunchErrorMessage } from "./launchErrorLocalization";
 import {
+  filterSelectablePlatformCandidates,
   getPlatformIconPath,
   getPlatformLabelKey,
+  isPlatformSelectable,
   normalizePlatformCandidates,
 } from "./platformSelection";
 import {
@@ -1349,12 +1352,17 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     appStore.preservedSaveDataFiles.value = preservedSaveDataFiles;
   }
 
+  function hasBlockedEpicPlatform(selectedSettings: LauncherSettings | null): boolean {
+    return !EPIC_LOGIN_ENABLED && selectedSettings?.gamePlatform === "epic";
+  }
+
   function updateButtons(): void {
     // ボタン活性条件は純関数に委譲し、DOM更新だけをここで行う。
     syncStoreSnapshot();
     const control = computeControlState(appStore.snapshot());
     const amongUsSelectionDisabled =
       control.detectAmongUsPathButtonDisabled || amongUsOverlayLoading;
+    const epicPlatformBlocked = hasBlockedEpicPlatform(settings);
 
     uninstallButton.disabled = control.uninstallButtonDisabled;
     reselectAmongUsButton.disabled = amongUsSelectionDisabled;
@@ -1369,8 +1377,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       uninstallInProgress || control.uninstallButtonDisabled;
     settingsUninstallConfirmCancelButton.disabled = uninstallInProgress;
     settingsUninstallConfirmCloseButton.disabled = uninstallInProgress;
-    launchModdedButton.disabled = control.launchModdedButtonDisabled;
-    launchVanillaButton.disabled = control.launchVanillaButtonDisabled;
+    launchModdedButton.disabled = epicPlatformBlocked || control.launchModdedButtonDisabled;
+    launchVanillaButton.disabled = epicPlatformBlocked || control.launchVanillaButtonDisabled;
     createModdedShortcutButton.disabled = control.createModdedShortcutButtonDisabled;
     epicLoginWebviewButton.disabled = !EPIC_LOGIN_ENABLED || control.epicLoginWebviewButtonDisabled;
     epicLogoutButton.disabled = !EPIC_LOGIN_ENABLED || control.epicLogoutButtonDisabled;
@@ -1908,6 +1916,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   async function applyAmongUsSelection(path: string, platform: GamePlatform): Promise<void> {
+    if (!isPlatformSelectable(platform, EPIC_LOGIN_ENABLED)) {
+      setAmongUsOverlayError(t("launch.errorEpicFeatureDisabled"));
+      return;
+    }
     amongUsOverlayLoading = true;
     updateButtons();
     setAmongUsOverlayError(null);
@@ -1931,7 +1943,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   function renderAmongUsCandidates(candidates: { path: string; platform: string }[]): void {
     settingsAmongUsCandidateList.replaceChildren();
-    const normalizedCandidates = normalizePlatformCandidates(candidates);
+    const normalizedCandidates = filterSelectablePlatformCandidates(
+      normalizePlatformCandidates(candidates),
+      EPIC_LOGIN_ENABLED,
+    );
 
     for (const candidate of normalizedCandidates) {
       const button = document.createElement("button");
@@ -2015,6 +2030,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         const platform = await finderDetectPlatform(selected);
         if (platform !== "steam" && platform !== "epic") {
           setAmongUsOverlayError(t("installFlow.invalidAmongUsFolder"));
+          return;
+        }
+        if (!isPlatformSelectable(platform, EPIC_LOGIN_ENABLED)) {
+          setAmongUsOverlayError(t("launch.errorEpicFeatureDisabled"));
           return;
         }
 
@@ -2105,45 +2124,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     return migrationExporting || migrationImporting;
   }
 
-  const EPIC_AUTH_REQUIRED_ERROR_PREFIX = "Epic launch requires Epic authentication";
-  const EPIC_AUTH_CHECK_FAILED_ERROR_PREFIX =
-    "Epic authentication check failed. Please log in to Epic and try again:";
-  const EPIC_AUTH_INIT_FAILED_ERROR_PREFIX = "Failed to initialize Epic authentication:";
-  const INVALID_AMONG_US_FOLDER_ERROR_PREFIX =
-    "The selected folder is not an Among Us installation directory:";
-  const INVALID_AMONG_US_EXE_TARGET_ERROR_PREFIX = `Launch target is not ${modConfig.paths.amongUsExe}:`;
-
   function localizeLaunchError(error: unknown): string {
-    const message = String(error);
-
-    if (message.startsWith(EPIC_AUTH_REQUIRED_ERROR_PREFIX)) {
-      return t("launch.errorEpicAuthRequired");
-    }
-
-    if (message.startsWith(EPIC_AUTH_CHECK_FAILED_ERROR_PREFIX)) {
-      const detail = message.slice(EPIC_AUTH_CHECK_FAILED_ERROR_PREFIX.length).trim();
-      if (detail.length > 0) {
-        return t("launch.errorEpicAuthCheckFailedWithDetail", { error: detail });
-      }
-      return t("launch.errorEpicAuthCheckFailed");
-    }
-
-    if (message.startsWith(EPIC_AUTH_INIT_FAILED_ERROR_PREFIX)) {
-      const detail = message.slice(EPIC_AUTH_INIT_FAILED_ERROR_PREFIX.length).trim();
-      if (detail.length > 0) {
-        return t("launch.errorEpicAuthInitFailedWithDetail", { error: detail });
-      }
-      return t("launch.errorEpicAuthInitFailed");
-    }
-
-    if (
-      message.startsWith(INVALID_AMONG_US_FOLDER_ERROR_PREFIX) ||
-      message.startsWith(INVALID_AMONG_US_EXE_TARGET_ERROR_PREFIX)
-    ) {
-      return t("installFlow.invalidAmongUsFolder");
-    }
-
-    return message;
+    return localizeLaunchErrorMessage(error, modConfig.paths.amongUsExe, t);
   }
 
   function isMigrationPasswordError(message: string): boolean {
@@ -2980,6 +2962,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     if (!settings) {
       return;
     }
+    if (hasBlockedEpicPlatform(settings)) {
+      setLaunchStatusWithLock(t("launch.errorEpicFeatureDisabled"), LAUNCH_ERROR_DISPLAY_MS);
+      return;
+    }
     launchInProgress = true;
     queueLauncherAutoMinimize();
     setLaunchStatus(t("launch.moddedStarting"));
@@ -3015,6 +3001,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   launchVanillaButton.addEventListener("click", async () => {
     if (!settings) {
+      return;
+    }
+    if (hasBlockedEpicPlatform(settings)) {
+      setLaunchStatusWithLock(t("launch.errorEpicFeatureDisabled"), LAUNCH_ERROR_DISPLAY_MS);
       return;
     }
     launchInProgress = true;
@@ -3337,6 +3327,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   void (async () => {
     const loadedSettings = await reloadSettings();
+    if (hasBlockedEpicPlatform(loadedSettings)) {
+      setLaunchStatusWithLock(t("launch.errorEpicFeatureDisabled"), LAUNCH_ERROR_DISPLAY_MS);
+    }
     if (!loadedSettings.onboardingCompleted) {
       mountOnboarding();
     }

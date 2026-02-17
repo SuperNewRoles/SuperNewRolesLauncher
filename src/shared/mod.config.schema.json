@@ -15,6 +15,7 @@
     "presets",
     "apis",
     "links",
+    "theme",
     "events"
   ],
   "properties": {
@@ -306,6 +307,32 @@
                 "type": "string",
                 "enum": ["fanbox", "discord", "youtube", "github", "x"]
               }
+            }
+          }
+        }
+      }
+    },
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bodyAuraColors"],
+      "properties": {
+        "bodyAuraColors": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["orange", "green", "red"],
+          "properties": {
+            "orange": {
+              "type": "string",
+              "pattern": "^#[0-9A-Fa-f]{6}$"
+            },
+            "green": {
+              "type": "string",
+              "pattern": "^#[0-9A-Fa-f]{6}$"
+            },
+            "red": {
+              "type": "string",
+              "pattern": "^#[0-9A-Fa-f]{6}$"
             }
           }
         }

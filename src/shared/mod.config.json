@@ -104,6 +104,13 @@
       }
     ]
   },
+  "theme": {
+    "bodyAuraColors": {
+      "colorLeft": "#FF8C00",
+      "colorCenter": "#2EB82E",
+      "colorRight": "#E60000"
+    }
+  },
   "events": {
     "installProgress": "mod-install-progress",
     "legacyInstallProgress": "snr-install-progress"

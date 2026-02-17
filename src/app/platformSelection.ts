@@ -6,6 +6,23 @@ export interface NormalizedPlatformCandidate {
   platform: GamePlatform;
 }
 
+export function isPlatformSelectable(platform: GamePlatform, epicEnabled: boolean): boolean {
+  if (platform === "steam") {
+    return true;
+  }
+  return epicEnabled;
+}
+
+export function filterSelectablePlatformCandidates(
+  candidates: NormalizedPlatformCandidate[],
+  epicEnabled: boolean,
+): NormalizedPlatformCandidate[] {
+  if (epicEnabled) {
+    return candidates;
+  }
+  return candidates.filter((candidate) => isPlatformSelectable(candidate.platform, epicEnabled));
+}
+
 export function normalizePlatformCandidates(
   candidates: { path: string; platform: string }[],
 ): NormalizedPlatformCandidate[] {
