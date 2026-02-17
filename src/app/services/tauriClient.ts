@@ -13,14 +13,14 @@ import type {
   PresetImportResult,
   PresetImportSelectionInput,
   PresetSummary,
-  SaveDataImportResult,
-  SaveDataPresetMergeResult,
-  SaveDataPreviewResult,
   ReportMessage,
   ReportThread,
   ReportingLogSourceInfo,
   ReportingPrepareResult,
   ReportingSendResult,
+  SaveDataImportResult,
+  SaveDataPresetMergeResult,
+  SaveDataPreviewResult,
   SendReportInput,
   SnrReleaseSummary,
   UninstallResult,
@@ -201,6 +201,10 @@ export function launchVanilla(input: {
 
 export function launchShortcutCreate(): Promise<string> {
   return invoke<string>("launch_shortcut_create");
+}
+
+export function launchModdedFirstSetupPending(gameExe: string): Promise<boolean> {
+  return invoke<boolean>("launch_modded_first_setup_pending", { gameExe });
 }
 
 export function launchAutolaunchErrorTake(): Promise<string | null> {

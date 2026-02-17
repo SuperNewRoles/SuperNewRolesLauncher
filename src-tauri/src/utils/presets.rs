@@ -522,7 +522,9 @@ pub fn list_local_presets<R: Runtime>(
     list_presets_from_save_data_dir(&save_data_dir)
 }
 
-pub fn list_presets_from_save_data_dir(save_data_dir: &Path) -> Result<Vec<PresetEntrySummary>, String> {
+pub fn list_presets_from_save_data_dir(
+    save_data_dir: &Path,
+) -> Result<Vec<PresetEntrySummary>, String> {
     let options_path = save_data_dir.join(OPTIONS_FILE_NAME);
 
     let Some(options) = load_options_data(&options_path)? else {
@@ -540,7 +542,7 @@ pub fn list_presets_from_save_data_dir(save_data_dir: &Path) -> Result<Vec<Prese
         presets.push(PresetEntrySummary {
             id,
             name: display_name,
-            has_data_file: preset_file_path(&save_data_dir, id).is_file(),
+            has_data_file: preset_file_path(save_data_dir, id).is_file(),
         });
     }
 
@@ -795,9 +797,7 @@ pub fn import_presets_from_save_data_dir<R: Runtime>(
     }
 
     if imported.is_empty() {
-        return Err(
-            "No presets were imported from the source SaveData directory.".to_string(),
-        );
+        return Err("No presets were imported from the source SaveData directory.".to_string());
     }
 
     if !local_options

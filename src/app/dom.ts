@@ -71,13 +71,17 @@ export interface AppDom {
   presetClearLocalButton: HTMLButtonElement;
   presetLocalList: HTMLDivElement;
   presetExportButton: HTMLButtonElement;
-  presetImportPathInput: HTMLInputElement;
-  presetInspectButton: HTMLButtonElement;
   presetSelectAllArchiveButton: HTMLButtonElement;
   presetClearArchiveButton: HTMLButtonElement;
   presetImportButton: HTMLButtonElement;
   presetArchiveList: HTMLDivElement;
-  presetStatus: HTMLDivElement;
+  presetFeedbackOverlay: HTMLDivElement;
+  presetFeedbackOverlayBackdrop: HTMLDivElement;
+  presetFeedbackTitle: HTMLHeadingElement;
+  presetFeedbackMessage: HTMLParagraphElement;
+  presetFeedbackList: HTMLUListElement;
+  presetFeedbackPrimaryButton: HTMLButtonElement;
+  presetFeedbackSecondaryButton: HTMLButtonElement;
   epicLoginWebviewButton: HTMLButtonElement;
   epicLogoutButton: HTMLButtonElement;
   epicAuthStatus: HTMLSpanElement;
@@ -168,7 +172,9 @@ export function collectAppDom(): AppDom {
     settingsMigrationSelectedPath: mustElement<HTMLParagraphElement>(
       "#settings-migration-selected-path",
     ),
-    settingsMigrationPickPathButton: mustElement<HTMLButtonElement>("#settings-migration-pick-path"),
+    settingsMigrationPickPathButton: mustElement<HTMLButtonElement>(
+      "#settings-migration-pick-path",
+    ),
     settingsMigrationStepSelectNextButton: mustElement<HTMLButtonElement>(
       "#settings-migration-step-select-next",
     ),
@@ -176,7 +182,9 @@ export function collectAppDom(): AppDom {
     settingsMigrationPasswordInput: mustElement<HTMLInputElement>(
       "#settings-migration-password-input",
     ),
-    settingsMigrationPasswordError: mustElement<HTMLDivElement>("#settings-migration-password-error"),
+    settingsMigrationPasswordError: mustElement<HTMLDivElement>(
+      "#settings-migration-password-error",
+    ),
     settingsMigrationStepPasswordCancelButton: mustElement<HTMLButtonElement>(
       "#settings-migration-step-password-cancel",
     ),
@@ -223,13 +231,17 @@ export function collectAppDom(): AppDom {
     presetClearLocalButton: mustElement<HTMLButtonElement>("#preset-clear-local"),
     presetLocalList: mustElement<HTMLDivElement>("#preset-local-list"),
     presetExportButton: mustElement<HTMLButtonElement>("#preset-export"),
-    presetImportPathInput: mustElement<HTMLInputElement>("#preset-import-path"),
-    presetInspectButton: mustElement<HTMLButtonElement>("#preset-inspect"),
     presetSelectAllArchiveButton: mustElement<HTMLButtonElement>("#preset-select-all-archive"),
     presetClearArchiveButton: mustElement<HTMLButtonElement>("#preset-clear-archive"),
     presetImportButton: mustElement<HTMLButtonElement>("#preset-import"),
     presetArchiveList: mustElement<HTMLDivElement>("#preset-archive-list"),
-    presetStatus: mustElement<HTMLDivElement>("#preset-status"),
+    presetFeedbackOverlay: mustElement<HTMLDivElement>("#preset-feedback-overlay"),
+    presetFeedbackOverlayBackdrop: mustElement<HTMLDivElement>("#preset-feedback-overlay-backdrop"),
+    presetFeedbackTitle: mustElement<HTMLHeadingElement>("#preset-feedback-title"),
+    presetFeedbackMessage: mustElement<HTMLParagraphElement>("#preset-feedback-message"),
+    presetFeedbackList: mustElement<HTMLUListElement>("#preset-feedback-list"),
+    presetFeedbackPrimaryButton: mustElement<HTMLButtonElement>("#preset-feedback-primary"),
+    presetFeedbackSecondaryButton: mustElement<HTMLButtonElement>("#preset-feedback-secondary"),
     epicLoginWebviewButton: mustElement<HTMLButtonElement>("#epic-login-webview"),
     epicLogoutButton: mustElement<HTMLButtonElement>("#epic-logout"),
     epicAuthStatus: mustElement<HTMLSpanElement>("#epic-auth-status"),

@@ -6,13 +6,8 @@ use tauri::{AppHandle, Runtime};
 use crate::services::snr_service;
 
 pub use snr_service::{
-    InstallResult,
-    PreservedSaveDataStatus,
-    SaveDataImportResult,
-    SaveDataPresetMergeResult,
-    SaveDataPreviewResult,
-    SnrReleaseSummary,
-    UninstallResult,
+    InstallResult, PreservedSaveDataStatus, SaveDataImportResult, SaveDataPresetMergeResult,
+    SaveDataPreviewResult, SnrReleaseSummary, UninstallResult,
 };
 
 /// 利用可能なSNRリリース一覧を取得する。

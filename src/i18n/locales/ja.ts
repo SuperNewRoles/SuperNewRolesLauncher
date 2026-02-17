@@ -9,6 +9,10 @@ const ja = {
   "theme.dark": "ダーク",
 
   "credit.title": "クレジット",
+  "credit.summary": "SuperNewRoles Launcher の開発・利用に関わるクレジットです。",
+  "credit.group.project": "プロジェクト",
+  "credit.group.technology": "技術 / 参考",
+  "credit.group.links": "公式リンク",
   "credit.supernewrolesLine": "SuperNewRoles: SuperNewRoles Team / Contributors",
   "credit.amongUsLine": "Among Us: Innersloth LLC",
   "credit.launcherLine": "Launcher: Tauri v2 + Vite + TypeScript",
@@ -42,6 +46,8 @@ const ja = {
   "settings.category.general": "一般",
   "settings.category.migration": "データお引越し",
   "settings.category.appVersion": "アプリバージョン",
+  "settings.appVersion.description": "現在のランチャーバージョンと更新状況を確認できます。",
+  "settings.appVersion.badge": "Launcher",
   "settings.general.title": "一般設定",
   "settings.general.reselectAmongUs": "AmongUsのフォルダを選択しなおす",
   "settings.general.shortcutTitle": "ショートカット",
@@ -52,7 +58,7 @@ const ja = {
   "settings.general.supportDiscordLink": "Discordを開く",
   "settings.general.reselectOverlayTitle": "AmongUsのインストール先を選択",
   "settings.general.reselectOverlayDescription":
-    "検出されたAmongUsフォルダを選ぶか、手動で指定してください。",
+    "検出されたAmongUsフォルダを選ぶか、手動で指定してください。フォルダを変更しても、SuperNewRolesのデータはリセットされません。",
   "settings.general.reselectOverlayEmpty": "検出された候補がありません。手動選択をお試しください。",
   "settings.general.reselectOverlayManualSelect": "手動で選択",
   "settings.general.reselectOverlayClose": "閉じる",
@@ -94,7 +100,7 @@ const ja = {
   "report.timing": "発生タイミング",
   "report.body": "本文",
   "report.bodyPlaceholder": "再現手順や状況を記入",
-  "report.send": "報告を送信",
+  "report.send": "同意して報告を送信",
   "report.threads": "スレッド / メッセージ",
   "report.threadsLoading": "スレッドを読み込み中...",
   "report.replyPlaceholder": "返信メッセージ",
@@ -128,8 +134,11 @@ const ja = {
   "report.notReady": "報告センター未準備です",
   "report.titleRequired": "タイトルを入力してください",
   "report.bodyRequired": "本文を入力してください",
+  "report.preparing": "送信準備中...",
+  "report.processing": "送信後処理中...",
   "report.sending": "報告送信中...",
   "report.sent": "報告を送信しました",
+  "report.sendFailedTitle": "報告の送信に失敗しました",
   "report.sendFailed": "報告送信失敗: {error}",
   "report.threadRequired": "先にスレッドを選択してください",
   "report.replyRequired": "返信メッセージを入力してください",
@@ -166,6 +175,8 @@ const ja = {
   "report.mapPlaceholder": "マップ名",
   "report.rolePlaceholder": "役職や機能名",
   "report.timingPlaceholder": "いつ発生しましたか？",
+  "report.termsNotice": "送信前に利用規約をご確認ください。",
+  "report.termsLink": "報告機能の利用規約",
 
   "migration.title": "データお引越し",
   "migration.export": "書き出し",
@@ -288,6 +299,13 @@ const ja = {
   "preset.importDialogTitle": "インポート元を選択",
   "preset.inspectArchive": "中身確認",
   "preset.importSelected": "選択をインポート",
+  "preset.feedback.doneTitle": "エクスポート完了",
+  "preset.feedback.exportDone": "{count}件のプリセットをエクスポートしました。",
+  "preset.feedback.confirmImportTitle": "プリセットをインポート",
+  "preset.feedback.confirmImportMessage": "以下のプリセットをインポートしますか？",
+  "preset.feedback.close": "閉じる",
+  "preset.feedback.cancel": "キャンセル",
+  "preset.feedback.import": "インポート",
   "preset.localEmpty": "ローカルにプリセットが見つかりません。",
   "preset.localMissingDataFile": "(PresetOptions ファイルなし)",
   "preset.archiveHint": "中身確認を実行すると、ここに候補が表示されます。",
@@ -333,6 +351,8 @@ const ja = {
     "プロファイルの中身を全て削除します。セーブデータは保持しません。続行しますか？",
 
   "launch.moddedStarting": "Mod起動中...",
+  "launch.moddedFirstSetupStarting":
+    "Mod初回起動中...（BepInExをセットアップ中のため、起動まで時間がかかる場合があります）",
   "launch.moddedSent": "Modを起動しています...",
   "launch.moddedFailed": "Mod起動失敗: {error}",
   "launch.vanillaStarting": "Vanilla起動中...",
@@ -342,6 +362,14 @@ const ja = {
   "launch.shortcutCreated": "ショートカット作成完了: {path}",
   "launch.shortcutCreateFailed": "ショートカット作成失敗: {error}",
   "launch.autoModLaunchFailed": "自動Mod起動失敗: {error}",
+  "launch.errorEpicAuthRequired":
+    "Epicで起動するにはEpic認証が必要です。設定のEpicタブからログインしてください。",
+  "launch.errorEpicAuthCheckFailed":
+    "Epic認証の確認に失敗しました。Epicにログインして再試行してください。",
+  "launch.errorEpicAuthCheckFailedWithDetail":
+    "Epic認証の確認に失敗しました。Epicにログインして再試行してください。詳細: {error}",
+  "launch.errorEpicAuthInitFailed": "Epic認証の初期化に失敗しました。",
+  "launch.errorEpicAuthInitFailedWithDetail": "Epic認証の初期化に失敗しました。詳細: {error}",
   "launch.gameRunning": "ゲーム実行中",
   "launch.gameStopped": "ゲーム停止中",
 
@@ -405,7 +433,8 @@ const ja = {
   "installFlow.importArchivePasswordCheckFailed": "パスワード検証に失敗しました: {error}",
   "installFlow.importPreviewLoading": "取り込み元を確認中...",
   "installFlow.importPreviewReady": "確認完了: プリセット {count}件 / ファイル {files}件",
-  "installFlow.importPreviewEmpty": "確認完了: プリセットが見つかりませんでした (ファイル {files}件)",
+  "installFlow.importPreviewEmpty":
+    "確認完了: プリセットが見つかりませんでした (ファイル {files}件)",
   "installFlow.importPreviewListTitle": "以下の設定をインポートします",
   "installFlow.importPreviewError": "取り込み元の確認に失敗しました: {error}",
   "installFlow.importNotConfigured": "取り込み元フォルダを選択して確認してください。",
@@ -415,8 +444,7 @@ const ja = {
   "installFlow.importingSaveData": "SaveDataを取り込み中...",
   "installFlow.importingMigrationData": "お引越しアーカイブを取り込み中...",
   "installFlow.importingSaveDataPresetMerge": "既存SaveDataのプリセットを統合中...",
-  "installFlow.importingPreservedSaveDataPresetMerge":
-    "保持セーブデータのプリセットを統合中...",
+  "installFlow.importingPreservedSaveDataPresetMerge": "保持セーブデータのプリセットを統合中...",
   "installFlow.importRetrySkipPrompt":
     "SaveDataの取り込みに失敗しました。\\n\\n{error}\\n\\nOK: 再試行 / キャンセル: スキップ",
   "installFlow.importRetrySkipPromptMigration":
@@ -432,13 +460,14 @@ const ja = {
   "common.retry": "再試行",
   "common.next": "次へ",
   "common.back": "戻る",
+  "common.close": "閉じる",
   "common.cancel": "キャンセル",
 
   "onboarding.start": "始める",
   "onboarding.welcome.title": "SuperNewRoles Launcherへようこそ！",
   "onboarding.welcome.body": "SuperNewRoles Launcherの機能を簡単にご紹介します。",
   "onboarding.launch.title": "起動",
-  "onboarding.launch.body": "「Mod起動」ボタンを押してSuperNewRolesを起動しましょう！",
+  "onboarding.launch.body": "「起動」ボタンを押してSuperNewRolesを起動できます！",
   "onboarding.report.title": "報告センター",
   "onboarding.report.body": "バグを見つけたらここから報告できます。開発者に直接届きます。",
   "onboarding.preset.title": "プリセット共有",

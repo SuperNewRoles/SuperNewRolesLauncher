@@ -49,12 +49,18 @@ describe("renderAppTemplate (settings general)", () => {
     expect(html).toContain('id="preset-overlay-export-screen"');
     expect(html).toContain('id="preset-import"');
     expect(html).toContain('id="preset-export"');
-    expect(html).toContain('id="preset-inspect"');
     expect(html).toContain('id="preset-refresh"');
     expect(html).toContain('id="preset-local-list"');
     expect(html).toContain('id="preset-archive-list"');
+    expect(html).toContain('id="preset-feedback-overlay"');
+    expect(html).toContain('id="preset-feedback-title"');
+    expect(html).toContain('id="preset-feedback-message"');
+    expect(html).toContain('id="preset-feedback-primary"');
+    expect(html).toContain('id="preset-feedback-secondary"');
     expect(html).toContain('class="preset-remake-launch-grid"');
     expect(html).not.toContain('id="preset-export-path"');
+    expect(html).not.toContain('id="preset-import-path"');
+    expect(html).not.toContain('id="preset-inspect"');
   });
 
   it("does not include removed legacy migration controls", () => {

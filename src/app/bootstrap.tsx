@@ -2,7 +2,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
 import { downloadDir, join } from "@tauri-apps/api/path";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { confirm, open, save } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import {
   isPermissionGranted,
   requestPermission,
@@ -12,6 +12,9 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { check } from "@tauri-apps/plugin-updater";
 import React from "react";
 import { type Root, createRoot } from "react-dom/client";
+import { AnnounceCenter } from "../announce/AnnounceCenter";
+import { announceListArticles } from "../announce/announceApi";
+import type { AnnounceArticleMinimal } from "../announce/types";
 import {
   type LocaleCode,
   createTranslator,
@@ -19,10 +22,8 @@ import {
   resolveInitialLocale,
   saveLocale,
 } from "../i18n";
-import { announceListArticles } from "../announce/announceApi";
-import { AnnounceCenter } from "../announce/AnnounceCenter";
-import type { AnnounceArticleMinimal } from "../announce/types";
 import OnboardingWizard from "../onboarding/OnboardingWizard";
+import type { OnboardingStep, OnboardingStepGuide } from "../onboarding/types";
 import { ReportCenter } from "../report/ReportCenter";
 import {
   ANNOUNCE_BADGE_READ_CREATED_AT_STORAGE_KEY,
@@ -45,6 +46,7 @@ import {
   launchAutolaunchErrorTake,
   launchGameRunningGet,
   launchModded,
+  launchModdedFirstSetupPending,
   launchShortcutCreate,
   launchVanilla,
   migrationExport,
@@ -92,6 +94,7 @@ import type {
   ReportingSendResult,
   SendReportInput,
   SnrReleaseSummary,
+  SocialIcon,
   UninstallResult,
 } from "./types";
 
@@ -105,14 +108,54 @@ const ANNOUNCE_BADGE_FETCH_GAP_MS = 30_000;
 const ANNOUNCE_BADGE_POLL_INTERVAL_MS = 300_000;
 const LAUNCHER_MINIMIZE_EFFECT_DURATION_MS = 260;
 const LAUNCHER_AUTO_MINIMIZE_WINDOW_MS = 30_000;
+const LAUNCH_ERROR_DISPLAY_MS = 20_000;
 const SETTINGS_OVERLAY_TRANSITION_MS = 220;
 const LOCALE_SWITCH_RELOAD_ANIMATION_FLAG_KEY = "ui.localeSwitchReloadAnimation";
+const ONBOARDING_SPOTLIGHT_CLASS = "onboarding-spotlight-target";
+const ONBOARDING_SPOTLIGHT_FOCUS_CLASS = "onboarding-spotlight-target-focus";
+const ONBOARDING_EXIT_ANIMATION_MS = 340;
 type MainTabId = "home" | "report" | "announce" | "preset" | "settings";
 type SettingsCategoryId = "general" | "epic" | "migration" | "credit" | "app-version";
 type MigrationMode = "export" | "import";
 type MigrationOverlayStep = "select" | "password" | "processing" | "result";
 type PresetOverlayMode = "import" | "export";
+type PresetFeedbackMode = "none" | "confirmImport" | "result";
 const DEFAULT_SETTINGS_CATEGORY: SettingsCategoryId = "general";
+const ONBOARDING_STEP_GUIDES: ReadonlyArray<OnboardingStepGuide> = [
+  {
+    step: "welcome",
+    tab: "home",
+  },
+  {
+    step: "launch",
+    tab: "home",
+    selector: "#launch-modded",
+    focus: true,
+  },
+  {
+    step: "reporting",
+    tab: "report",
+    selector: "#report-center-root",
+  },
+  {
+    step: "preset",
+    tab: "preset",
+    selector: "#tab-preset .preset-remake-root",
+  },
+  {
+    step: "migration",
+    tab: "settings",
+    settingsCategory: "migration",
+    selector: "#settings-panel-migration .settings-migration-action-stack",
+  },
+  {
+    step: "connect",
+  },
+  {
+    step: "complete",
+    tab: "home",
+  },
+];
 
 function isMainTabId(value: string | undefined): value is MainTabId {
   return (
@@ -216,10 +259,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     mainLayout.addEventListener(
       "animationend",
       (event) => {
-        if (
-          event.target !== mainLayout ||
-          event.animationName !== "launcher-locale-switch-in"
-        ) {
+        if (event.target !== mainLayout || event.animationName !== "launcher-locale-switch-in") {
           return;
         }
         cleanupLocaleSwitchEnterAnimation();
@@ -301,13 +341,17 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     presetClearLocalButton,
     presetLocalList,
     presetExportButton,
-    presetImportPathInput,
-    presetInspectButton,
     presetSelectAllArchiveButton,
     presetClearArchiveButton,
     presetImportButton,
     presetArchiveList,
-    presetStatus,
+    presetFeedbackOverlay,
+    presetFeedbackOverlayBackdrop,
+    presetFeedbackTitle,
+    presetFeedbackMessage,
+    presetFeedbackList,
+    presetFeedbackPrimaryButton,
+    presetFeedbackSecondaryButton,
     epicLoginWebviewButton,
     epicLogoutButton,
     epicAuthStatus,
@@ -415,10 +459,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         announcePanel.addEventListener(
           "animationend",
           (event) => {
-            if (
-              event.target !== announcePanel ||
-              event.animationName !== "announce-tab-enter"
-            ) {
+            if (event.target !== announcePanel || event.animationName !== "announce-tab-enter") {
               return;
             }
             announcePanel.classList.remove("tab-announce-enter");
@@ -594,6 +635,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let gameStatePolling = false;
   const reportingNotificationEnabled = initialReportingNotificationEnabled;
   let onboardingRoot: Root | null = null;
+  let onboardingSpotlightTarget: HTMLElement | null = null;
+  let onboardingGuideAnimationFrame: number | null = null;
+  let onboardingReturnTab: MainTabId | null = null;
   let reportCenterRoot: Root | null = null;
   let announceCenterRoot: Root | null = null;
   let activeTab: MainTabId = "home";
@@ -608,8 +652,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let launcherAutoMinimizePending = false;
   let launcherAutoMinimizeTimer: number | null = null;
   let launcherMinimizing = false;
+  let launchStatusLockUntil = 0;
+  let launchStatusLockTimer: number | null = null;
   let localeSwitchInProgress = false;
   let amongUsOverlayLoading = false;
+  let amongUsReselectPulseTimer: number | null = null;
   let migrationOverlayMode: MigrationMode | null = null;
   let migrationOverlayStep: MigrationOverlayStep = "select";
   let migrationSelectedPath = "";
@@ -617,8 +664,111 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let migrationResultSuccess = false;
   let migrationResultMessage = "";
   let presetOverlayMode: PresetOverlayMode | null = null;
+  let presetFeedbackMode: PresetFeedbackMode = "none";
+  let presetImportArchivePath = "";
+  let presetFeedbackCloseAllOnDismiss = false;
+  let presetFeedbackPrimaryAction: (() => void | Promise<void>) | null = null;
+  let presetFeedbackSecondaryAction: (() => void | Promise<void>) | null = null;
   const overlayAnimationTimers = new WeakMap<HTMLDivElement, number>();
   const overlayCloseTimers = new WeakMap<HTMLDivElement, number>();
+
+  function clearPendingOnboardingGuideAnimation(): void {
+    if (onboardingGuideAnimationFrame === null) {
+      return;
+    }
+    window.cancelAnimationFrame(onboardingGuideAnimationFrame);
+    onboardingGuideAnimationFrame = null;
+  }
+
+  function clearOnboardingSpotlight(): void {
+    clearPendingOnboardingGuideAnimation();
+    if (!onboardingSpotlightTarget) {
+      return;
+    }
+    onboardingSpotlightTarget.classList.remove(
+      ONBOARDING_SPOTLIGHT_CLASS,
+      ONBOARDING_SPOTLIGHT_FOCUS_CLASS,
+    );
+    onboardingSpotlightTarget = null;
+  }
+
+  function applyOnboardingSpotlight(target: HTMLElement | null, withFocus: boolean): void {
+    clearOnboardingSpotlight();
+    if (!target) {
+      return;
+    }
+
+    onboardingSpotlightTarget = target;
+    target.classList.add(ONBOARDING_SPOTLIGHT_CLASS);
+    if (!withFocus) {
+      return;
+    }
+
+    target.classList.add(ONBOARDING_SPOTLIGHT_FOCUS_CLASS);
+    if (typeof target.focus === "function") {
+      target.focus();
+    }
+  }
+
+  function applyOnboardingGuide(step: OnboardingStep): void {
+    const guide = ONBOARDING_STEP_GUIDES.find((item) => item.step === step);
+    if (!guide) {
+      clearOnboardingSpotlight();
+      return;
+    }
+
+    if (guide.tab && isMainTabId(guide.tab) && activeTab !== guide.tab) {
+      switchTab(guide.tab);
+    }
+
+    if (guide.settingsCategory && isSettingsCategoryId(guide.settingsCategory)) {
+      switchSettingsCategory(guide.settingsCategory);
+    }
+
+    if (!guide.selector) {
+      clearOnboardingSpotlight();
+      return;
+    }
+
+    clearPendingOnboardingGuideAnimation();
+    onboardingGuideAnimationFrame = window.requestAnimationFrame(() => {
+      onboardingGuideAnimationFrame = null;
+      const target = document.querySelector<HTMLElement>(guide.selector ?? "");
+      applyOnboardingSpotlight(target, Boolean(guide.focus));
+    });
+  }
+
+  async function playOnboardingCompleteTransition(container: HTMLElement | null): Promise<void> {
+    const overlay = container?.querySelector<HTMLElement>(".onboarding-wizard");
+    if (!overlay) {
+      return;
+    }
+    overlay.classList.add("onboarding-wizard-exit");
+
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        resolve();
+      };
+
+      overlay.addEventListener(
+        "animationend",
+        (event) => {
+          if (event.target !== overlay || event.animationName !== "onboarding-overlay-exit") {
+            return;
+          }
+          finish();
+        },
+        { once: true },
+      );
+
+      window.setTimeout(finish, ONBOARDING_EXIT_ANIMATION_MS + 120);
+    });
+  }
 
   function mountOnboarding() {
     const containerId = "onboarding-root";
@@ -633,12 +783,24 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       onboardingRoot = createRoot(container);
     }
 
-    const handleComplete = async () => {
+    onboardingReturnTab = activeTab;
+    clearOnboardingSpotlight();
+
+    const handleComplete = async (reason: "skip" | "complete") => {
       try {
         settings = await settingsUpdate({ onboardingCompleted: true });
       } catch (error) {
         console.warn("Failed to persist onboarding completion:", error);
       } finally {
+        const tabToRestore = onboardingReturnTab;
+        onboardingReturnTab = null;
+        clearOnboardingSpotlight();
+        if (reason === "complete") {
+          switchTab("home");
+          await playOnboardingCompleteTransition(container);
+        } else if (tabToRestore && isMainTabId(tabToRestore)) {
+          switchTab(tabToRestore);
+        }
         if (onboardingRoot) {
           onboardingRoot.unmount();
           onboardingRoot = null;
@@ -647,7 +809,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       }
     };
 
-    onboardingRoot.render(<OnboardingWizard onComplete={handleComplete} />);
+    onboardingRoot.render(
+      <OnboardingWizard onComplete={handleComplete} onStepChange={applyOnboardingGuide} />,
+    );
   }
 
   function mountReportCenter() {
@@ -967,6 +1131,40 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     setStatusLine(settingsShortcutStatus, message, tone);
   }
 
+  function createSocialIconElement(
+    icon: SocialIcon,
+    size: number,
+  ): SVGSVGElement | HTMLImageElement {
+    if (icon.kind === "image") {
+      const img = document.createElement("img");
+      img.src = icon.src;
+      img.width = size;
+      img.height = size;
+      img.alt = "";
+      img.setAttribute("aria-hidden", "true");
+      img.decoding = "async";
+      if (icon.imageClassName) {
+        img.classList.add(icon.imageClassName);
+      }
+      return img;
+    }
+
+    const svgNamespace = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNamespace, "svg");
+    svg.setAttribute("viewBox", icon.viewBox);
+    svg.setAttribute("width", String(size));
+    svg.setAttribute("height", String(size));
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+
+    const path = document.createElementNS(svgNamespace, "path");
+    path.setAttribute("fill", "currentColor");
+    path.setAttribute("d", icon.pathD);
+    svg.append(path);
+
+    return svg;
+  }
+
   function renderOfficialLinksInto(container: HTMLDivElement, iconOnly: boolean): void {
     container.replaceChildren();
     for (const link of OFFICIAL_LINKS) {
@@ -976,7 +1174,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       button.style.background = link.backgroundColor;
       button.setAttribute("aria-label", t("official.openInBrowserAria", { label: link.label }));
       button.title = link.label;
-      button.innerHTML = iconOnly ? link.iconSvg : `${link.iconSvg}<span>${link.label}</span>`;
+      const iconElement = createSocialIconElement(link.icon, iconOnly ? 14 : 16);
+      button.append(iconElement);
+      if (!iconOnly) {
+        const label = document.createElement("span");
+        label.textContent = link.label;
+        button.append(label);
+      }
 
       button.addEventListener("click", async () => {
         try {
@@ -1019,7 +1223,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   async function refreshPreservedSaveDataStatus(): Promise<void> {
     try {
       const status = await snrPreservedSaveDataStatus();
-      preservedSaveDataAvailable = status.available;
+      preservedSaveDataAvailable = status.available && status.files > 0;
       preservedSaveDataFiles = status.files;
     } catch (error) {
       preservedSaveDataAvailable = false;
@@ -1095,7 +1299,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       migrationProcessing || migrationPassword.trim().length === 0;
     settingsMigrationResultRetryButton.disabled = migrationProcessing;
     settingsMigrationResultCloseButton.disabled = migrationProcessing;
-    const presetProcessing = presetLoading || presetExporting || presetInspecting || presetImporting;
+    const presetProcessing =
+      presetLoading || presetExporting || presetInspecting || presetImporting;
     presetOpenImportButton.disabled = control.presetInspectButtonDisabled;
     presetOpenExportButton.disabled = control.presetRefreshButtonDisabled;
     presetOverlayCloseButton.disabled = presetProcessing;
@@ -1103,11 +1308,43 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     presetSelectAllLocalButton.disabled = control.presetSelectAllLocalButtonDisabled;
     presetClearLocalButton.disabled = control.presetClearLocalButtonDisabled;
     presetExportButton.disabled = control.presetExportButtonDisabled;
-    presetImportPathInput.disabled = control.presetImportPathInputDisabled;
-    presetInspectButton.disabled = control.presetInspectButtonDisabled;
     presetSelectAllArchiveButton.disabled = control.presetSelectAllArchiveButtonDisabled;
     presetClearArchiveButton.disabled = control.presetClearArchiveButtonDisabled;
     presetImportButton.disabled = control.presetImportButtonDisabled;
+    presetFeedbackPrimaryButton.disabled = presetProcessing;
+    presetFeedbackSecondaryButton.disabled = presetProcessing;
+  }
+
+  function clearLaunchStatusLock(): void {
+    launchStatusLockUntil = 0;
+    if (launchStatusLockTimer !== null) {
+      window.clearTimeout(launchStatusLockTimer);
+      launchStatusLockTimer = null;
+    }
+  }
+
+  function isLaunchStatusLocked(): boolean {
+    return Date.now() < launchStatusLockUntil;
+  }
+
+  function setLaunchStatus(message: string): void {
+    clearLaunchStatusLock();
+    launchStatus.textContent = message;
+  }
+
+  function setLaunchStatusWithLock(message: string, durationMs: number): void {
+    clearLaunchStatusLock();
+    launchStatus.textContent = message;
+    launchStatusLockUntil = Date.now() + durationMs;
+    launchStatusLockTimer = window.setTimeout(() => {
+      launchStatusLockTimer = null;
+      launchStatusLockUntil = 0;
+      if (gameRunning) {
+        launchStatus.textContent = t("launch.gameRunning");
+      } else if (!launchInProgress) {
+        launchStatus.textContent = t("launch.gameStopped");
+      }
+    }, durationMs);
   }
 
   function applyGameRunningState(running: boolean): void {
@@ -1119,10 +1356,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       void minimizeLauncherWindowWithEffect();
     }
 
-    if (gameRunning) {
-      launchStatus.textContent = t("launch.gameRunning");
-    } else if (!launchInProgress) {
-      launchStatus.textContent = t("launch.gameStopped");
+    if (!isLaunchStatusLocked()) {
+      if (gameRunning) {
+        launchStatus.textContent = t("launch.gameRunning");
+      } else if (!launchInProgress) {
+        launchStatus.textContent = t("launch.gameStopped");
+      }
     }
     updateButtons();
   }
@@ -1340,6 +1579,22 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         body.append(missing);
       }
 
+      if (preset.hasDataFile) {
+        row.addEventListener("click", (event) => {
+          const target = event.target as HTMLElement | null;
+          if (!target) {
+            return;
+          }
+          if (target.closest(".preset-selection-toggle")) {
+            return;
+          }
+          if (target.closest('input[data-role="archive-preset-name"]')) {
+            return;
+          }
+          checkbox.checked = !checkbox.checked;
+        });
+      }
+
       row.append(toggle, body);
       presetArchiveList.append(row);
     }
@@ -1389,39 +1644,17 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     return inputs;
   }
 
-  async function refreshLocalPresets(keepStatusMessage = false): Promise<void> {
+  async function refreshLocalPresets(_keepStatusMessage = false): Promise<void> {
     presetLoading = true;
     updateButtons();
-
-    if (!keepStatusMessage) {
-      setStatusLine(presetStatus, t("preset.statusLoadingLocal"));
-    }
 
     try {
       localPresets = await presetsListLocal();
       renderLocalPresetList();
-
-      if (!keepStatusMessage) {
-        if (localPresets.length > 0) {
-          setStatusLine(
-            presetStatus,
-            t("preset.statusLoadedLocal", { count: localPresets.length }),
-            "success",
-          );
-        } else {
-          setStatusLine(presetStatus, t("preset.statusNoLocal"), "warn");
-        }
-      }
     } catch (error) {
       localPresets = [];
       renderLocalPresetList();
-      if (!keepStatusMessage) {
-        setStatusLine(
-          presetStatus,
-          t("preset.statusLoadFailed", { error: String(error) }),
-          "error",
-        );
-      }
+      setGeneralStatusLine(t("preset.statusLoadFailed", { error: String(error) }), "error");
     } finally {
       presetLoading = false;
       updateButtons();
@@ -1444,7 +1677,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       !settingsAmongUsOverlay.hidden ||
       !settingsUninstallConfirmOverlay.hidden ||
       !settingsMigrationOverlay.hidden ||
-      !presetOverlay.hidden;
+      !presetOverlay.hidden ||
+      !presetFeedbackOverlay.hidden;
     document.documentElement.classList.toggle("settings-overlay-open", overlayOpen);
     document.body.classList.toggle("settings-overlay-open", overlayOpen);
   }
@@ -1548,6 +1782,22 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     openSettingsOverlay(settingsAmongUsOverlay);
   }
 
+  function animateAmongUsReselection(): void {
+    if (amongUsReselectPulseTimer !== null) {
+      window.clearTimeout(amongUsReselectPulseTimer);
+      amongUsReselectPulseTimer = null;
+    }
+
+    void restartLayoutAnimation(
+      reselectAmongUsButton,
+      "settings-general-primary-action-reselected",
+    );
+    amongUsReselectPulseTimer = window.setTimeout(() => {
+      reselectAmongUsButton.classList.remove("settings-general-primary-action-reselected");
+      amongUsReselectPulseTimer = null;
+    }, 760);
+  }
+
   async function applyAmongUsSelection(path: string, platform: GamePlatform): Promise<void> {
     amongUsOverlayLoading = true;
     updateButtons();
@@ -1559,7 +1809,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       });
       await refreshProfileReady();
       setGeneralStatusLine(t("detect.success", { path, platform }), "success");
-      closeAmongUsOverlay(true);
+      amongUsOverlayLoading = false;
+      closeAmongUsOverlay();
+      animateAmongUsReselection();
     } catch (error) {
       setAmongUsOverlayError(t("detect.failed", { error: String(error) }));
     } finally {
@@ -1744,6 +1996,47 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     return migrationExporting || migrationImporting;
   }
 
+  const EPIC_AUTH_REQUIRED_ERROR_PREFIX = "Epic launch requires Epic authentication";
+  const EPIC_AUTH_CHECK_FAILED_ERROR_PREFIX =
+    "Epic authentication check failed. Please log in to Epic and try again:";
+  const EPIC_AUTH_INIT_FAILED_ERROR_PREFIX = "Failed to initialize Epic authentication:";
+  const INVALID_AMONG_US_FOLDER_ERROR_PREFIX =
+    "The selected folder is not an Among Us installation directory:";
+  const INVALID_AMONG_US_EXE_TARGET_ERROR_PREFIX = "Launch target is not Among Us.exe:";
+
+  function localizeLaunchError(error: unknown): string {
+    const message = String(error);
+
+    if (message.startsWith(EPIC_AUTH_REQUIRED_ERROR_PREFIX)) {
+      return t("launch.errorEpicAuthRequired");
+    }
+
+    if (message.startsWith(EPIC_AUTH_CHECK_FAILED_ERROR_PREFIX)) {
+      const detail = message.slice(EPIC_AUTH_CHECK_FAILED_ERROR_PREFIX.length).trim();
+      if (detail.length > 0) {
+        return t("launch.errorEpicAuthCheckFailedWithDetail", { error: detail });
+      }
+      return t("launch.errorEpicAuthCheckFailed");
+    }
+
+    if (message.startsWith(EPIC_AUTH_INIT_FAILED_ERROR_PREFIX)) {
+      const detail = message.slice(EPIC_AUTH_INIT_FAILED_ERROR_PREFIX.length).trim();
+      if (detail.length > 0) {
+        return t("launch.errorEpicAuthInitFailedWithDetail", { error: detail });
+      }
+      return t("launch.errorEpicAuthInitFailed");
+    }
+
+    if (
+      message.startsWith(INVALID_AMONG_US_FOLDER_ERROR_PREFIX) ||
+      message.startsWith(INVALID_AMONG_US_EXE_TARGET_ERROR_PREFIX)
+    ) {
+      return t("installFlow.invalidAmongUsFolder");
+    }
+
+    return message;
+  }
+
   function isMigrationPasswordError(message: string): boolean {
     const normalized = message.toLowerCase();
     const passwordPatterns = [
@@ -1844,7 +2137,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     updateButtons();
   }
 
-  async function resolveMigrationDialogDefaultPath(mode: MigrationMode): Promise<string | undefined> {
+  async function resolveMigrationDialogDefaultPath(
+    mode: MigrationMode,
+  ): Promise<string | undefined> {
     try {
       const downloadsPath = await downloadDir();
       if (mode === "export") {
@@ -1992,7 +2287,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         if (invalidPassword) {
           const localized = t("migration.overlay.invalidPassword");
           migrationResultMessage = localized;
-          setStatusLine(migrationStatus, t("migration.importFailed", { error: localized }), "error");
+          setStatusLine(
+            migrationStatus,
+            t("migration.importFailed", { error: localized }),
+            "error",
+          );
         } else {
           migrationResultMessage = t("migration.overlay.failedWithError", { error: message });
           setStatusLine(migrationStatus, t("migration.importFailed", { error: message }), "error");
@@ -2133,6 +2432,106 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     updateButtons();
   }
 
+  function closePresetResultOverlay(force = false): void {
+    if (isPresetProcessing() && !force) {
+      return;
+    }
+    closeSettingsOverlay(presetFeedbackOverlay, force);
+    const resetPresetFeedbackState = () => {
+      presetFeedbackMode = "none";
+      presetFeedbackCloseAllOnDismiss = false;
+      presetFeedbackPrimaryAction = null;
+      presetFeedbackSecondaryAction = null;
+      presetFeedbackTitle.textContent = "";
+      presetFeedbackMessage.textContent = "";
+      presetFeedbackList.replaceChildren();
+      presetFeedbackList.hidden = true;
+      presetFeedbackPrimaryButton.hidden = false;
+      presetFeedbackSecondaryButton.hidden = false;
+    };
+    if (force) {
+      resetPresetFeedbackState();
+    } else {
+      window.setTimeout(() => {
+        if (!presetFeedbackOverlay.hidden) {
+          return;
+        }
+        resetPresetFeedbackState();
+        updateButtons();
+      }, SETTINGS_OVERLAY_TRANSITION_MS);
+    }
+    updateButtons();
+  }
+
+  function closeAllOverlays(force = false): void {
+    closePresetResultOverlay(force);
+    closePresetOverlay(force);
+    closeUninstallConfirmOverlay(force);
+    closeMigrationOverlay(force);
+    closeAmongUsOverlay(force);
+  }
+
+  function openPresetFeedbackOverlay(
+    mode: PresetFeedbackMode,
+    title: string,
+    message: string,
+    listItems: string[],
+    primaryLabel: string,
+    secondaryLabel: string | null,
+    onPrimary: (() => void | Promise<void>) | null,
+    onSecondary: (() => void | Promise<void>) | null,
+    closeAllOnDismiss = false,
+  ): void {
+    presetFeedbackMode = mode;
+    presetFeedbackCloseAllOnDismiss = closeAllOnDismiss;
+    presetFeedbackPrimaryAction = onPrimary;
+    presetFeedbackSecondaryAction = onSecondary;
+    presetFeedbackTitle.textContent = title;
+    presetFeedbackMessage.textContent = message;
+    presetFeedbackList.replaceChildren();
+    if (listItems.length > 0) {
+      const items = listItems.map((text) => {
+        const li = document.createElement("li");
+        li.textContent = text;
+        return li;
+      });
+      presetFeedbackList.append(...items);
+      presetFeedbackList.hidden = false;
+    } else {
+      presetFeedbackList.hidden = true;
+    }
+    presetFeedbackPrimaryButton.textContent = primaryLabel;
+    presetFeedbackPrimaryButton.hidden = false;
+    if (secondaryLabel) {
+      presetFeedbackSecondaryButton.textContent = secondaryLabel;
+      presetFeedbackSecondaryButton.hidden = false;
+    } else {
+      presetFeedbackSecondaryButton.textContent = "";
+      presetFeedbackSecondaryButton.hidden = true;
+    }
+    openSettingsOverlay(presetFeedbackOverlay);
+    updateButtons();
+  }
+
+  function showPresetResultOverlay(
+    message: string,
+    title = t("preset.feedback.doneTitle"),
+    listItems: string[] = [],
+    closeAllOnDismiss = true,
+  ): void {
+    openPresetFeedbackOverlay(
+      "result",
+      title,
+      message,
+      listItems,
+      t("preset.feedback.close"),
+      null,
+      null,
+      null,
+      closeAllOnDismiss,
+    );
+  }
+
   presetOpenImportButton.addEventListener("click", () => {
     void startPresetImportFlow();
   });
@@ -2149,8 +2548,58 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     closePresetOverlay();
   });
 
+  presetFeedbackOverlayBackdrop.addEventListener("click", () => {
+    if (presetFeedbackMode === "result") {
+      if (presetFeedbackCloseAllOnDismiss) {
+        closeAllOverlays();
+      } else {
+        closePresetResultOverlay();
+      }
+      return;
+    }
+    closePresetResultOverlay();
+  });
+
+  presetFeedbackPrimaryButton.addEventListener("click", () => {
+    const action = presetFeedbackPrimaryAction;
+    if (action) {
+      void action();
+      return;
+    }
+    if (presetFeedbackMode === "result") {
+      if (presetFeedbackCloseAllOnDismiss) {
+        closeAllOverlays();
+      } else {
+        closePresetResultOverlay();
+      }
+      return;
+    }
+    closePresetResultOverlay();
+  });
+
+  presetFeedbackSecondaryButton.addEventListener("click", () => {
+    const action = presetFeedbackSecondaryAction;
+    if (action) {
+      void action();
+      return;
+    }
+    closePresetResultOverlay();
+  });
+
   window.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") {
+      return;
+    }
+    if (!presetFeedbackOverlay.hidden) {
+      if (presetFeedbackMode === "result") {
+        if (presetFeedbackCloseAllOnDismiss) {
+          closeAllOverlays();
+        } else {
+          closePresetResultOverlay();
+        }
+      } else {
+        closePresetResultOverlay();
+      }
       return;
     }
     if (!presetOverlay.hidden) {
@@ -2224,37 +2673,24 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   async function inspectPresetArchiveWithStatus(archivePath: string): Promise<boolean> {
     if (!archivePath) {
-      setStatusLine(presetStatus, t("preset.inspectPathRequired"), "warn");
       return false;
     }
 
     presetInspecting = true;
     updateButtons();
-    setStatusLine(presetStatus, t("preset.statusInspecting"));
 
     try {
       archivePresets = await presetsInspectArchive(archivePath);
       renderArchivePresetList();
-
-      const importable = archivePresets.filter((preset) => preset.hasDataFile).length;
-      const missing = archivePresets.length - importable;
-      setStatusLine(
-        presetStatus,
-        t("preset.statusInspectDone", {
-          total: archivePresets.length,
-          importable,
-          missing,
-        }),
-        importable > 0 ? "success" : "warn",
-      );
       return true;
     } catch (error) {
       archivePresets = [];
       renderArchivePresetList();
-      setStatusLine(
-        presetStatus,
+      showPresetResultOverlay(
         t("preset.statusInspectFailed", { error: String(error) }),
-        "error",
+        t("preset.title"),
+        [],
+        false,
       );
       return false;
     } finally {
@@ -2268,12 +2704,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       return;
     }
     closePresetOverlay(true);
+    closePresetResultOverlay(true);
     const archivePath = await pickPresetImportPath();
     if (!archivePath) {
       return;
     }
+    presetImportArchivePath = archivePath;
     openPresetOverlay("import");
-    presetImportPathInput.value = archivePath;
     await inspectPresetArchiveWithStatus(archivePath);
   }
 
@@ -2292,7 +2729,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   presetExportButton.addEventListener("click", async () => {
     const selectedIds = getSelectedLocalPresetIds();
     if (selectedIds.length === 0) {
-      setStatusLine(presetStatus, t("preset.exportSelectRequired"), "warn");
+      showPresetResultOverlay(t("preset.exportSelectRequired"), t("preset.title"), [], false);
       return;
     }
     const outputPath = await pickPresetExportPath();
@@ -2302,7 +2739,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     presetExporting = true;
     updateButtons();
-    setStatusLine(presetStatus, t("preset.statusExporting"));
 
     try {
       const result = await presetsExport({
@@ -2310,30 +2746,17 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         outputPath,
       });
 
-      presetImportPathInput.value = result.archivePath;
-      setStatusLine(
-        presetStatus,
-        t("preset.statusExportDone", {
-          path: result.archivePath,
-          count: result.exportedPresets,
-        }),
-        "success",
-      );
+      presetImportArchivePath = result.archivePath;
+      showPresetResultOverlay(t("preset.feedback.exportDone", { count: result.exportedPresets }));
     } catch (error) {
-      setStatusLine(
-        presetStatus,
+      showPresetResultOverlay(
         t("preset.statusExportFailed", { error: String(error) }),
-        "error",
+        t("preset.title"),
       );
     } finally {
       presetExporting = false;
       updateButtons();
     }
-  });
-
-  presetInspectButton.addEventListener("click", async () => {
-    const archivePath = presetImportPathInput.value.trim();
-    await inspectPresetArchiveWithStatus(archivePath);
   });
 
   presetSelectAllArchiveButton.addEventListener("click", () => {
@@ -2344,33 +2767,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     setCheckedStateByRole(presetArchiveList, "archive-preset-checkbox", false);
   });
 
-  presetImportButton.addEventListener("click", async () => {
-    const archivePath = presetImportPathInput.value.trim();
-    if (!archivePath) {
-      setStatusLine(presetStatus, t("preset.importPathRequired"), "warn");
-      return;
-    }
-
-    const selections = getSelectedArchivePresetInputs();
-    if (selections.length === 0) {
-      setStatusLine(presetStatus, t("preset.importSelectRequired"), "warn");
-      return;
-    }
-
-    const previewLines = selections
-      .map(
-        (selection) =>
-          `- [${selection.sourceId}] ${(selection.name ?? "").trim() || t("preset.emptyName")}`,
-      )
-      .join("\n");
-    const confirmed = window.confirm(t("preset.importConfirmPrompt", { list: previewLines }));
-    if (!confirmed) {
-      return;
-    }
-
+  async function runPresetImport(
+    archivePath: string,
+    selections: PresetImportSelectionInput[],
+  ): Promise<void> {
+    closePresetResultOverlay(true);
     presetImporting = true;
     updateButtons();
-    setStatusLine(presetStatus, t("preset.statusImporting"));
 
     try {
       const result = await presetsImportArchive({
@@ -2380,27 +2783,64 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
       await refreshLocalPresets(true);
 
-      const importedNames = result.imported
-        .map((item) => `[${item.targetId}] ${item.name}`)
-        .join(", ");
-      setStatusLine(
-        presetStatus,
-        t("preset.statusImportDone", {
-          count: result.importedPresets,
-          names: importedNames ? ` (${importedNames})` : "",
-        }),
-        "success",
+      const importedItems = result.imported.map(
+        (item) => `[${item.targetId}] ${(item.name ?? "").trim() || t("preset.emptyName")}`,
+      );
+      showPresetResultOverlay(
+        t("preset.statusImportDone", { count: result.importedPresets, names: "" }),
+        t("preset.feedback.confirmImportTitle"),
+        importedItems,
       );
     } catch (error) {
-      setStatusLine(
-        presetStatus,
+      showPresetResultOverlay(
         t("preset.statusImportFailed", { error: String(error) }),
-        "error",
+        t("preset.feedback.confirmImportTitle"),
       );
     } finally {
       presetImporting = false;
       updateButtons();
     }
+  }
+
+  presetImportButton.addEventListener("click", async () => {
+    const archivePath = presetImportArchivePath.trim();
+    if (!archivePath) {
+      showPresetResultOverlay(
+        t("preset.importPathRequired"),
+        t("preset.feedback.confirmImportTitle"),
+      );
+      return;
+    }
+
+    const selections = getSelectedArchivePresetInputs();
+    if (selections.length === 0) {
+      showPresetResultOverlay(
+        t("preset.importSelectRequired"),
+        t("preset.feedback.confirmImportTitle"),
+        [],
+        false,
+      );
+      return;
+    }
+
+    const previewItems = selections.map(
+      (selection) =>
+        `[${selection.sourceId}] ${(selection.name ?? "").trim() || t("preset.emptyName")}`,
+    );
+    openPresetFeedbackOverlay(
+      "confirmImport",
+      t("preset.feedback.confirmImportTitle"),
+      t("preset.feedback.confirmImportMessage"),
+      previewItems,
+      t("preset.feedback.import"),
+      t("preset.feedback.cancel"),
+      async () => {
+        await runPresetImport(archivePath, selections);
+      },
+      () => {
+        closePresetResultOverlay();
+      },
+    );
   });
 
   launchModdedButton.addEventListener("click", async () => {
@@ -2409,20 +2849,31 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
     launchInProgress = true;
     queueLauncherAutoMinimize();
-    launchStatus.textContent = t("launch.moddedStarting");
+    setLaunchStatus(t("launch.moddedStarting"));
     updateButtons();
 
     try {
       const gameExe = await gameExePathFromSettings();
+      try {
+        const firstSetupPending = await launchModdedFirstSetupPending(gameExe);
+        if (firstSetupPending) {
+          setLaunchStatus(t("launch.moddedFirstSetupStarting"));
+        }
+      } catch {
+        // 判定失敗時は通常の起動文言を維持する。
+      }
       await launchModded({
         gameExe,
         profilePath: settings.profilePath,
         platform: settings.gamePlatform,
       });
-      launchStatus.textContent = t("launch.moddedSent");
+      setLaunchStatus(t("launch.moddedSent"));
     } catch (error) {
       clearLauncherAutoMinimizePending();
-      launchStatus.textContent = t("launch.moddedFailed", { error: String(error) });
+      setLaunchStatusWithLock(
+        t("launch.moddedFailed", { error: localizeLaunchError(error) }),
+        LAUNCH_ERROR_DISPLAY_MS,
+      );
     } finally {
       launchInProgress = false;
       updateButtons();
@@ -2435,7 +2886,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
     launchInProgress = true;
     queueLauncherAutoMinimize();
-    launchStatus.textContent = t("launch.vanillaStarting");
+    setLaunchStatus(t("launch.vanillaStarting"));
     updateButtons();
 
     try {
@@ -2444,10 +2895,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         gameExe,
         platform: settings.gamePlatform,
       });
-      launchStatus.textContent = t("launch.vanillaSent");
+      setLaunchStatus(t("launch.vanillaSent"));
     } catch (error) {
       clearLauncherAutoMinimizePending();
-      launchStatus.textContent = t("launch.vanillaFailed", { error: String(error) });
+      setLaunchStatusWithLock(
+        t("launch.vanillaFailed", { error: localizeLaunchError(error) }),
+        LAUNCH_ERROR_DISPLAY_MS,
+      );
     } finally {
       launchInProgress = false;
       updateButtons();
@@ -2552,17 +3006,15 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         // fall through to finally cleanup when reload fails unexpectedly.
       }
     } finally {
-      if (didRequestReload) {
-        return;
+      if (!didRequestReload) {
+        clearLocaleSwitchReloadAnimation();
+        if (mainLayout) {
+          mainLayout.classList.remove("main-layout-minimize-out");
+        }
+        setLocaleSwitchAnimationScrollLock(false);
+        languageSelect.disabled = false;
+        localeSwitchInProgress = false;
       }
-
-      clearLocaleSwitchReloadAnimation();
-      if (mainLayout) {
-        mainLayout.classList.remove("main-layout-minimize-out");
-      }
-      setLocaleSwitchAnimationScrollLock(false);
-      languageSelect.disabled = false;
-      localeSwitchInProgress = false;
     }
   });
 
@@ -2571,6 +3023,29 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   renderArchivePresetList();
   renderPresetOverlayContent();
 
+  type VersionDisplayState = "loading" | "ready" | "error";
+  type UpdateStatusState =
+    | "idle"
+    | "checking"
+    | "latest"
+    | "skipped"
+    | "downloading"
+    | "applying"
+    | "success"
+    | "error";
+
+  function setVersionDisplay(text: string, state: VersionDisplayState): void {
+    appVersion.textContent = text;
+    appVersion.dataset.state = state;
+    settingsAppVersion.textContent = text;
+    settingsAppVersion.dataset.state = state;
+  }
+
+  function setUpdateStatus(text: string, state: UpdateStatusState): void {
+    updateStatus.textContent = text;
+    updateStatus.dataset.state = state;
+  }
+
   async function runUpdateCheck(source: "manual" | "startup"): Promise<void> {
     if (checkingUpdate) {
       return;
@@ -2578,20 +3053,18 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     checkingUpdate = true;
     checkUpdateButton.disabled = true;
-    updateStatus.textContent = t("update.checking");
+    setUpdateStatus(t("update.checking"), "checking");
 
     try {
       const update = await check();
       if (!update) {
-        updateStatus.textContent = t("update.latest");
+        setUpdateStatus(t("update.latest"), "latest");
         return;
       }
 
-      const shouldInstall = await confirm(t("update.confirmPrompt", { version: update.version }), {
-        kind: "warning",
-      });
+      const shouldInstall = window.confirm(t("update.confirmPrompt", { version: update.version }));
       if (!shouldInstall) {
-        updateStatus.textContent = t("update.skipped", { version: update.version });
+        setUpdateStatus(t("update.skipped", { version: update.version }), "skipped");
         return;
       }
 
@@ -2601,31 +3074,35 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       await update.downloadAndInstall((event) => {
         if (event.event === "Started") {
           totalBytes = event.data.contentLength ?? 0;
-          updateStatus.textContent = t("update.downloading");
+          setUpdateStatus(t("update.downloading"), "downloading");
           return;
         }
         if (event.event === "Progress") {
           downloadedBytes += event.data.chunkLength;
           if (totalBytes > 0) {
             const percent = Math.min(100, Math.floor((downloadedBytes / totalBytes) * 100));
-            updateStatus.textContent = t("update.downloadingPercent", { percent });
+            setUpdateStatus(t("update.downloadingPercent", { percent }), "downloading");
           } else {
-            updateStatus.textContent = t("update.downloading");
+            setUpdateStatus(t("update.downloading"), "downloading");
           }
           return;
         }
-        updateStatus.textContent = t("update.applying");
+        setUpdateStatus(t("update.applying"), "applying");
       });
 
-      updateStatus.textContent = t("update.appliedRestart");
+      setUpdateStatus(t("update.appliedRestart"), "success");
     } catch (error) {
       if (source === "manual") {
-        updateStatus.textContent = t("update.failed", {
-          error: String(error),
-        });
+        setUpdateStatus(
+          t("update.failed", {
+            error: String(error),
+          }),
+          "error",
+        );
       } else {
         // 起動時の自動チェック失敗は動作継続を優先してログのみ残す。
         console.warn("Auto update check failed:", error);
+        setUpdateStatus("", "idle");
       }
     } finally {
       checkingUpdate = false;
@@ -2637,22 +3114,26 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     await runUpdateCheck("manual");
   });
 
+  setVersionDisplay(t("launcher.currentVersionLoading"), "loading");
+  setUpdateStatus("", "idle");
+
   void (async () => {
     try {
       const version = `v${await getVersion()}`;
-      appVersion.textContent = version;
-      settingsAppVersion.textContent = version;
+      setVersionDisplay(version, "ready");
     } catch (error) {
       const errorMessage = t("app.versionFetchFailed", { error: String(error) });
-      appVersion.textContent = errorMessage;
-      settingsAppVersion.textContent = errorMessage;
+      setVersionDisplay(errorMessage, "error");
     }
   })();
 
   void listen<InstallProgressPayload>("snr-install-progress", (event) => {
     const payload = event.payload;
 
-    if (payload.stage === "downloading" && typeof payload.downloaded === "number") {
+    if (
+      (payload.stage === "downloading" || payload.stage === "patchers") &&
+      typeof payload.downloaded === "number"
+    ) {
       if (typeof payload.total === "number" && payload.total > 0) {
         const percent = Math.floor((payload.downloaded / payload.total) * 100);
         installStatus.textContent = t("install.progressPercent", {
@@ -2725,7 +3206,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     try {
       const autoLaunchError = await launchAutolaunchErrorTake();
       if (autoLaunchError) {
-        launchStatus.textContent = t("launch.autoModLaunchFailed", { error: autoLaunchError });
+        setLaunchStatusWithLock(
+          t("launch.autoModLaunchFailed", {
+            error: localizeLaunchError(autoLaunchError),
+          }),
+          LAUNCH_ERROR_DISPLAY_MS,
+        );
       }
     } catch {
       // ignore auto launch error retrieval errors

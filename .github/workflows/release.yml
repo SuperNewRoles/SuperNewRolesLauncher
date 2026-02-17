@@ -87,6 +87,7 @@ jobs:
           generateReleaseNotes: true
           releaseDraft: true
           prerelease: false
+          releaseAssetNamePattern: "[name]_[arch][setup][ext]"
           args: --bundles nsis
           includeUpdaterJson: true
           updaterJsonPreferNsis: true

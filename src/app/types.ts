@@ -47,6 +47,7 @@ export interface UninstallResult {
 }
 
 export interface PreservedSaveDataStatus {
+  // available は「復元可能な保存データが1件以上あるか」を表す。
   available: boolean;
   files: number;
 }
@@ -137,11 +138,17 @@ export interface EpicLoginStatus {
   profileError: string | null;
 }
 
+export type SocialBrandId = "fanbox" | "discord" | "youtube" | "github" | "x";
+
+export type SocialIcon =
+  | { kind: "svg-path"; viewBox: string; pathD: string }
+  | { kind: "image"; src: string; imageClassName?: string };
+
 export interface OfficialLink {
   label: string;
   url: string;
   backgroundColor: string;
-  iconSvg: string;
+  icon: SocialIcon;
 }
 
 export interface ReportingPrepareResult {

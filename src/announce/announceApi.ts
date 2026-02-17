@@ -1,19 +1,12 @@
-import type { LocaleCode } from "../i18n";
 import { ANNOUNCE_API_BASE_URL } from "../app/constants";
-import type {
-  AnnounceArticle,
-  AnnounceArticlesResponse,
-  AnnounceArticleMinimal,
-} from "./types";
+import type { LocaleCode } from "../i18n";
+import type { AnnounceArticle, AnnounceArticleMinimal, AnnounceArticlesResponse } from "./types";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_FALLBACK = "true";
 
-function buildApiUrl(
-  path: string,
-  params: Record<string, string | number | undefined>,
-): URL {
+function buildApiUrl(path: string, params: Record<string, string | number | undefined>): URL {
   const url = new URL(path.replace(/^\//, ""), ANNOUNCE_API_BASE_URL);
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined) {

@@ -17,7 +17,12 @@ import {
   snrSaveDataPreview,
 } from "../app/services/tauriClient";
 import { type ThemePreference, applyTheme, getStoredTheme, setStoredTheme } from "../app/theme";
-import type { GamePlatform, InstallProgressPayload, PresetSummary, SnrReleaseSummary } from "../app/types";
+import type {
+  GamePlatform,
+  InstallProgressPayload,
+  PresetSummary,
+  SnrReleaseSummary,
+} from "../app/types";
 import {
   type LocaleCode,
   SUPPORTED_LOCALES,
@@ -147,7 +152,8 @@ export default function InstallWizard() {
         available: false,
         files: 0,
       }));
-      const hasPreservedSaveData = preservedSaveDataStatus.available;
+      const hasPreservedSaveData =
+        preservedSaveDataStatus.available && preservedSaveDataStatus.files > 0;
       setPreservedSaveDataAvailable(hasPreservedSaveData);
       setRestoreSaveData(hasPreservedSaveData);
       setStep("platform");
@@ -284,7 +290,10 @@ export default function InstallWizard() {
   }, []);
 
   const onImportNext = useCallback(async () => {
-    if (importEnabled && (importSourceSaveDataPath.trim().length === 0 || importPreviewError !== null)) {
+    if (
+      importEnabled &&
+      (importSourceSaveDataPath.trim().length === 0 || importPreviewError !== null)
+    ) {
       return;
     }
 
@@ -364,7 +373,9 @@ export default function InstallWizard() {
           return true;
         } catch (importError) {
           const message = String(importError);
-          const shouldRetry = window.confirm(t("installFlow.importRetrySkipPrompt", { error: message }));
+          const shouldRetry = window.confirm(
+            t("installFlow.importRetrySkipPrompt", { error: message }),
+          );
           if (shouldRetry) {
             continue;
           }

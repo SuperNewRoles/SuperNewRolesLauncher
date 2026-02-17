@@ -11,6 +11,10 @@ const en: Record<keyof typeof ja, string> = {
   "theme.dark": "Dark",
 
   "credit.title": "Credits",
+  "credit.summary": "Credits for the development and resources behind SuperNewRoles Launcher.",
+  "credit.group.project": "Project",
+  "credit.group.technology": "Technology / Reference",
+  "credit.group.links": "Official Links",
   "credit.supernewrolesLine": "SuperNewRoles: SuperNewRoles Team / Contributors",
   "credit.amongUsLine": "Among Us: Innersloth LLC",
   "credit.launcherLine": "Launcher: Tauri v2 + Vite + TypeScript",
@@ -44,6 +48,8 @@ const en: Record<keyof typeof ja, string> = {
   "settings.category.general": "General",
   "settings.category.migration": "Data Migration",
   "settings.category.appVersion": "App Version",
+  "settings.appVersion.description": "Check the current launcher version and update status.",
+  "settings.appVersion.badge": "Launcher",
   "settings.general.title": "General Settings",
   "settings.general.reselectAmongUs": "Reselect Among Us",
   "settings.general.shortcutTitle": "Shortcut",
@@ -56,7 +62,7 @@ const en: Record<keyof typeof ja, string> = {
   "settings.general.supportDiscordLink": "Open Discord",
   "settings.general.reselectOverlayTitle": "Select Among Us installation",
   "settings.general.reselectOverlayDescription":
-    "Choose a detected Among Us folder or pick one manually.",
+    "Choose a detected Among Us folder or pick one manually. Changing this folder does not reset SuperNewRoles data.",
   "settings.general.reselectOverlayEmpty":
     "No candidates were detected. Try selecting a folder manually.",
   "settings.general.reselectOverlayManualSelect": "Select manually",
@@ -99,7 +105,7 @@ const en: Record<keyof typeof ja, string> = {
   "report.timing": "Timing",
   "report.body": "Body",
   "report.bodyPlaceholder": "Describe repro steps and context",
-  "report.send": "Send report",
+  "report.send": "Agree and send report",
   "report.threads": "Threads / Messages",
   "report.threadsLoading": "Loading threads...",
   "report.replyPlaceholder": "Reply message",
@@ -134,8 +140,11 @@ const en: Record<keyof typeof ja, string> = {
   "report.notReady": "Report Center is not ready",
   "report.titleRequired": "Please enter a title",
   "report.bodyRequired": "Please enter a body",
+  "report.preparing": "Preparing report...",
+  "report.processing": "Processing response...",
   "report.sending": "Sending report...",
   "report.sent": "Report sent",
+  "report.sendFailedTitle": "Failed to send report",
   "report.sendFailed": "Failed to send report: {error}",
   "report.threadRequired": "Select a thread first",
   "report.replyRequired": "Please enter a reply message",
@@ -172,6 +181,8 @@ const en: Record<keyof typeof ja, string> = {
   "report.mapPlaceholder": "Map name",
   "report.rolePlaceholder": "Role or feature name",
   "report.timingPlaceholder": "When did it occur?",
+  "report.termsNotice": "Please review the terms before sending.",
+  "report.termsLink": "Reporting Terms",
 
   "migration.title": "Data Migration",
   "migration.export": "Export",
@@ -294,6 +305,13 @@ const en: Record<keyof typeof ja, string> = {
   "preset.importDialogTitle": "Select import source",
   "preset.inspectArchive": "Inspect archive",
   "preset.importSelected": "Import selected",
+  "preset.feedback.doneTitle": "Export completed",
+  "preset.feedback.exportDone": "Exported {count} presets.",
+  "preset.feedback.confirmImportTitle": "Import presets",
+  "preset.feedback.confirmImportMessage": "Import the following presets?",
+  "preset.feedback.close": "Close",
+  "preset.feedback.cancel": "Cancel",
+  "preset.feedback.import": "Import",
   "preset.localEmpty": "No local presets found.",
   "preset.localMissingDataFile": "(PresetOptions file missing)",
   "preset.archiveHint": "Archive entries will appear here after inspection.",
@@ -340,6 +358,8 @@ const en: Record<keyof typeof ja, string> = {
     "This will delete all profile contents and will not preserve save data. Continue?",
 
   "launch.moddedStarting": "Launching Modded...",
+  "launch.moddedFirstSetupStarting":
+    "Launching Modded (first run setup in progress)... This may take a while.",
   "launch.moddedSent": "Launching Modded...",
   "launch.moddedFailed": "Modded launch failed: {error}",
   "launch.vanillaStarting": "Launching Vanilla...",
@@ -349,6 +369,15 @@ const en: Record<keyof typeof ja, string> = {
   "launch.shortcutCreated": "Shortcut created: {path}",
   "launch.shortcutCreateFailed": "Failed to create shortcut: {error}",
   "launch.autoModLaunchFailed": "Auto Mod launch failed: {error}",
+  "launch.errorEpicAuthRequired":
+    "Epic authentication is required to launch on Epic. Please log in from the Epic settings tab.",
+  "launch.errorEpicAuthCheckFailed":
+    "Failed to verify Epic authentication. Please log in to Epic and try again.",
+  "launch.errorEpicAuthCheckFailedWithDetail":
+    "Failed to verify Epic authentication. Please log in to Epic and try again. Detail: {error}",
+  "launch.errorEpicAuthInitFailed": "Failed to initialize Epic authentication.",
+  "launch.errorEpicAuthInitFailedWithDetail":
+    "Failed to initialize Epic authentication. Detail: {error}",
   "launch.gameRunning": "Game is running",
   "launch.gameStopped": "Game is stopped",
 
@@ -396,7 +425,7 @@ const en: Record<keyof typeof ja, string> = {
     "The selected folder is not an Among Us installation folder. Please select a folder containing Among Us.exe.",
   "installFlow.importTitle": "Import Existing SaveData",
   "installFlow.importDescription":
-    "If needed, import data from an existing SNR folder or a migration archive before finishing installation.\nIf this is your first time playing, press \"Next\" to continue.",
+    'If needed, import data from an existing SNR folder or a migration archive before finishing installation.\nIf this is your first time playing, press "Next" to continue.',
   "installFlow.importEnable": "Import SaveData from existing SNR",
   "installFlow.importArchiveEnable": "Import data from migration archive",
   "installFlow.importSelectSource": "Select source folder",
@@ -422,8 +451,7 @@ const en: Record<keyof typeof ja, string> = {
   "installFlow.importingSaveData": "Importing SaveData...",
   "installFlow.importingMigrationData": "Importing migration archive...",
   "installFlow.importingSaveDataPresetMerge": "Merging presets from existing SaveData...",
-  "installFlow.importingPreservedSaveDataPresetMerge":
-    "Merging presets from preserved SaveData...",
+  "installFlow.importingPreservedSaveDataPresetMerge": "Merging presets from preserved SaveData...",
   "installFlow.importRetrySkipPrompt":
     "Failed to import SaveData.\\n\\n{error}\\n\\nOK: Retry / Cancel: Skip",
   "installFlow.importRetrySkipPromptMigration":
@@ -439,6 +467,7 @@ const en: Record<keyof typeof ja, string> = {
   "common.retry": "Retry",
   "common.next": "Next",
   "common.back": "Back",
+  "common.close": "Close",
   "common.cancel": "Cancel",
 
   "onboarding.start": "Start",

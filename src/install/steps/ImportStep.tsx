@@ -185,7 +185,9 @@ export default function ImportStep({
               {hasFolderPreview && (
                 <>
                   {!previewError && (
-                    <p className="import-preview-heading">{t("installFlow.importPreviewListTitle")}</p>
+                    <p className="import-preview-heading">
+                      {t("installFlow.importPreviewListTitle")}
+                    </p>
                   )}
                   <div className="import-preview-list-wrap">
                     {previewPresets.length === 0 ? (
@@ -251,9 +253,7 @@ export default function ImportStep({
                   />
                 </label>
                 {archiveStatus && (
-                  <p className={`import-preview-status ${archiveStatusClass}`}>
-                    {archiveStatus}
-                  </p>
+                  <p className={`import-preview-status ${archiveStatusClass}`}>{archiveStatus}</p>
                 )}
               </div>
             </div>

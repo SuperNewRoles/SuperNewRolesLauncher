@@ -29,7 +29,9 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
     <header class="main-header">
       <div class="main-header-left">
         <h1 class="main-title">SuperNewRolesLauncher</h1>
-        <span class="main-version" id="app-version">${t("launcher.currentVersionLoading")}</span>
+        <div class="main-version-pill">
+          <span class="main-version" id="app-version" data-state="loading">${t("launcher.currentVersionLoading")}</span>
+        </div>
       </div>
       <div class="main-header-right">
         <div id="official-link-icons" class="main-official-icons"></div>
@@ -99,7 +101,6 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
               </span>
             </button>
           </div>
-          <div id="preset-status" class="status-line preset-remake-status" aria-live="polite"></div>
         </div>
 
         <div id="preset-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
@@ -111,10 +112,6 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
             </header>
 
             <section id="preset-overlay-import-screen" class="preset-overlay-screen" hidden>
-              <div class="row preset-remake-row preset-remake-path-row">
-                <input id="preset-import-path" class="preset-remake-path" type="text" placeholder="${t("preset.importPathPlaceholder")}" />
-                <button id="preset-inspect" type="button">${t("preset.inspectArchive")}</button>
-              </div>
               <div class="row preset-remake-row preset-selection-toolbar">
                 <button id="preset-select-all-archive" type="button">${t("preset.selectAll")}</button>
                 <button id="preset-clear-archive" type="button">${t("preset.clearSelection")}</button>
@@ -333,34 +330,87 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
               </section>
 
               <section id="settings-panel-credit" class="settings-category-panel" data-settings-panel="credit" role="tabpanel" aria-labelledby="settings-category-credit" hidden>
-                <section class="card">
-                  <strong>${t("credit.title")}</strong>
-                  <div style="font-size: 14px; line-height: 1.6;">
-                    <div>${t("credit.supernewrolesLine")}</div>
-                    <div>${t("credit.amongUsLine")}</div>
-                    <div>${t("credit.launcherLine")}</div>
-                    <div>${t("credit.referenceLine")}</div>
+                <section class="card settings-credit-card">
+                  <div class="settings-credit-header">
+                    <strong>${t("credit.title")}</strong>
+                    <p class="settings-credit-summary">${t("credit.summary")}</p>
                   </div>
-                  <div class="muted" style="display: grid; gap: 4px;">
-                    <div>${t("credit.wikiLabel")}: https://wiki.supernewroles.com</div>
+
+                  <div class="settings-credit-grid">
+                    <section class="settings-credit-group" aria-labelledby="settings-credit-group-project">
+                      <h3 id="settings-credit-group-project" class="settings-credit-group-title">${t("credit.group.project")}</h3>
+                      <div class="settings-credit-list">
+                        <div>${t("credit.supernewrolesLine")}</div>
+                        <div>${t("credit.amongUsLine")}</div>
+                      </div>
+                    </section>
+
+                    <section class="settings-credit-group" aria-labelledby="settings-credit-group-technology">
+                      <h3 id="settings-credit-group-technology" class="settings-credit-group-title">${t("credit.group.technology")}</h3>
+                      <div class="settings-credit-list">
+                        <div>${t("credit.launcherLine")}</div>
+                        <div>${t("credit.referenceLine")}</div>
+                      </div>
+                    </section>
                   </div>
-                  <div id="official-link-buttons" class="pill-links"></div>
+
+                  <section class="settings-credit-links" aria-labelledby="settings-credit-links-title">
+                    <div class="settings-credit-links-head">
+                      <h3 id="settings-credit-links-title" class="settings-credit-links-title">${t("credit.group.links")}</h3>
+                      <a
+                        class="settings-credit-wiki-link"
+                        href="https://wiki.supernewroles.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >${t("credit.wikiLabel")}: wiki.supernewroles.com</a>
+                    </div>
+                    <div id="official-link-buttons" class="pill-links settings-credit-pill-links"></div>
+                  </section>
                 </section>
               </section>
 
               <section id="settings-panel-app-version" class="settings-category-panel" data-settings-panel="app-version" role="tabpanel" aria-labelledby="settings-category-app-version" hidden>
-                <section class="card">
-                  <strong>${t("settings.category.appVersion")}</strong>
-                  <div class="row">
-                    <span class="muted">${t("launcher.currentVersionLabel")}</span>
-                    <span id="settings-app-version" class="settings-current-version">${t("launcher.currentVersionLoading")}</span>
+                <section class="card settings-app-version-card">
+                  <div class="settings-app-version-head">
+                    <div class="settings-app-version-title-wrap">
+                      <strong>${t("settings.category.appVersion")}</strong>
+                      <span class="settings-app-version-badge">${t("settings.appVersion.badge")}</span>
+                    </div>
+                    <p class="settings-app-version-description">${t("settings.appVersion.description")}</p>
                   </div>
-                  <div class="row"><button id="check-update" type="button">${t("update.check")}</button><span id="update-status" aria-live="polite"></span></div>
+                  <div class="settings-app-version-current">
+                    <span class="muted settings-app-version-label">${t("launcher.currentVersionLabel")}</span>
+                    <span id="settings-app-version" class="settings-current-version" data-state="loading">${t("launcher.currentVersionLoading")}</span>
+                  </div>
+                  <div class="settings-app-version-actions">
+                    <button id="check-update" type="button">${t("update.check")}</button>
+                    <span id="update-status" class="settings-update-status" data-state="idle" aria-live="polite"></span>
+                  </div>
                 </section>
               </section>
             </div>
           </div>
         </div>
+
+      </section>
+    </div>
+    <div id="preset-feedback-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
+      <div id="preset-feedback-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
+      <section
+        class="settings-fullscreen-overlay-panel preset-feedback-overlay-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="preset-feedback-title"
+      >
+        <header class="settings-fullscreen-overlay-header preset-feedback-header">
+          <h2 id="preset-feedback-title"></h2>
+        </header>
+        <p id="preset-feedback-message" class="preset-feedback-message" role="status" aria-live="polite"></p>
+        <ul id="preset-feedback-list" class="preset-feedback-list" hidden></ul>
+        <footer class="settings-fullscreen-overlay-actions preset-feedback-actions">
+          <button id="preset-feedback-secondary" type="button"></button>
+          <button id="preset-feedback-primary" type="button"></button>
+        </footer>
       </section>
     </div>
 

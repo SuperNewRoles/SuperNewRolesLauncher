@@ -24,6 +24,7 @@ async function run() {
     return;
   }
 
+  container.replaceChildren();
   const root = createRoot(container);
   root.render(<App />);
 }
