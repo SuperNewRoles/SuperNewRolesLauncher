@@ -7,9 +7,9 @@ import { initTheme } from "./app/theme";
 
 function applyConfiguredAuraColors(): void {
   const rootStyle = document.documentElement.style;
-  rootStyle.setProperty("--body-aura-orange-rgb", BODY_AURA_RGB.orange);
-  rootStyle.setProperty("--body-aura-green-rgb", BODY_AURA_RGB.green);
-  rootStyle.setProperty("--body-aura-red-rgb", BODY_AURA_RGB.red);
+  rootStyle.setProperty("--body-aura-orange-rgb", BODY_AURA_RGB.colorLeft);
+  rootStyle.setProperty("--body-aura-green-rgb", BODY_AURA_RGB.colorRight);
+  rootStyle.setProperty("--body-aura-red-rgb", BODY_AURA_RGB.colorCenter);
 }
 
 async function run() {

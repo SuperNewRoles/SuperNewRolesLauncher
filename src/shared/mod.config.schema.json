@@ -320,17 +320,17 @@
         "bodyAuraColors": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["orange", "green", "red"],
+          "required": ["colorLeft", "colorCenter", "colorRight"],
           "properties": {
-            "orange": {
+            "colorLeft": {
               "type": "string",
               "pattern": "^#[0-9A-Fa-f]{6}$"
             },
-            "green": {
+            "colorCenter": {
               "type": "string",
               "pattern": "^#[0-9A-Fa-f]{6}$"
             },
-            "red": {
+            "colorRight": {
               "type": "string",
               "pattern": "^#[0-9A-Fa-f]{6}$"
             }

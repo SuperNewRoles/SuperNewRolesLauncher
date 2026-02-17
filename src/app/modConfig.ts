@@ -73,9 +73,9 @@ export interface ModConfig {
   };
   theme: {
     bodyAuraColors: {
-      orange: string;
-      green: string;
-      red: string;
+      colorLeft: string;
+      colorCenter: string;
+      colorRight: string;
     };
   };
   events: {
@@ -142,17 +142,17 @@ function assertModConfig(input: ModConfig): ModConfig {
   ensureNonEmpty(input.presets.extension, "presets.extension");
   ensureNonEmpty(input.presets.optionsArchivePath, "presets.optionsArchivePath");
   ensureNonEmpty(input.presets.saveDataRoot, "presets.saveDataRoot");
-  input.theme.bodyAuraColors.orange = ensureHexColor(
-    input.theme.bodyAuraColors.orange,
-    "theme.bodyAuraColors.orange",
+  input.theme.bodyAuraColors.colorLeft = ensureHexColor(
+    input.theme.bodyAuraColors.colorLeft,
+    "theme.bodyAuraColors.colorLeft",
   );
-  input.theme.bodyAuraColors.green = ensureHexColor(
-    input.theme.bodyAuraColors.green,
-    "theme.bodyAuraColors.green",
+  input.theme.bodyAuraColors.colorCenter = ensureHexColor(
+    input.theme.bodyAuraColors.colorCenter,
+    "theme.bodyAuraColors.colorCenter",
   );
-  input.theme.bodyAuraColors.red = ensureHexColor(
-    input.theme.bodyAuraColors.red,
-    "theme.bodyAuraColors.red",
+  input.theme.bodyAuraColors.colorRight = ensureHexColor(
+    input.theme.bodyAuraColors.colorRight,
+    "theme.bodyAuraColors.colorRight",
   );
   ensureNonEmpty(input.events.installProgress, "events.installProgress");
   ensureNonEmpty(input.events.legacyInstallProgress, "events.legacyInstallProgress");
@@ -201,9 +201,9 @@ export const ANNOUNCE_API_BASE_URL = modConfig.apis.announceBaseUrl;
 export const REPORTING_TERMS_URL = modConfig.apis.reportingTermsUrl;
 export const BODY_AURA_COLORS = modConfig.theme.bodyAuraColors;
 export const BODY_AURA_RGB = {
-  orange: hexToRgbTuple(BODY_AURA_COLORS.orange),
-  green: hexToRgbTuple(BODY_AURA_COLORS.green),
-  red: hexToRgbTuple(BODY_AURA_COLORS.red),
+  colorLeft: hexToRgbTuple(BODY_AURA_COLORS.colorLeft),
+  colorCenter: hexToRgbTuple(BODY_AURA_COLORS.colorCenter),
+  colorRight: hexToRgbTuple(BODY_AURA_COLORS.colorRight),
 } as const;
 
 export const OFFICIAL_LINKS: OfficialLink[] = modConfig.links.official.map((item) => ({
