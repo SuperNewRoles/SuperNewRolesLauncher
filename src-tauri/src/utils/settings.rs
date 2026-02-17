@@ -6,14 +6,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, Runtime};
 
+use crate::utils::mod_profile;
+
 const SETTINGS_FILE_NAME: &str = "settings.json";
 
-pub const REQUIRED_PROFILE_FILES: [&str; 4] = [
-    "winhttp.dll",
-    "doorstop_config.ini",
-    "BepInEx/core/BepInEx.Unity.IL2CPP.dll",
-    "dotnet/coreclr.dll",
-];
+fn required_profile_files() -> &'static [String] {
+    &mod_profile::get().paths.profile_required_files
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "lowercase")]
@@ -211,14 +210,14 @@ pub fn apply_settings_input<R: Runtime>(
 
 /// プロファイルの必須ファイルがすべて揃っているかを判定する。
 pub fn is_profile_ready(profile_path: &Path) -> bool {
-    REQUIRED_PROFILE_FILES
+    required_profile_files()
         .iter()
         .all(|relative_path| profile_path.join(relative_path).is_file())
 }
 
 /// 必須ファイルの不足内容を詳細メッセージ付きで検証する。
 pub fn verify_profile_required_files(profile_path: &Path) -> Result<(), String> {
-    for relative_path in REQUIRED_PROFILE_FILES {
+    for relative_path in required_profile_files() {
         let file_path = profile_path.join(relative_path);
         if !file_path.is_file() {
             return Err(format!(

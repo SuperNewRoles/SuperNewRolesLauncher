@@ -1,3 +1,4 @@
+import modConfig from "../shared/mod.config.json";
 import en from "./locales/en";
 import ja from "./locales/ja";
 
@@ -18,6 +19,13 @@ export type MessageKey = keyof typeof ja;
 export const SUPPORTED_LOCALES = Object.freeze(Object.keys(LOCALES) as LocaleCode[]);
 
 type TranslateParams = Record<string, string | number>;
+const DEFAULT_TRANSLATE_PARAMS: TranslateParams = {
+  modName: modConfig.mod.displayName,
+  modShort: modConfig.mod.shortName,
+  launcherName: modConfig.branding.launcherName,
+  migrationExt: modConfig.migration.extension,
+  presetExt: modConfig.presets.extension,
+};
 
 function isLocaleCode(value: string): value is LocaleCode {
   return value in LOCALES;
@@ -63,12 +71,13 @@ export function createTranslator(locale: LocaleCode) {
 
   return (key: MessageKey, params?: TranslateParams): string => {
     const template = dictionary[key] ?? fallback[key] ?? key;
-    if (!params) {
-      return template;
-    }
+    const resolvedParams = {
+      ...DEFAULT_TRANSLATE_PARAMS,
+      ...(params ?? {}),
+    };
 
     return template.replace(PARAM_PATTERN, (_, name: string) => {
-      const value = params[name];
+      const value = resolvedParams[name];
       return value === undefined ? `{${name}}` : String(value);
     });
   };

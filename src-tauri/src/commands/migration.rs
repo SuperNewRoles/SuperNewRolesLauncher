@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
 
-use crate::utils::migration;
+use crate::utils::{migration, mod_profile};
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,6 +28,10 @@ pub struct MigrationPasswordValidationResult {
     pub encrypted: bool,
 }
 
+fn ensure_migration_enabled() -> Result<(), String> {
+    mod_profile::ensure_feature_enabled(mod_profile::Feature::Migration)
+}
+
 /// お引越しデータを書き出す。
 #[tauri::command]
 pub fn migration_export<R: Runtime>(
@@ -36,6 +40,7 @@ pub fn migration_export<R: Runtime>(
     encryption_enabled: Option<bool>,
     password: Option<String>,
 ) -> Result<MigrationExportResult, String> {
+    ensure_migration_enabled()?;
     let result = migration::export_migration_data(
         &app,
         output_path,
@@ -59,6 +64,7 @@ pub fn migration_import<R: Runtime>(
     archive_path: String,
     password: Option<String>,
 ) -> Result<MigrationImportResult, String> {
+    ensure_migration_enabled()?;
     let normalized = archive_path.trim();
     if normalized.is_empty() {
         return Err("Migration archive path is required".to_string());
@@ -80,6 +86,7 @@ pub fn migration_validate_archive_password(
     archive_path: String,
     password: Option<String>,
 ) -> Result<MigrationPasswordValidationResult, String> {
+    ensure_migration_enabled()?;
     let normalized = archive_path.trim();
     if normalized.is_empty() {
         return Err("Migration archive path is required".to_string());

@@ -1,0 +1,118 @@
+{
+  "$schema": "./mod.config.schema.json",
+  "schemaVersion": 1,
+  "mod": {
+    "id": "supernewroles",
+    "displayName": "SuperNewRoles",
+    "shortName": "SNR"
+  },
+  "branding": {
+    "launcherName": "SuperNewRolesLauncher",
+    "windowTitle": "SuperNewRolesLauncher",
+    "trayTooltip": "SuperNewRolesLauncher",
+    "identifier": "jp.ykundesu.supernewroleslauncher",
+    "moddedShortcutName": "SuperNewRoles Mod Launch.lnk"
+  },
+  "features": {
+    "announce": true,
+    "reporting": true,
+    "presets": true,
+    "migration": true,
+    "epicLogin": true,
+    "connectLinks": true
+  },
+  "distribution": {
+    "source": "github",
+    "githubRepo": "SuperNewRoles/SuperNewRoles",
+    "assetRegex": {
+      "steam": "_Steam\\.zip$",
+      "epic": "_Epic\\.zip$"
+    },
+    "patchers": {
+      "enabled": true,
+      "manifestUrl": "https://update.supernewroles.com/patchers/data.json",
+      "baseUrl": "https://update.supernewroles.com/patchers/"
+    },
+    "updaterLatestJsonUrl": "https://github.com/SuperNewRoles/SuperNewRolesLauncher/releases/latest/download/latest.json"
+  },
+  "paths": {
+    "amongUsExe": "Among Us.exe",
+    "amongUsDataDir": "Among Us_Data",
+    "saveDataRoot": "SuperNewRolesNext/SaveData",
+    "localLowRoot": "Innersloth/SuperNewRoles",
+    "reportTokenRelativePath": "Innersloth/Among Us/SuperNewRolesNextSecrets/RequestInGame.token",
+    "profileRequiredFiles": [
+      "winhttp.dll",
+      "doorstop_config.ini",
+      "BepInEx/core/BepInEx.Unity.IL2CPP.dll",
+      "dotnet/coreclr.dll"
+    ]
+  },
+  "migration": {
+    "extension": "snrdata",
+    "magic": "SNRDATA1",
+    "profileIncludePatterns": [
+      "^SuperNewRolesNext/SaveData/Options\\.data$",
+      "^SuperNewRolesNext/SaveData/PresetOptions_(0|[1-9]\\d*)\\.data$",
+      "^SuperNewRolesNext/SaveData/SuperTrophyData\\.dat$",
+      "^SuperNewRolesNext/SaveData/CustomCosmetics\\.data$"
+    ]
+  },
+  "presets": {
+    "extension": "snrpresets",
+    "optionsArchivePath": "SuperNewRolesNext/SaveData/Options.data",
+    "saveDataRoot": "SuperNewRolesNext/SaveData"
+  },
+  "apis": {
+    "announceBaseUrl": "https://announce.supernewroles.com/api/v1/",
+    "reportingBaseUrl": "https://reports-api.supernewroles.com/api/v3",
+    "reportingTermsUrl": "https://wiki.supernewroles.com/reporting-in-game-terms"
+  },
+  "links": {
+    "wikiUrl": "https://wiki.supernewroles.com",
+    "supportDiscordUrl": "https://discord.gg/Cqfwx82ynN",
+    "official": [
+      {
+        "label": "FANBOX",
+        "url": "https://supernewroles.fanbox.cc",
+        "backgroundColor": "#06A6F2",
+        "iconId": "fanbox"
+      },
+      {
+        "label": "Discord",
+        "url": "https://discord.gg/Cqfwx82ynN",
+        "backgroundColor": "#5865F2",
+        "iconId": "discord"
+      },
+      {
+        "label": "YouTube",
+        "url": "https://www.youtube.com/@SuperNewRoles",
+        "backgroundColor": "#FF0000",
+        "iconId": "youtube"
+      },
+      {
+        "label": "GitHub",
+        "url": "https://github.com/SuperNewRoles/SuperNewRoles",
+        "backgroundColor": "#24292F",
+        "iconId": "github"
+      },
+      {
+        "label": "X (Twitter)",
+        "url": "https://supernewroles.com/twitter",
+        "backgroundColor": "#000000",
+        "iconId": "x"
+      }
+    ]
+  },
+  "theme": {
+    "bodyAuraColors": {
+      "colorLeft": "#FF8C00",
+      "colorCenter": "#2EB82E",
+      "colorRight": "#E60000"
+    }
+  },
+  "events": {
+    "installProgress": "mod-install-progress",
+    "legacyInstallProgress": "snr-install-progress"
+  }
+}

@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
-use crate::utils::storage::KeyringStorage;
+use crate::utils::{mod_profile, storage::KeyringStorage};
 
 const OAUTH_HOST: &str = "account-public-service-prod03.ol.epicgames.com";
 const LAUNCHER_CLIENT_ID: &str = "34a02cf8f4414e29b15921876da36f9a";
@@ -16,6 +16,8 @@ const USER_AGENT: &str =
 const B64: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 static STORAGE: OnceLock<KeyringStorage<EpicSession>> = OnceLock::new();
 static SESSION_CACHE: OnceLock<Mutex<Option<EpicSession>>> = OnceLock::new();
+static STORAGE_SERVICE_NAME: OnceLock<&'static str> = OnceLock::new();
+static FALLBACK_SESSION_DIR_NAME: OnceLock<&'static str> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EpicSession {
@@ -126,7 +128,31 @@ impl EpicApi {
 }
 
 fn storage() -> &'static KeyringStorage<EpicSession> {
-    STORAGE.get_or_init(|| KeyringStorage::new("supernewroleslauncher", "epic_session"))
+    STORAGE.get_or_init(|| KeyringStorage::new(storage_service_name(), "epic_session"))
+}
+
+fn storage_service_name() -> &'static str {
+    STORAGE_SERVICE_NAME.get_or_init(|| {
+        let identifier = mod_profile::get().branding.identifier.trim();
+        let value = if identifier.is_empty() {
+            "launcher-epic-session".to_string()
+        } else {
+            identifier.to_ascii_lowercase().replace(' ', "_")
+        };
+        Box::leak(value.into_boxed_str())
+    })
+}
+
+fn fallback_session_dir_name() -> &'static str {
+    FALLBACK_SESSION_DIR_NAME.get_or_init(|| {
+        let launcher_name = mod_profile::get().branding.launcher_name.trim();
+        let value = if launcher_name.is_empty() {
+            "Launcher".to_string()
+        } else {
+            launcher_name.to_string()
+        };
+        Box::leak(value.into_boxed_str())
+    })
 }
 
 fn session_cache() -> &'static Mutex<Option<EpicSession>> {
@@ -138,7 +164,7 @@ fn fallback_session_path() -> Option<PathBuf> {
     {
         std::env::var_os("APPDATA").map(|app_data| {
             PathBuf::from(app_data)
-                .join("SuperNewRolesLauncher")
+                .join(fallback_session_dir_name())
                 .join("epic_session.json")
         })
     }
@@ -152,7 +178,7 @@ fn fallback_session_path() -> Option<PathBuf> {
             })
             .map(|data_home| {
                 data_home
-                    .join("SuperNewRolesLauncher")
+                    .join(fallback_session_dir_name())
                     .join("epic_session.json")
             })
     }

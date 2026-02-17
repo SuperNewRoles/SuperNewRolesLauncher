@@ -1,3 +1,4 @@
+import { LAUNCHER_NAME } from "../../app/modConfig";
 import type { ThemePreference } from "../../app/theme";
 import type { LocaleCode } from "../../i18n";
 import type { MessageKey } from "../../i18n";
@@ -26,7 +27,7 @@ export default function WelcomeStep({
   return (
     <div className="install-step install-step-welcome">
       <div className="welcome-content">
-        <h1 className="welcome-title">SuperNewRoles Launcher</h1>
+        <h1 className="welcome-title">{LAUNCHER_NAME}</h1>
         <p className="welcome-message">{t("installFlow.welcome")}</p>
         <p className="welcome-hint">{t("installFlow.welcomeHint")}</p>
         <div className="welcome-controls">

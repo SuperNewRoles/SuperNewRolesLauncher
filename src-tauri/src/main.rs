@@ -14,16 +14,26 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager,
 };
+use utils::mod_profile;
 
 const TRAY_ID: &str = "main-tray";
 const TRAY_MENU_SHOW_ID: &str = "tray_show";
 const TRAY_MENU_LAUNCH_ID: &str = "tray_launch";
 const TRAY_MENU_EXIT_ID: &str = "tray_exit";
 
-fn tray_menu_labels(locale: &str) -> (&'static str, &'static str, &'static str) {
+fn tray_menu_labels(locale: &str) -> (String, String, String) {
+    let short_name = mod_profile::get().mod_info.short_name.clone();
     match locale {
-        "en" => ("Launch SNR AmongUs", "Show", "Exit"),
-        _ => ("SNR AmongUsを起動", "表示", "終了"),
+        "en" => (
+            format!("Launch {short_name} AmongUs"),
+            "Show".to_string(),
+            "Exit".to_string(),
+        ),
+        _ => (
+            format!("{short_name} AmongUsを起動"),
+            "表示".to_string(),
+            "終了".to_string(),
+        ),
     }
 }
 
@@ -71,6 +81,7 @@ fn show_main_window<R: tauri::Runtime>(app: &AppHandle<R>) {
 }
 
 fn setup_tray<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+    let mod_profile = mod_profile::get();
     let locale = crate::utils::settings::load_or_init_settings(app)
         .map(|settings| settings.ui_locale)
         .unwrap_or_else(|_| "ja".to_string());
@@ -85,7 +96,7 @@ fn setup_tray<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let mut tray_builder = TrayIconBuilder::with_id(TRAY_ID)
         .menu(&tray_menu)
         .show_menu_on_left_click(false)
-        .tooltip("SuperNewRolesLauncher")
+        .tooltip(mod_profile.branding.tray_tooltip.clone())
         .on_tray_icon_event(|tray, event| {
             if matches!(
                 event,
@@ -188,6 +199,9 @@ pub fn run() {
             }
         })
         .setup(move |app| {
+            crate::utils::mod_profile::validate().map_err(
+                |error| -> Box<dyn std::error::Error> { Box::new(std::io::Error::other(error)) },
+            )?;
             setup_tray(app.handle())?;
 
             if auto_launch_modded {
@@ -217,6 +231,14 @@ pub fn run() {
             commands::finder::finder_detect_among_us,
             commands::finder::finder_detect_platform,
             commands::finder::finder_detect_platforms,
+            commands::snr::mod_releases_list,
+            commands::snr::mod_install,
+            commands::snr::mod_uninstall,
+            commands::snr::mod_preserved_save_data_status,
+            commands::snr::mod_savedata_preview,
+            commands::snr::mod_savedata_import,
+            commands::snr::mod_savedata_merge_presets,
+            commands::snr::mod_preserved_savedata_merge_presets,
             commands::snr::snr_releases_list,
             commands::snr::snr_install,
             commands::snr::snr_uninstall,

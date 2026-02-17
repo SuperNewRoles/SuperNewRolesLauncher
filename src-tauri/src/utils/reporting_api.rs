@@ -15,13 +15,10 @@ use std::sync::{Mutex, OnceLock};
 use std::time::SystemTime;
 use tauri::{AppHandle, Emitter, Runtime};
 
-use crate::utils::settings;
+use crate::utils::{mod_profile, settings};
 
-const REPORTING_API_BASE_URL: &str = "https://reports-api.supernewroles.com/api/v3";
 const TOKEN_FILE_NAME: &str = "RequestInGame.token";
 const LOG_OUTPUT_RELATIVE_PATH: &str = "BepInEx/LogOutput.log";
-const USER_AGENT: &str = "SuperNewRolesLauncher/0.1";
-const LOG_ENCRYPTION_KEY_SOURCE: &[u8] = b"SNRLogKey2024!@#";
 const B64: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 const REPORT_SEND_PROGRESS_EVENT: &str = "reporting-send-progress";
 const REPORT_SEND_UPLOAD_CHUNK_SIZE: usize = 16 * 1024;
@@ -154,9 +151,25 @@ struct TokenCandidate {
     modified: SystemTime,
 }
 
+fn reporting_api_base_url() -> &'static str {
+    mod_profile::get().apis.reporting_base_url.as_str()
+}
+
+fn reporting_user_agent() -> String {
+    format!(
+        "{}/{}",
+        mod_profile::get().branding.launcher_name,
+        env!("CARGO_PKG_VERSION")
+    )
+}
+
+fn reporting_token_relative_path() -> PathBuf {
+    mod_profile::to_relative_path(&mod_profile::get().paths.report_token_relative_path)
+}
+
 fn reporting_client() -> Result<Client, String> {
     Client::builder()
-        .user_agent(USER_AGENT)
+        .user_agent(reporting_user_agent())
         .build()
         .map_err(|e| format!("Failed to create reporting API client: {e}"))
 }
@@ -193,12 +206,18 @@ fn windows_home_dir() -> Result<PathBuf, String> {
 
 fn token_candidate_paths<R: Runtime>(_app: &AppHandle<R>) -> Result<Vec<PathBuf>, String> {
     let home = windows_home_dir()?;
-    let locallow_root = home.join("AppData").join("LocalLow").join("Innersloth");
+    let locallow_root = home.join("AppData").join("LocalLow");
+    let candidate = locallow_root.join(reporting_token_relative_path());
 
-    Ok(vec![locallow_root
-        .join("Among Us")
-        .join("SuperNewRolesNextSecrets")
-        .join(TOKEN_FILE_NAME)])
+    if candidate
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.eq_ignore_ascii_case(TOKEN_FILE_NAME))
+    {
+        Ok(vec![candidate])
+    } else {
+        Ok(vec![candidate.join(TOKEN_FILE_NAME)])
+    }
 }
 
 fn read_token(path: &Path) -> Option<String> {
@@ -263,7 +282,7 @@ async fn validate_token(client: &Client, token: &str) -> Result<bool, String> {
     }
 
     let response = client
-        .get(format!("{REPORTING_API_BASE_URL}/validateToken/"))
+        .get(format!("{}/validateToken/", reporting_api_base_url()))
         .header("Authorization", format!("Bearer {trimmed}"))
         .send()
         .await
@@ -274,7 +293,7 @@ async fn validate_token(client: &Client, token: &str) -> Result<bool, String> {
 
 async fn create_account(client: &Client) -> Result<String, String> {
     let response = client
-        .post(format!("{REPORTING_API_BASE_URL}/createAccount/"))
+        .post(format!("{}/createAccount/", reporting_api_base_url()))
         .send()
         .await
         .map_err(|e| format!("Failed to create reporting account: {e}"))?;
@@ -398,13 +417,15 @@ fn emit_report_send_progress<R: Runtime>(
 
 fn version_field(selected_release_tag: &str) -> String {
     let tag = selected_release_tag.trim();
-    let snr = if tag.is_empty() { "unknown" } else { tag };
-    format!("SNR:{snr}&AmongUs:unknown")
+    let mod_short_name = mod_profile::get().mod_info.short_name.as_str();
+    let release_tag = if tag.is_empty() { "unknown" } else { tag };
+    format!("{mod_short_name}:{release_tag}&AmongUs:unknown")
 }
 
 fn format_report_message<R: Runtime>(app: &AppHandle<R>, input: &SendReportInput) -> String {
+    let mod_short_name = mod_profile::get().mod_info.short_name.as_str();
     let mut lines = vec![format!(
-        "送信元: SNR Launcher v{}",
+        "送信元: {mod_short_name} Launcher v{}",
         app.package_info().version
     )];
 
@@ -441,9 +462,11 @@ fn format_report_message<R: Runtime>(app: &AppHandle<R>, input: &SendReportInput
 }
 
 fn make_log_encryption_key() -> [u8; 32] {
+    let source = format!("{}-launcher-log-key", mod_profile::get().mod_info.id);
+    let source_bytes = source.as_bytes();
     let mut key = [0u8; 32];
-    let copy_len = LOG_ENCRYPTION_KEY_SOURCE.len().min(key.len());
-    key[..copy_len].copy_from_slice(&LOG_ENCRYPTION_KEY_SOURCE[..copy_len]);
+    let copy_len = source_bytes.len().min(key.len());
+    key[..copy_len].copy_from_slice(&source_bytes[..copy_len]);
     key
 }
 
@@ -499,7 +522,7 @@ pub async fn list_threads<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<ReportTh
     let (token, _, _) = resolve_valid_token(app, &client, true).await?;
 
     let response = client
-        .get(format!("{REPORTING_API_BASE_URL}/getThreads/"))
+        .get(format!("{}/getThreads/", reporting_api_base_url()))
         .header("Authorization", format!("Bearer {token}"))
         .send()
         .await
@@ -561,7 +584,8 @@ pub async fn get_messages<R: Runtime>(
 
     let response = client
         .get(format!(
-            "{REPORTING_API_BASE_URL}/getMessages/{normalized_thread_id}"
+            "{}/getMessages/{normalized_thread_id}",
+            reporting_api_base_url()
         ))
         .header("Authorization", format!("Bearer {token}"))
         .send()
@@ -627,7 +651,8 @@ pub async fn send_message<R: Runtime>(
 
     let response = client
         .post(format!(
-            "{REPORTING_API_BASE_URL}/sendMessage/{normalized_thread_id}"
+            "{}/sendMessage/{normalized_thread_id}",
+            reporting_api_base_url()
         ))
         .header("Authorization", format!("Bearer {token}"))
         .json(&body)
@@ -814,7 +839,8 @@ pub async fn send_report<R: Runtime>(
     // Intentionally send plain JSON (no HTTP Content-Encoding) for current API compatibility.
     let response = match client
         .post(format!(
-            "{REPORTING_API_BASE_URL}/sendRequest/{report_type}"
+            "{}/sendRequest/{report_type}",
+            reporting_api_base_url()
         ))
         .header("Authorization", format!("Bearer {token}"))
         .header("Content-Type", "application/json")
@@ -866,7 +892,7 @@ pub async fn get_notification_flag<R: Runtime>(app: &AppHandle<R>) -> Result<boo
     let (token, _, _) = resolve_valid_token(app, &client, true).await?;
 
     let response = client
-        .get(format!("{REPORTING_API_BASE_URL}/getNotification/"))
+        .get(format!("{}/getNotification/", reporting_api_base_url()))
         .header("Authorization", format!("Bearer {token}"))
         .send()
         .await

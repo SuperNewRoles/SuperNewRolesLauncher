@@ -2,6 +2,7 @@ pub mod download;
 pub mod epic_api;
 pub mod finder;
 pub mod migration;
+pub mod mod_profile;
 pub mod presets;
 pub mod reporting_api;
 pub mod settings;

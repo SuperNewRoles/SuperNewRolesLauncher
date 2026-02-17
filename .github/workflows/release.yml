@@ -44,6 +44,16 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Read mod config metadata
+        id: mod_config
+        shell: pwsh
+        run: |
+          $config = Get-Content -Path src/shared/mod.config.json -Raw | ConvertFrom-Json
+          "launcher_name=$($config.branding.launcherName)" >> $env:GITHUB_OUTPUT
+
+      - name: Generate Tauri config
+        run: npm run tauri:prepare-config
+
       - name: Lint frontend
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_quality_checks == 'true' }}
         run: npm run lint
@@ -83,11 +93,11 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.event.inputs.tag_name || github.ref_name }}
-          releaseName: "SuperNewRolesLauncher ${{ github.event.inputs.tag_name || github.ref_name }}"
+          releaseName: "${{ steps.mod_config.outputs.launcher_name }} ${{ github.event.inputs.tag_name || github.ref_name }}"
           generateReleaseNotes: true
           releaseDraft: true
           prerelease: false
           releaseAssetNamePattern: "[name]_[arch][setup][ext]"
-          args: --bundles nsis
+          args: --config src-tauri/tauri.generated.conf.json --bundles nsis
           includeUpdaterJson: true
           updaterJsonPreferNsis: true

@@ -1,7 +1,10 @@
 use tauri::Emitter;
 
 use crate::commands::epic_login_window::EpicLoginWindow;
-use crate::utils::epic_api::{self, EpicApi};
+use crate::utils::{
+    epic_api::{self, EpicApi},
+    mod_profile,
+};
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -12,15 +15,21 @@ pub struct EpicLoginStatus {
     pub profile_error: Option<String>,
 }
 
+fn ensure_epic_login_enabled() -> Result<(), String> {
+    mod_profile::ensure_feature_enabled(mod_profile::Feature::EpicLogin)
+}
+
 /// Epic認証URLを返す（将来拡張用）。
 #[tauri::command]
-pub fn epic_auth_url_get() -> String {
-    EpicApi::get_auth_url()
+pub fn epic_auth_url_get() -> Result<String, String> {
+    ensure_epic_login_enabled()?;
+    Ok(EpicApi::get_auth_url())
 }
 
 /// 認証コードでEpicログインを行う。
 #[tauri::command]
 pub async fn epic_login_code(code: String) -> Result<(), String> {
+    ensure_epic_login_enabled()?;
     let normalized = code.trim().replace('"', "");
     if normalized.is_empty() {
         return Err("Epic authorization code is empty".to_string());
@@ -33,6 +42,7 @@ pub async fn epic_login_code(code: String) -> Result<(), String> {
 /// WebViewでEpicログインを開始する。
 #[tauri::command]
 pub async fn epic_login_webview(app: tauri::AppHandle) -> Result<(), String> {
+    ensure_epic_login_enabled()?;
     let app_success = app.clone();
     let app_error = app.clone();
     let app_cancel = app.clone();
@@ -54,6 +64,7 @@ pub async fn epic_login_webview(app: tauri::AppHandle) -> Result<(), String> {
 /// 保存済みセッションの復元を試みる。
 #[tauri::command]
 pub async fn epic_session_restore() -> Result<bool, String> {
+    ensure_epic_login_enabled()?;
     let Some(saved_session) = epic_api::load_session() else {
         return Ok(false);
     };
@@ -73,12 +84,14 @@ pub async fn epic_session_restore() -> Result<bool, String> {
 /// ログイン状態のみを返す簡易API。
 #[tauri::command]
 pub async fn epic_logged_in_get() -> Result<bool, String> {
+    ensure_epic_login_enabled()?;
     Ok(epic_api::load_session().is_some())
 }
 
 /// ログイン状態詳細を返す。
 #[tauri::command]
 pub async fn epic_status_get() -> Result<EpicLoginStatus, String> {
+    ensure_epic_login_enabled()?;
     let Some(session) = epic_api::load_session() else {
         return Ok(EpicLoginStatus {
             logged_in: false,
@@ -106,5 +119,6 @@ pub async fn epic_status_get() -> Result<EpicLoginStatus, String> {
 /// Epicセッションを削除する。
 #[tauri::command]
 pub async fn epic_logout() -> Result<(), String> {
+    ensure_epic_login_enabled()?;
     epic_api::clear_session()
 }

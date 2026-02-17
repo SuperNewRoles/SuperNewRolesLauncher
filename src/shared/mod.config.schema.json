@@ -1,0 +1,344 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://supernewroleslauncher.local/schema/mod.config.schema.json",
+  "title": "ModProfileConfig",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "mod",
+    "branding",
+    "features",
+    "distribution",
+    "paths",
+    "migration",
+    "presets",
+    "apis",
+    "links",
+    "theme",
+    "events"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "mod": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "displayName", "shortName"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "shortName": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "branding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "launcherName",
+        "windowTitle",
+        "trayTooltip",
+        "identifier",
+        "moddedShortcutName"
+      ],
+      "properties": {
+        "launcherName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "windowTitle": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trayTooltip": {
+          "type": "string",
+          "minLength": 1
+        },
+        "identifier": {
+          "type": "string",
+          "minLength": 1
+        },
+        "moddedShortcutName": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["announce", "reporting", "presets", "migration", "epicLogin", "connectLinks"],
+      "properties": {
+        "announce": {
+          "type": "boolean"
+        },
+        "reporting": {
+          "type": "boolean"
+        },
+        "presets": {
+          "type": "boolean"
+        },
+        "migration": {
+          "type": "boolean"
+        },
+        "epicLogin": {
+          "type": "boolean"
+        },
+        "connectLinks": {
+          "type": "boolean"
+        }
+      }
+    },
+    "distribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "githubRepo", "assetRegex", "patchers", "updaterLatestJsonUrl"],
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": ["github"]
+        },
+        "githubRepo": {
+          "type": "string",
+          "pattern": "^[^/]+/[^/]+$"
+        },
+        "assetRegex": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["steam", "epic"],
+          "properties": {
+            "steam": {
+              "type": "string",
+              "minLength": 1
+            },
+            "epic": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "patchers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "manifestUrl", "baseUrl"],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "manifestUrl": {
+              "type": "string",
+              "format": "uri"
+            },
+            "baseUrl": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        },
+        "updaterLatestJsonUrl": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "amongUsExe",
+        "amongUsDataDir",
+        "saveDataRoot",
+        "localLowRoot",
+        "reportTokenRelativePath",
+        "profileRequiredFiles"
+      ],
+      "properties": {
+        "amongUsExe": {
+          "type": "string",
+          "minLength": 1
+        },
+        "amongUsDataDir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "saveDataRoot": {
+          "type": "string",
+          "minLength": 1
+        },
+        "localLowRoot": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reportTokenRelativePath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profileRequiredFiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["extension", "magic", "profileIncludePatterns"],
+      "properties": {
+        "extension": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9]+$"
+        },
+        "magic": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profileIncludePatterns": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "presets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["extension", "optionsArchivePath", "saveDataRoot"],
+      "properties": {
+        "extension": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9]+$"
+        },
+        "optionsArchivePath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "saveDataRoot": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "apis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["announceBaseUrl", "reportingBaseUrl", "reportingTermsUrl"],
+      "properties": {
+        "announceBaseUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "reportingBaseUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "reportingTermsUrl": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wikiUrl", "supportDiscordUrl", "official"],
+      "properties": {
+        "wikiUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "supportDiscordUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "official": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "url", "backgroundColor", "iconId"],
+            "properties": {
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "backgroundColor": {
+                "type": "string",
+                "pattern": "^#[0-9A-Fa-f]{6}$"
+              },
+              "iconId": {
+                "type": "string",
+                "enum": ["fanbox", "discord", "youtube", "github", "x"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bodyAuraColors"],
+      "properties": {
+        "bodyAuraColors": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["colorLeft", "colorCenter", "colorRight"],
+          "properties": {
+            "colorLeft": {
+              "type": "string",
+              "pattern": "^#[0-9A-Fa-f]{6}$"
+            },
+            "colorCenter": {
+              "type": "string",
+              "pattern": "^#[0-9A-Fa-f]{6}$"
+            },
+            "colorRight": {
+              "type": "string",
+              "pattern": "^#[0-9A-Fa-f]{6}$"
+            }
+          }
+        }
+      }
+    },
+    "events": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["installProgress", "legacyInstallProgress"],
+      "properties": {
+        "installProgress": {
+          "type": "string",
+          "minLength": 1
+        },
+        "legacyInstallProgress": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

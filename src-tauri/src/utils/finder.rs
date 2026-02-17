@@ -3,15 +3,26 @@ use std::path::{Path, PathBuf};
 #[cfg(target_os = "windows")]
 use winreg::{enums::*, RegKey};
 
-const AMONG_US_EXE: &str = "Among Us.exe";
-const EPIC_FOLDER: &str = "Among Us_Data/StreamingAssets/aa/EGS";
+use crate::utils::mod_profile;
+
+fn among_us_exe_name() -> &'static str {
+    mod_profile::get().paths.among_us_exe.as_str()
+}
+
+fn epic_folder_path() -> PathBuf {
+    let mut path = mod_profile::to_relative_path(&mod_profile::get().paths.among_us_data_dir);
+    path.push("StreamingAssets");
+    path.push("aa");
+    path.push("EGS");
+    path
+}
 
 fn verify_among_us_directory(path: &Path) -> bool {
-    path.is_dir() && path.join(AMONG_US_EXE).is_file()
+    path.is_dir() && path.join(among_us_exe_name()).is_file()
 }
 
 fn is_epic_installation(path: &Path) -> bool {
-    path.join(EPIC_FOLDER).is_dir()
+    path.join(epic_folder_path()).is_dir()
 }
 
 #[cfg(target_os = "windows")]

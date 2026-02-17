@@ -2,6 +2,19 @@
 
 このドキュメントは、`SuperNewRolesLauncher` の実装責務と命名規約をまとめたものです。
 
+## Mod設定駆動
+
+- `src/shared/mod.config.json`
+  - fork時の変更起点。Mod名/配布Repo/API/機能トグル/移行対象パス/ブランド情報を定義します。
+- `src/shared/mod.config.template.json`
+  - fork用入力テンプレート。`mod.config.json` を作るときの下書きに使います。
+- `src-tauri/src/utils/mod_profile.rs`
+  - バックエンド側の設定ローダー。起動時にバリデーションし、全機能で参照します。
+- `src/app/modConfig.ts`
+  - フロント側の設定ローダー。UI構成やリンク、機能表示制御に利用します。
+- `scripts/generate-tauri-config.mjs`
+  - `mod.config.json` から `src-tauri/tauri.generated.conf.json` を生成し、`productName`/`identifier`/updater endpoint を反映します。
+
 ## フロントエンド構成
 
 - `src/main.ts`
@@ -35,6 +48,8 @@
 - settings: `settings_get`, `settings_update`, `settings_profile_ready`
 - finder: `finder_detect_among_us`, `finder_detect_platform`
 - snr: `snr_releases_list`, `snr_install`, `snr_uninstall`, `snr_preserved_save_data_status`
+- mod: `mod_releases_list`, `mod_install`, `mod_uninstall`, `mod_preserved_save_data_status`
+  - 互換のため `snr_*` も当面維持し、内部で `mod_*` 相当処理へ委譲します。
 - migration: `migration_export`, `migration_import`
 - presets: `presets_list_local`, `presets_export`, `presets_inspect_archive`, `presets_import_archive`
 - reporting: `reporting_prepare`, `reporting_threads_list`, `reporting_messages_list`, `reporting_message_send`, `reporting_report_send`, `reporting_notification_flag_get`, `reporting_log_source_get`

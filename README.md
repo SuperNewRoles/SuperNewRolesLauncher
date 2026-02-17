@@ -95,6 +95,11 @@ SuperNewRolesに関連するデータを1つのファイルにまとめて保存
 | [Vite](https://github.com/vitejs/vite) | フロントエンド開発 |
 | [All-Of-Us-Mods/Starlight-PC](https://github.com/All-Of-Us-Mods/Starlight-PC) | BepInEx分離起動 & Epicログインの参考 |
 
+## 開発者向け
+forkして別Mod向けに使う場合は、まず `src/shared/mod.config.json` を編集してください。  
+詳しくは[Mod Config Editing Guide](./docs/MOD_CONFIG_EDITING.md)をご覧ください。
+
+
 ---
 
 <div align="center">
@@ -186,3 +191,8 @@ Save and restore all SuperNewRoles-related data in a single file.
 | [Tauri](https://github.com/tauri-apps/tauri) | Application framework |
 | [Vite](https://github.com/vitejs/vite) | Frontend development |
 | [All-Of-Us-Mods/Starlight-PC](https://github.com/All-Of-Us-Mods/Starlight-PC) | Reference for BepInEx separation & Epic login |
+
+## For Developers
+If you fork this project to use for a different mod, please first edit `src/shared/mod.config.json`.
+
+For more details, please refer to the [Mod Config Editing Guide](./docs/MOD_CONFIG_EDITING.md).

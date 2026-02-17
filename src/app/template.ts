@@ -1,4 +1,14 @@
 import { type LocaleCode, type MessageKey, SUPPORTED_LOCALES } from "../i18n";
+import {
+  ANNOUNCE_ENABLED,
+  CONNECT_LINKS_ENABLED,
+  EPIC_LOGIN_ENABLED,
+  LAUNCHER_NAME,
+  MIGRATION_ENABLED,
+  PRESETS_ENABLED,
+  REPORTING_ENABLED,
+  modConfig,
+} from "./modConfig";
 
 /**
  * 画面テンプレート生成専用モジュール。
@@ -24,17 +34,23 @@ function renderLocaleOptions(locale: LocaleCode, t: Translator): string {
  * インストール/オンボーディングのデザインをベースに、下部タブ付きのメインレイアウト。
  */
 export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
+  const reportHiddenAttr = REPORTING_ENABLED ? "" : " hidden";
+  const announceHiddenAttr = ANNOUNCE_ENABLED ? "" : " hidden";
+  const presetHiddenAttr = PRESETS_ENABLED ? "" : " hidden";
+  const migrationHiddenAttr = MIGRATION_ENABLED ? "" : " hidden";
+  const epicHiddenAttr = EPIC_LOGIN_ENABLED ? "" : " hidden";
+  const connectLinksHiddenAttr = CONNECT_LINKS_ENABLED ? "" : " hidden";
   return `
   <main class="main-layout">
     <header class="main-header">
       <div class="main-header-left">
-        <h1 class="main-title">SuperNewRolesLauncher</h1>
+        <h1 class="main-title">${LAUNCHER_NAME}</h1>
         <div class="main-version-pill">
           <span class="main-version" id="app-version" data-state="loading">${t("launcher.currentVersionLoading")}</span>
         </div>
       </div>
       <div class="main-header-right">
-        <div id="official-link-icons" class="main-official-icons"></div>
+        <div id="official-link-icons" class="main-official-icons"${connectLinksHiddenAttr}></div>
         <div class="theme-buttons" style="margin-right: 8px;">
           <button id="theme-toggle-system" type="button" class="theme-btn" title="${t("theme.system")}" aria-label="${t("theme.system")}" aria-pressed="false">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -65,7 +81,7 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
           <span id="launch-status" class="home-launch-status" aria-live="polite"></span>
           <div class="home-buttons-row">
             <button id="launch-vanilla" type="button" class="btn-home-secondary">${t("home.launchVanilla")}</button>
-            <button id="report-center-tab" type="button" class="btn-home-secondary btn-report-center">${t("report.title")}
+            <button id="report-center-tab" type="button" class="btn-home-secondary btn-report-center"${reportHiddenAttr}>${t("report.title")}
               <span id="report-center-badge" class="report-center-badge" aria-hidden="true"></span>
             </button>
           </div>
@@ -73,17 +89,17 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
       </section>
 
       <!-- 報告センタータブ -->
-      <section id="tab-report" class="tab-panel" data-tab="report">
+      <section id="tab-report" class="tab-panel" data-tab="report"${reportHiddenAttr}>
         <div id="report-center-root" class="tab-inner tab-report-root"></div>
       </section>
 
       <!-- アナウンスタブ -->
-      <section id="tab-announce" class="tab-panel" data-tab="announce">
+      <section id="tab-announce" class="tab-panel" data-tab="announce"${announceHiddenAttr}>
         <div id="announce-center-root" class="tab-inner tab-announce-root"></div>
       </section>
 
       <!-- プリセットタブ -->
-      <section id="tab-preset" class="tab-panel" data-tab="preset">
+      <section id="tab-preset" class="tab-panel" data-tab="preset"${presetHiddenAttr}>
         <div class="tab-inner tab-settings-scroll tab-preset-scroll preset-remake-root">
           <div class="preset-remake-launch-grid">
             <button id="preset-open-import" type="button" class="settings-migration-action preset-remake-primary">
@@ -144,8 +160,8 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
             <aside class="settings-sidebar">
               <div class="settings-category-list" role="tablist" aria-label="${t("settings.tab")}">
                 <button id="settings-category-general" type="button" class="settings-category-btn is-active" data-settings-category="general" role="tab" aria-selected="true" aria-controls="settings-panel-general">${t("settings.category.general")}</button>
-                <button id="settings-category-epic" type="button" class="settings-category-btn" data-settings-category="epic" role="tab" aria-selected="false" aria-controls="settings-panel-epic">${t("epic.title")}</button>
-                <button id="settings-category-migration" type="button" class="settings-category-btn" data-settings-category="migration" role="tab" aria-selected="false" aria-controls="settings-panel-migration">${t("settings.category.migration")}</button>
+                <button id="settings-category-epic" type="button" class="settings-category-btn" data-settings-category="epic" role="tab" aria-selected="false" aria-controls="settings-panel-epic"${epicHiddenAttr}>${t("epic.title")}</button>
+                <button id="settings-category-migration" type="button" class="settings-category-btn" data-settings-category="migration" role="tab" aria-selected="false" aria-controls="settings-panel-migration"${migrationHiddenAttr}>${t("settings.category.migration")}</button>
                 <button id="settings-category-credit" type="button" class="settings-category-btn" data-settings-category="credit" role="tab" aria-selected="false" aria-controls="settings-panel-credit">${t("credit.title")}</button>
                 <button id="settings-category-app-version" type="button" class="settings-category-btn" data-settings-category="app-version" role="tab" aria-selected="false" aria-controls="settings-panel-app-version">${t("settings.category.appVersion")}</button>
               </div>
@@ -191,7 +207,7 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
 
                   <section class="card settings-general-card settings-general-support">
                     <p class="settings-general-support-text">${t("settings.general.supportText")}</p>
-                    <button id="settings-support-discord-link" type="button" class="ghost settings-general-support-link">${t("settings.general.supportDiscordLink")}</button>
+                    <button id="settings-support-discord-link" type="button" class="ghost settings-general-support-link"${connectLinksHiddenAttr}>${t("settings.general.supportDiscordLink")}</button>
                   </section>
                 </div>
               </section>
@@ -275,7 +291,7 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                 </section>
               </div>
 
-              <section id="settings-panel-epic" class="settings-category-panel" data-settings-panel="epic" role="tabpanel" aria-labelledby="settings-category-epic" hidden>
+              <section id="settings-panel-epic" class="settings-category-panel" data-settings-panel="epic" role="tabpanel" aria-labelledby="settings-category-epic" hidden${epicHiddenAttr}>
                 <section class="settings-epic-install-wrap">
                   <div class="install-step-epic-login settings-epic-install-step">
                     <div class="epic-login-container">
@@ -306,7 +322,7 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                 </section>
               </section>
 
-              <section id="settings-panel-migration" class="settings-category-panel" data-settings-panel="migration" role="tabpanel" aria-labelledby="settings-category-migration" hidden>
+              <section id="settings-panel-migration" class="settings-category-panel" data-settings-panel="migration" role="tabpanel" aria-labelledby="settings-category-migration" hidden${migrationHiddenAttr}>
                 <section class="card settings-migration-panel">
                   <strong>${t("migration.title")}</strong>
                   <div class="settings-migration-action-stack">
@@ -359,12 +375,12 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                       <h3 id="settings-credit-links-title" class="settings-credit-links-title">${t("credit.group.links")}</h3>
                       <a
                         class="settings-credit-wiki-link"
-                        href="https://wiki.supernewroles.com"
+                        href="${modConfig.links.wikiUrl}"
                         target="_blank"
                         rel="noopener noreferrer"
-                      >${t("credit.wikiLabel")}: wiki.supernewroles.com</a>
+                      >${t("credit.wikiLabel")}: ${modConfig.links.wikiUrl}</a>
                     </div>
-                    <div id="official-link-buttons" class="pill-links settings-credit-pill-links"></div>
+                    <div id="official-link-buttons" class="pill-links settings-credit-pill-links"${connectLinksHiddenAttr}></div>
                   </section>
                 </section>
               </section>
@@ -416,15 +432,15 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
 
     <nav class="tab-bar" role="tablist" aria-label="メインナビゲーション">
       <button type="button" class="tab-bar-item tab-bar-item-active" data-tab="home" role="tab" aria-selected="true">${t("home.tab")}</button>
-      <button type="button" class="tab-bar-item tab-bar-item-report" data-tab="report" role="tab" aria-selected="false">
+      <button type="button" class="tab-bar-item tab-bar-item-report" data-tab="report" role="tab" aria-selected="false"${reportHiddenAttr}>
         ${t("report.title")}
         <span id="report-tab-badge" class="report-center-badge report-tab-badge" aria-hidden="true"></span>
       </button>
-      <button type="button" class="tab-bar-item tab-bar-item-announce" data-tab="announce" role="tab" aria-selected="false">
+      <button type="button" class="tab-bar-item tab-bar-item-announce" data-tab="announce" role="tab" aria-selected="false"${announceHiddenAttr}>
         ${t("announce.tab")}
         <span id="announce-tab-badge" class="report-center-badge announce-tab-badge" aria-hidden="true"></span>
       </button>
-      <button type="button" class="tab-bar-item" data-tab="preset" role="tab" aria-selected="false">${t("preset.tab")}</button>
+      <button type="button" class="tab-bar-item" data-tab="preset" role="tab" aria-selected="false"${presetHiddenAttr}>${t("preset.tab")}</button>
       <button type="button" class="tab-bar-item" data-tab="settings" role="tab" aria-selected="false">${t("settings.tab")}</button>
     </nav>
   </main>

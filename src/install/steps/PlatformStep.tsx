@@ -1,7 +1,11 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { useState } from "react";
 import { EPIC_ICON_PATH, STEAM_ICON_PATH } from "../../app/platformIconPaths";
-import { getPlatformLabelKey, normalizePlatformCandidates } from "../../app/platformSelection";
+import {
+  filterSelectablePlatformCandidates,
+  getPlatformLabelKey,
+  normalizePlatformCandidates,
+} from "../../app/platformSelection";
 import { finderDetectPlatform } from "../../app/services/tauriClient";
 import type { GamePlatform } from "../../app/types";
 import type { MessageKey } from "../../i18n";
@@ -10,6 +14,7 @@ import type { DetectedPlatform } from "../types";
 interface PlatformStepProps {
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
   detectedPlatforms: DetectedPlatform[];
+  epicEnabled: boolean;
   onSelect: (path: string, platform: GamePlatform) => void;
   onManualSelect: (path: string, platform: GamePlatform) => void;
   onBack: () => void;
@@ -31,13 +36,17 @@ export const EPIC_SVG = (
 export default function PlatformStep({
   t,
   detectedPlatforms,
+  epicEnabled,
   onSelect,
   onManualSelect,
   onBack,
   error,
 }: PlatformStepProps) {
   const [localError, setLocalError] = useState<string | null>(null);
-  const candidates = normalizePlatformCandidates(detectedPlatforms);
+  const candidates = filterSelectablePlatformCandidates(
+    normalizePlatformCandidates(detectedPlatforms),
+    epicEnabled,
+  );
 
   const handleManualSelect = async () => {
     let selectedPath: string | string[] | null;

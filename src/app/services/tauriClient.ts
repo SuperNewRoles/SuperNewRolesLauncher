@@ -66,9 +66,48 @@ export function finderDetectPlatforms(): Promise<DetectedPlatform[]> {
   return invoke<DetectedPlatform[]>("finder_detect_platforms");
 }
 
-// SNRインストール関連API
+// Modインストール関連API（汎用）
+export function modReleasesList(): Promise<SnrReleaseSummary[]> {
+  return invoke<SnrReleaseSummary[]>("mod_releases_list");
+}
+
+export function modInstall(input: {
+  tag: string;
+  platform: GamePlatform;
+  restorePreservedSaveData: boolean;
+}): Promise<InstallResult> {
+  return invoke<InstallResult>("mod_install", input);
+}
+
+export function modUninstall(preserveSaveData: boolean): Promise<UninstallResult> {
+  return invoke<UninstallResult>("mod_uninstall", { preserveSaveData });
+}
+
+export function modPreservedSaveDataStatus(): Promise<PreservedSaveDataStatus> {
+  return invoke<PreservedSaveDataStatus>("mod_preserved_save_data_status");
+}
+
+export function modSaveDataPreview(sourceAmongUsPath: string): Promise<SaveDataPreviewResult> {
+  return invoke<SaveDataPreviewResult>("mod_savedata_preview", { sourceAmongUsPath });
+}
+
+export function modSaveDataImport(sourceAmongUsPath: string): Promise<SaveDataImportResult> {
+  return invoke<SaveDataImportResult>("mod_savedata_import", { sourceAmongUsPath });
+}
+
+export function modSaveDataMergePresets(
+  sourceAmongUsPath: string,
+): Promise<SaveDataPresetMergeResult> {
+  return invoke<SaveDataPresetMergeResult>("mod_savedata_merge_presets", { sourceAmongUsPath });
+}
+
+export function modPreservedSaveDataMergePresets(): Promise<SaveDataPresetMergeResult> {
+  return invoke<SaveDataPresetMergeResult>("mod_preserved_savedata_merge_presets");
+}
+
+// 互換API（deprecated）
 export function snrReleasesList(): Promise<SnrReleaseSummary[]> {
-  return invoke<SnrReleaseSummary[]>("snr_releases_list");
+  return modReleasesList();
 }
 
 export function snrInstall(input: {
@@ -76,33 +115,33 @@ export function snrInstall(input: {
   platform: GamePlatform;
   restorePreservedSaveData: boolean;
 }): Promise<InstallResult> {
-  return invoke<InstallResult>("snr_install", input);
+  return modInstall(input);
 }
 
 export function snrUninstall(preserveSaveData: boolean): Promise<UninstallResult> {
-  return invoke<UninstallResult>("snr_uninstall", { preserveSaveData });
+  return modUninstall(preserveSaveData);
 }
 
 export function snrPreservedSaveDataStatus(): Promise<PreservedSaveDataStatus> {
-  return invoke<PreservedSaveDataStatus>("snr_preserved_save_data_status");
+  return modPreservedSaveDataStatus();
 }
 
 export function snrSaveDataPreview(sourceAmongUsPath: string): Promise<SaveDataPreviewResult> {
-  return invoke<SaveDataPreviewResult>("snr_savedata_preview", { sourceAmongUsPath });
+  return modSaveDataPreview(sourceAmongUsPath);
 }
 
 export function snrSaveDataImport(sourceAmongUsPath: string): Promise<SaveDataImportResult> {
-  return invoke<SaveDataImportResult>("snr_savedata_import", { sourceAmongUsPath });
+  return modSaveDataImport(sourceAmongUsPath);
 }
 
 export function snrSaveDataMergePresets(
   sourceAmongUsPath: string,
 ): Promise<SaveDataPresetMergeResult> {
-  return invoke<SaveDataPresetMergeResult>("snr_savedata_merge_presets", { sourceAmongUsPath });
+  return modSaveDataMergePresets(sourceAmongUsPath);
 }
 
 export function snrPreservedSaveDataMergePresets(): Promise<SaveDataPresetMergeResult> {
-  return invoke<SaveDataPresetMergeResult>("snr_preserved_savedata_merge_presets");
+  return modPreservedSaveDataMergePresets();
 }
 
 // マイグレーション関連API

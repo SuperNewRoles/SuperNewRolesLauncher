@@ -33,13 +33,17 @@
   --badge-warn-bg: #fff8e6;
   --badge-warn-border: #e9d39f;
 
-  --body-aura-orange: rgba(255, 140, 0, 0.15);
-  --body-aura-green: rgba(46, 184, 46, 0.15);
-  --body-aura-red: rgba(230, 0, 0, 0.1);
+  --body-aura-orange-rgb: 255, 140, 0;
+  --body-aura-green-rgb: 46, 184, 46;
+  --body-aura-red-rgb: 230, 0, 0;
 
-  --welcome-aura-orange: rgba(255, 140, 0, 0.25);
-  --welcome-aura-green: rgba(46, 184, 46, 0.25);
-  --welcome-aura-red: rgba(230, 0, 0, 0.2);
+  --body-aura-orange: rgba(var(--body-aura-orange-rgb), 0.15);
+  --body-aura-green: rgba(var(--body-aura-green-rgb), 0.15);
+  --body-aura-red: rgba(var(--body-aura-red-rgb), 0.1);
+
+  --welcome-aura-orange: rgba(var(--body-aura-orange-rgb), 0.25);
+  --welcome-aura-green: rgba(var(--body-aura-green-rgb), 0.25);
+  --welcome-aura-red: rgba(var(--body-aura-red-rgb), 0.2);
 
   --platform-steam: #1b2838;
   --platform-epic: #000;
@@ -94,13 +98,13 @@
     --badge-warn-bg: rgba(210, 153, 34, 0.13);
     --badge-warn-border: rgba(210, 153, 34, 0.35);
 
-    --body-aura-orange: rgba(255, 140, 0, 0.1);
-    --body-aura-green: rgba(46, 184, 46, 0.1);
-    --body-aura-red: rgba(230, 0, 0, 0.08);
+    --body-aura-orange: rgba(var(--body-aura-orange-rgb), 0.1);
+    --body-aura-green: rgba(var(--body-aura-green-rgb), 0.1);
+    --body-aura-red: rgba(var(--body-aura-red-rgb), 0.08);
 
-    --welcome-aura-orange: rgba(255, 140, 0, 0.18);
-    --welcome-aura-green: rgba(46, 184, 46, 0.18);
-    --welcome-aura-red: rgba(230, 0, 0, 0.15);
+    --welcome-aura-orange: rgba(var(--body-aura-orange-rgb), 0.18);
+    --welcome-aura-green: rgba(var(--body-aura-green-rgb), 0.18);
+    --welcome-aura-red: rgba(var(--body-aura-red-rgb), 0.15);
 
     --platform-steam: #66c0f4;
     --platform-epic: #fff;
@@ -147,13 +151,13 @@
   --badge-warn-bg: rgba(210, 153, 34, 0.13);
   --badge-warn-border: rgba(210, 153, 34, 0.35);
 
-  --body-aura-orange: rgba(255, 140, 0, 0.1);
-  --body-aura-green: rgba(46, 184, 46, 0.1);
-  --body-aura-red: rgba(230, 0, 0, 0.08);
+  --body-aura-orange: rgba(var(--body-aura-orange-rgb), 0.1);
+  --body-aura-green: rgba(var(--body-aura-green-rgb), 0.1);
+  --body-aura-red: rgba(var(--body-aura-red-rgb), 0.08);
 
-  --welcome-aura-orange: rgba(255, 140, 0, 0.18);
-  --welcome-aura-green: rgba(46, 184, 46, 0.18);
-  --welcome-aura-red: rgba(230, 0, 0, 0.15);
+  --welcome-aura-orange: rgba(var(--body-aura-orange-rgb), 0.18);
+  --welcome-aura-green: rgba(var(--body-aura-green-rgb), 0.18);
+  --welcome-aura-red: rgba(var(--body-aura-red-rgb), 0.15);
 
   --platform-steam: #66c0f4;
   --platform-epic: #fff;
@@ -198,13 +202,13 @@
   --badge-warn-bg: #fff8e6;
   --badge-warn-border: #e9d39f;
 
-  --body-aura-orange: rgba(255, 140, 0, 0.15);
-  --body-aura-green: rgba(46, 184, 46, 0.15);
-  --body-aura-red: rgba(230, 0, 0, 0.1);
+  --body-aura-orange: rgba(var(--body-aura-orange-rgb), 0.15);
+  --body-aura-green: rgba(var(--body-aura-green-rgb), 0.15);
+  --body-aura-red: rgba(var(--body-aura-red-rgb), 0.1);
 
-  --welcome-aura-orange: rgba(255, 140, 0, 0.25);
-  --welcome-aura-green: rgba(46, 184, 46, 0.25);
-  --welcome-aura-red: rgba(230, 0, 0, 0.2);
+  --welcome-aura-orange: rgba(var(--body-aura-orange-rgb), 0.25);
+  --welcome-aura-green: rgba(var(--body-aura-green-rgb), 0.25);
+  --welcome-aura-red: rgba(var(--body-aura-red-rgb), 0.2);
 
   --platform-steam: #1b2838;
   --platform-epic: #000;
@@ -5726,10 +5730,55 @@ body.locale-switch-animating {
   font-weight: 700;
 }
 
-.announce-refresh-button {
-  width: 28px;
-  height: 28px;
+.announce-list-action-buttons {
+  --announce-header-action-size: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.announce-mark-all-read-button {
+  height: var(--announce-header-action-size);
   min-width: auto;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.announce-mark-all-read-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.announce-mark-all-read-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.announce-mark-all-read-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.announce-refresh-button {
+  width: var(--announce-header-action-size);
+  height: var(--announce-header-action-size);
+  min-width: auto;
+  margin: 0;
+  position: relative;
+  top: -1px;
   padding: 0;
   border: none;
   border-radius: 999px;

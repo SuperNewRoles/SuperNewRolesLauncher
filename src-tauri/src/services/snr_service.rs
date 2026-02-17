@@ -1,7 +1,8 @@
 //! SNR配布物の取得・展開・退避復元を扱うサービス層。
 //! commands層から呼び出される実処理をここに集約する。
 
-use crate::utils::{download, migration, presets, settings, zip};
+use crate::utils::{download, migration, mod_profile, presets, settings, zip};
+use regex::Regex;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -11,15 +12,7 @@ use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Runtime};
 
-const RELEASES_API_URL: &str =
-    "https://api.github.com/repos/SuperNewRoles/SuperNewRoles/releases?per_page=30";
-const RELEASE_BY_TAG_API_URL: &str =
-    "https://api.github.com/repos/SuperNewRoles/SuperNewRoles/releases/tags";
-const PATCHER_MANIFEST_URL: &str = "https://update.supernewroles.com/patchers/data.json";
-const PATCHER_BASE_URL: &str = "https://update.supernewroles.com/patchers/";
 const PRESERVED_SAVE_DATA_DIR: &str = "preserved_save_data";
-const AMONG_US_EXE: &str = "Among Us.exe";
-const SOURCE_SAVE_DATA_RELATIVE_PATH: [&str; 2] = ["SuperNewRolesNext", "SaveData"];
 const SAVE_DATA_STAGING_DIR_NAME: &str = "SaveData._import_staging";
 const SAVE_DATA_BACKUP_DIR_NAME: &str = "SaveData._import_backup";
 
@@ -32,6 +25,56 @@ const INSTALL_RESTORE_END: f64 = 100.0;
 const PATCHER_SYNC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const PATCHER_SYNC_REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
 const PATCHER_SYNC_MAX_DURATION: Duration = Duration::from_secs(45);
+
+fn among_us_exe_name() -> &'static str {
+    mod_profile::get().paths.among_us_exe.as_str()
+}
+
+fn save_data_root() -> PathBuf {
+    mod_profile::save_data_root_path()
+}
+
+fn install_progress_event() -> &'static str {
+    mod_profile::get().events.install_progress.as_str()
+}
+
+fn install_progress_legacy_event() -> &'static str {
+    mod_profile::get().events.legacy_install_progress.as_str()
+}
+
+fn patcher_manifest_url() -> &'static str {
+    mod_profile::get()
+        .distribution
+        .patchers
+        .manifest_url
+        .as_str()
+}
+
+fn patcher_base_url() -> String {
+    let mut base = mod_profile::get()
+        .distribution
+        .patchers
+        .base_url
+        .trim()
+        .to_string();
+    if !base.ends_with('/') {
+        base.push('/');
+    }
+    base
+}
+
+fn asset_regex_for_platform(platform: &settings::GamePlatform) -> Result<Regex, String> {
+    let pattern = match platform {
+        settings::GamePlatform::Steam => &mod_profile::get().distribution.asset_regex.steam,
+        settings::GamePlatform::Epic => &mod_profile::get().distribution.asset_regex.epic,
+    };
+    Regex::new(pattern).map_err(|e| {
+        format!(
+            "Invalid asset regex for platform '{}': {e}",
+            platform.as_str()
+        )
+    })
+}
 
 fn scale_progress(stage_percent: f64, start: f64, end: f64) -> f64 {
     let ratio = stage_percent.clamp(0.0, 100.0) / 100.0;
@@ -172,24 +215,24 @@ fn emit_progress<R: Runtime>(
     entries_total: Option<usize>,
 ) {
     let progress = map_install_progress(stage, progress);
-    let _ = app.emit(
-        "snr-install-progress",
-        InstallProgressPayload {
-            stage: stage.to_string(),
-            progress,
-            message: message.into(),
-            downloaded,
-            total,
-            current,
-            entries_total,
-        },
-    );
+    let payload = InstallProgressPayload {
+        stage: stage.to_string(),
+        progress,
+        message: message.into(),
+        downloaded,
+        total,
+        current,
+        entries_total,
+    };
+    let _ = app.emit(install_progress_event(), payload.clone());
+    let _ = app.emit(install_progress_legacy_event(), payload);
 }
 
 fn patcher_sync_client() -> Result<Client, String> {
     Client::builder()
         .user_agent(format!(
-            "SuperNewRolesLauncher/{}",
+            "{}/{}",
+            mod_profile::get().branding.launcher_name,
             env!("CARGO_PKG_VERSION")
         ))
         .connect_timeout(PATCHER_SYNC_CONNECT_TIMEOUT)
@@ -211,7 +254,7 @@ fn ensure_patcher_sync_within_time(started_at: Instant) -> Result<(), String> {
 
 async fn fetch_patcher_manifest(client: &Client) -> Result<Vec<PatchFile>, String> {
     let response = client
-        .get(PATCHER_MANIFEST_URL)
+        .get(patcher_manifest_url())
         .send()
         .await
         .map_err(|e| format!("Failed to fetch patcher manifest: {e}"))?;
@@ -385,7 +428,7 @@ async fn download_patchers_into_staging<R: Runtime>(
 
         let destination = patchers_dir.join(name);
         let encoded_name = urlencoding::encode(name);
-        let url = format!("{PATCHER_BASE_URL}{encoded_name}");
+        let url = format!("{}{encoded_name}", patcher_base_url());
 
         let download_result =
             download::download_file(client, &url, &destination, |downloaded, total| {
@@ -485,19 +528,17 @@ fn resolve_asset<'a>(
     release: &'a GitHubRelease,
     platform: &settings::GamePlatform,
 ) -> Result<&'a GitHubAsset, String> {
-    let suffix = match platform {
-        settings::GamePlatform::Steam => "_Steam.zip",
-        settings::GamePlatform::Epic => "_Epic.zip",
-    };
+    let regex = asset_regex_for_platform(platform)?;
 
     release
         .assets
         .iter()
-        .find(|asset| asset.name.ends_with(suffix))
+        .find(|asset| regex.is_match(&asset.name))
         .ok_or_else(|| {
             format!(
-                "Release '{}' does not include an asset ending with '{}'",
-                release.tag_name, suffix
+                "Release '{}' does not include an asset matching '{}'",
+                release.tag_name,
+                regex.as_str()
             )
         })
 }
@@ -599,7 +640,7 @@ fn validate_source_among_us_path(source_among_us_path: &str) -> Result<PathBuf, 
         ));
     }
 
-    if !among_us_path.join(AMONG_US_EXE).is_file() {
+    if !among_us_path.join(among_us_exe_name()).is_file() {
         return Err(format!(
             "The selected folder is not an Among Us installation directory: {}",
             among_us_path.display()
@@ -610,9 +651,7 @@ fn validate_source_among_us_path(source_among_us_path: &str) -> Result<PathBuf, 
 }
 
 fn source_save_data_path_from_among_us(among_us_path: &Path) -> PathBuf {
-    among_us_path
-        .join(SOURCE_SAVE_DATA_RELATIVE_PATH[0])
-        .join(SOURCE_SAVE_DATA_RELATIVE_PATH[1])
+    among_us_path.join(save_data_root())
 }
 
 fn resolve_source_save_data_path(source_among_us_path: &str) -> Result<(PathBuf, PathBuf), String> {
@@ -637,9 +676,7 @@ fn profile_save_data_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, Str
         settings::save_settings(app, &launcher_settings)?;
     }
 
-    Ok(PathBuf::from(launcher_settings.profile_path.trim())
-        .join("SuperNewRolesNext")
-        .join("SaveData"))
+    Ok(PathBuf::from(launcher_settings.profile_path.trim()).join(save_data_root()))
 }
 
 fn copy_directory_recursive(source: &Path, destination: &Path) -> Result<(), String> {
@@ -828,8 +865,23 @@ fn promote_staging_to_profile(staging: &Path, profile: &Path, backup: &Path) -> 
 
 pub async fn list_snr_releases() -> Result<Vec<SnrReleaseSummary>, String> {
     let client = download::github_client()?;
+    let steam_regex =
+        Regex::new(&mod_profile::get().distribution.asset_regex.steam).map_err(|e| {
+            format!(
+                "Invalid mod config distribution.assetRegex.steam '{}': {e}",
+                mod_profile::get().distribution.asset_regex.steam
+            )
+        })?;
+    let epic_regex =
+        Regex::new(&mod_profile::get().distribution.asset_regex.epic).map_err(|e| {
+            format!(
+                "Invalid mod config distribution.assetRegex.epic '{}': {e}",
+                mod_profile::get().distribution.asset_regex.epic
+            )
+        })?;
+
     let releases = client
-        .get(RELEASES_API_URL)
+        .get(mod_profile::github_releases_api_url())
         .send()
         .await
         .map_err(|e| format!("Failed to fetch releases: {e}"))?;
@@ -846,19 +898,28 @@ pub async fn list_snr_releases() -> Result<Vec<SnrReleaseSummary>, String> {
         .await
         .map_err(|e| format!("Failed to parse releases list: {e}"))?;
 
-    Ok(releases
+    let mut candidates: Vec<GitHubRelease> = releases
         .into_iter()
-        .filter(|release| !release.prerelease)
         .filter(|release| {
             release
                 .assets
                 .iter()
-                .any(|asset| asset.name.ends_with("_Steam.zip"))
+                .any(|asset| steam_regex.is_match(&asset.name))
                 || release
                     .assets
                     .iter()
-                    .any(|asset| asset.name.ends_with("_Epic.zip"))
+                    .any(|asset| epic_regex.is_match(&asset.name))
         })
+        .collect();
+
+    // 安定版が1件以上ある場合は従来通り安定版のみ表示する。
+    // 安定版が0件のMod（pre-release運用）では、空表示を避けるためpre-releaseを表示する。
+    if candidates.iter().any(|release| !release.prerelease) {
+        candidates.retain(|release| !release.prerelease);
+    }
+
+    Ok(candidates
+        .into_iter()
         .map(|release| SnrReleaseSummary {
             tag: release.tag_name,
             name: release.name.unwrap_or_default(),
@@ -984,9 +1045,7 @@ pub fn merge_savedata_presets_from_among_us_into_profile<R: Runtime>(
 pub fn merge_preserved_savedata_presets_into_profile<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<SaveDataPresetMergeResult, String> {
-    let source_save_data_path = preserved_save_data_path(app)?
-        .join(SOURCE_SAVE_DATA_RELATIVE_PATH[0])
-        .join(SOURCE_SAVE_DATA_RELATIVE_PATH[1]);
+    let source_save_data_path = preserved_save_data_path(app)?.join(save_data_root());
     let imported = presets::import_presets_from_save_data_dir(app, &source_save_data_path)?;
 
     Ok(SaveDataPresetMergeResult {
@@ -1083,7 +1142,11 @@ async fn install_snr_release_inner<R: Runtime>(
 
     let client = download::github_client()?;
     let release = client
-        .get(format!("{RELEASE_BY_TAG_API_URL}/{tag}"))
+        .get(format!(
+            "{}/{}",
+            mod_profile::github_release_by_tag_api_base_url(),
+            tag
+        ))
         .send()
         .await
         .map_err(|e| format!("Failed to fetch release '{tag}': {e}"))?;
@@ -1117,7 +1180,7 @@ async fn install_snr_release_inner<R: Runtime>(
 
     let cache_zip = settings::app_data_dir(app)?
         .join("cache")
-        .join("snr")
+        .join(mod_profile::get().mod_info.id.as_str())
         .join(tag)
         .join(format!("{}.zip", platform.as_str()));
 
@@ -1144,7 +1207,10 @@ async fn install_snr_release_inner<R: Runtime>(
                 app,
                 "downloading",
                 progress.clamp(0.0, 100.0),
-                "Downloading SNR package...",
+                format!(
+                    "Downloading {} package...",
+                    mod_profile::get().mod_info.display_name
+                ),
                 Some(downloaded),
                 total,
                 None,
@@ -1187,24 +1253,37 @@ async fn install_snr_release_inner<R: Runtime>(
         );
     })?;
 
-    let patcher_sync_result = match patcher_sync_client() {
-        Ok(patcher_client) => {
-            download_patchers_into_staging(app, &patcher_client, &staging_path).await
+    if mod_profile::get().distribution.patchers.enabled {
+        let patcher_sync_result = match patcher_sync_client() {
+            Ok(patcher_client) => {
+                download_patchers_into_staging(app, &patcher_client, &staging_path).await
+            }
+            Err(error) => Err(error),
+        };
+        if let Err(error) = patcher_sync_result {
+            emit_progress(
+                app,
+                "patchers",
+                100.0,
+                format!("Skipping patchers synchronization: {error}"),
+                None,
+                None,
+                None,
+                None,
+            );
+            eprintln!("Failed to synchronize patchers: {error}");
         }
-        Err(error) => Err(error),
-    };
-    if let Err(error) = patcher_sync_result {
+    } else {
         emit_progress(
             app,
             "patchers",
             100.0,
-            format!("Skipping patchers synchronization: {error}"),
+            "Patchers synchronization disabled by mod.config.json.",
             None,
             None,
             None,
             None,
         );
-        eprintln!("Failed to synchronize patchers: {error}");
     }
 
     let restored_save_files = if restore_preserved_save_data {
@@ -1307,7 +1386,7 @@ mod tests {
         let path = make_temp_dir("missing-savedata");
         let _ = fs::remove_dir_all(&path);
         fs::create_dir_all(&path).expect("failed to create temp dir");
-        fs::write(path.join(AMONG_US_EXE), b"").expect("failed to write exe marker");
+        fs::write(path.join(among_us_exe_name()), b"").expect("failed to write exe marker");
 
         let error = preview_savedata_from_among_us(path.to_string_lossy().to_string())
             .expect_err("expected missing save data to fail");
@@ -1320,9 +1399,9 @@ mod tests {
     fn preview_savedata_returns_file_count() {
         let path = make_temp_dir("preview-success");
         let _ = fs::remove_dir_all(&path);
-        let save_data_path = path.join("SuperNewRolesNext").join("SaveData");
+        let save_data_path = path.join(save_data_root());
         fs::create_dir_all(&save_data_path).expect("failed to create save data dir");
-        fs::write(path.join(AMONG_US_EXE), b"").expect("failed to write exe marker");
+        fs::write(path.join(among_us_exe_name()), b"").expect("failed to write exe marker");
         fs::write(
             save_data_path.join("Options.data"),
             make_minimal_options_data(),

@@ -102,6 +102,19 @@ function mustElement<T extends Element>(selector: string): T {
   return element;
 }
 
+function optionalElement<K extends keyof HTMLElementTagNameMap>(
+  selector: string,
+  fallbackTagName: K,
+): HTMLElementTagNameMap[K] {
+  const element = document.querySelector<HTMLElementTagNameMap[K]>(selector);
+  if (element) {
+    return element;
+  }
+  const fallback = document.createElement(fallbackTagName);
+  fallback.hidden = true;
+  return fallback;
+}
+
 /**
  * テンプレート描画後に必要な要素をすべて取得する。
  * ここで失敗する場合はテンプレート破壊を即座に検知できる。
@@ -119,9 +132,7 @@ export function collectAppDom(): AppDom {
     settingsGeneralStatus: mustElement<HTMLSpanElement>("#settings-general-status"),
     settingsShortcutStatus: mustElement<HTMLSpanElement>("#settings-shortcut-status"),
     uninstallButton: mustElement<HTMLButtonElement>("#uninstall-snr"),
-    settingsSupportDiscordLinkButton: mustElement<HTMLButtonElement>(
-      "#settings-support-discord-link",
-    ),
+    settingsSupportDiscordLinkButton: optionalElement("#settings-support-discord-link", "button"),
     settingsAmongUsOverlay: mustElement<HTMLDivElement>("#settings-among-us-overlay"),
     settingsAmongUsOverlayBackdrop: mustElement<HTMLDivElement>(
       "#settings-among-us-overlay-backdrop",
@@ -155,100 +166,96 @@ export function collectAppDom(): AppDom {
     settingsUninstallConfirmAcceptButton: mustElement<HTMLButtonElement>(
       "#settings-uninstall-confirm-accept",
     ),
-    settingsMigrationOverlay: mustElement<HTMLDivElement>("#settings-migration-overlay"),
-    settingsMigrationOverlayBackdrop: mustElement<HTMLDivElement>(
+    settingsMigrationOverlay: optionalElement("#settings-migration-overlay", "div"),
+    settingsMigrationOverlayBackdrop: optionalElement(
       "#settings-migration-overlay-backdrop",
+      "div",
     ),
-    settingsMigrationOverlayCloseButton: mustElement<HTMLButtonElement>(
+    settingsMigrationOverlayCloseButton: optionalElement(
       "#settings-migration-overlay-close",
+      "button",
     ),
-    settingsMigrationOverlayCancelButton: mustElement<HTMLButtonElement>(
+    settingsMigrationOverlayCancelButton: optionalElement(
       "#settings-migration-overlay-cancel",
+      "button",
     ),
-    settingsMigrationOverlayTitle: mustElement<HTMLHeadingElement>(
-      "#settings-migration-overlay-title",
-    ),
-    settingsMigrationStepSelect: mustElement<HTMLElement>("#settings-migration-step-select"),
-    settingsMigrationSelectedPath: mustElement<HTMLParagraphElement>(
-      "#settings-migration-selected-path",
-    ),
-    settingsMigrationPickPathButton: mustElement<HTMLButtonElement>(
-      "#settings-migration-pick-path",
-    ),
-    settingsMigrationStepSelectNextButton: mustElement<HTMLButtonElement>(
+    settingsMigrationOverlayTitle: optionalElement("#settings-migration-overlay-title", "h2"),
+    settingsMigrationStepSelect: optionalElement("#settings-migration-step-select", "section"),
+    settingsMigrationSelectedPath: optionalElement("#settings-migration-selected-path", "p"),
+    settingsMigrationPickPathButton: optionalElement("#settings-migration-pick-path", "button"),
+    settingsMigrationStepSelectNextButton: optionalElement(
       "#settings-migration-step-select-next",
+      "button",
     ),
-    settingsMigrationStepPassword: mustElement<HTMLElement>("#settings-migration-step-password"),
-    settingsMigrationPasswordInput: mustElement<HTMLInputElement>(
-      "#settings-migration-password-input",
-    ),
-    settingsMigrationPasswordError: mustElement<HTMLDivElement>(
-      "#settings-migration-password-error",
-    ),
-    settingsMigrationStepPasswordCancelButton: mustElement<HTMLButtonElement>(
+    settingsMigrationStepPassword: optionalElement("#settings-migration-step-password", "section"),
+    settingsMigrationPasswordInput: optionalElement("#settings-migration-password-input", "input"),
+    settingsMigrationPasswordError: optionalElement("#settings-migration-password-error", "div"),
+    settingsMigrationStepPasswordCancelButton: optionalElement(
       "#settings-migration-step-password-cancel",
+      "button",
     ),
-    settingsMigrationStepPasswordNextButton: mustElement<HTMLButtonElement>(
+    settingsMigrationStepPasswordNextButton: optionalElement(
       "#settings-migration-step-password-next",
+      "button",
     ),
-    settingsMigrationStepProcessing: mustElement<HTMLElement>(
+    settingsMigrationStepProcessing: optionalElement(
       "#settings-migration-step-processing",
+      "section",
     ),
-    settingsMigrationProcessingMessage: mustElement<HTMLParagraphElement>(
+    settingsMigrationProcessingMessage: optionalElement(
       "#settings-migration-processing-message",
+      "p",
     ),
-    settingsMigrationStepResult: mustElement<HTMLElement>("#settings-migration-step-result"),
-    settingsMigrationResultTitle: mustElement<HTMLHeadingElement>(
-      "#settings-migration-result-title",
-    ),
-    settingsMigrationResultMessage: mustElement<HTMLParagraphElement>(
-      "#settings-migration-result-message",
-    ),
-    settingsMigrationResultRetryButton: mustElement<HTMLButtonElement>(
+    settingsMigrationStepResult: optionalElement("#settings-migration-step-result", "section"),
+    settingsMigrationResultTitle: optionalElement("#settings-migration-result-title", "h3"),
+    settingsMigrationResultMessage: optionalElement("#settings-migration-result-message", "p"),
+    settingsMigrationResultRetryButton: optionalElement(
       "#settings-migration-result-retry",
+      "button",
     ),
-    settingsMigrationResultCloseButton: mustElement<HTMLButtonElement>(
+    settingsMigrationResultCloseButton: optionalElement(
       "#settings-migration-result-close",
+      "button",
     ),
     installStatus: mustElement<HTMLSpanElement>("#install-status"),
     launchModdedButton: mustElement<HTMLButtonElement>("#launch-modded"),
     launchVanillaButton: mustElement<HTMLButtonElement>("#launch-vanilla"),
     createModdedShortcutButton: mustElement<HTMLButtonElement>("#create-modded-shortcut"),
     launchStatus: mustElement<HTMLSpanElement>("#launch-status"),
-    migrationExportButton: mustElement<HTMLButtonElement>("#migration-export"),
-    migrationImportButton: mustElement<HTMLButtonElement>("#migration-import"),
-    migrationStatus: mustElement<HTMLDivElement>("#migration-status"),
-    presetOpenImportButton: mustElement<HTMLButtonElement>("#preset-open-import"),
-    presetOpenExportButton: mustElement<HTMLButtonElement>("#preset-open-export"),
-    presetOverlay: mustElement<HTMLDivElement>("#preset-overlay"),
-    presetOverlayBackdrop: mustElement<HTMLDivElement>("#preset-overlay-backdrop"),
-    presetOverlayCloseButton: mustElement<HTMLButtonElement>("#preset-overlay-close"),
-    presetOverlayTitle: mustElement<HTMLHeadingElement>("#preset-overlay-title"),
-    presetOverlayImportScreen: mustElement<HTMLElement>("#preset-overlay-import-screen"),
-    presetOverlayExportScreen: mustElement<HTMLElement>("#preset-overlay-export-screen"),
-    presetRefreshButton: mustElement<HTMLButtonElement>("#preset-refresh"),
-    presetSelectAllLocalButton: mustElement<HTMLButtonElement>("#preset-select-all-local"),
-    presetClearLocalButton: mustElement<HTMLButtonElement>("#preset-clear-local"),
-    presetLocalList: mustElement<HTMLDivElement>("#preset-local-list"),
-    presetExportButton: mustElement<HTMLButtonElement>("#preset-export"),
-    presetSelectAllArchiveButton: mustElement<HTMLButtonElement>("#preset-select-all-archive"),
-    presetClearArchiveButton: mustElement<HTMLButtonElement>("#preset-clear-archive"),
-    presetImportButton: mustElement<HTMLButtonElement>("#preset-import"),
-    presetArchiveList: mustElement<HTMLDivElement>("#preset-archive-list"),
-    presetFeedbackOverlay: mustElement<HTMLDivElement>("#preset-feedback-overlay"),
-    presetFeedbackOverlayBackdrop: mustElement<HTMLDivElement>("#preset-feedback-overlay-backdrop"),
-    presetFeedbackTitle: mustElement<HTMLHeadingElement>("#preset-feedback-title"),
-    presetFeedbackMessage: mustElement<HTMLParagraphElement>("#preset-feedback-message"),
-    presetFeedbackList: mustElement<HTMLUListElement>("#preset-feedback-list"),
-    presetFeedbackPrimaryButton: mustElement<HTMLButtonElement>("#preset-feedback-primary"),
-    presetFeedbackSecondaryButton: mustElement<HTMLButtonElement>("#preset-feedback-secondary"),
-    epicLoginWebviewButton: mustElement<HTMLButtonElement>("#epic-login-webview"),
-    epicLogoutButton: mustElement<HTMLButtonElement>("#epic-logout"),
-    epicAuthStatus: mustElement<HTMLSpanElement>("#epic-auth-status"),
+    migrationExportButton: optionalElement("#migration-export", "button"),
+    migrationImportButton: optionalElement("#migration-import", "button"),
+    migrationStatus: optionalElement("#migration-status", "div"),
+    presetOpenImportButton: optionalElement("#preset-open-import", "button"),
+    presetOpenExportButton: optionalElement("#preset-open-export", "button"),
+    presetOverlay: optionalElement("#preset-overlay", "div"),
+    presetOverlayBackdrop: optionalElement("#preset-overlay-backdrop", "div"),
+    presetOverlayCloseButton: optionalElement("#preset-overlay-close", "button"),
+    presetOverlayTitle: optionalElement("#preset-overlay-title", "h2"),
+    presetOverlayImportScreen: optionalElement("#preset-overlay-import-screen", "section"),
+    presetOverlayExportScreen: optionalElement("#preset-overlay-export-screen", "section"),
+    presetRefreshButton: optionalElement("#preset-refresh", "button"),
+    presetSelectAllLocalButton: optionalElement("#preset-select-all-local", "button"),
+    presetClearLocalButton: optionalElement("#preset-clear-local", "button"),
+    presetLocalList: optionalElement("#preset-local-list", "div"),
+    presetExportButton: optionalElement("#preset-export", "button"),
+    presetSelectAllArchiveButton: optionalElement("#preset-select-all-archive", "button"),
+    presetClearArchiveButton: optionalElement("#preset-clear-archive", "button"),
+    presetImportButton: optionalElement("#preset-import", "button"),
+    presetArchiveList: optionalElement("#preset-archive-list", "div"),
+    presetFeedbackOverlay: optionalElement("#preset-feedback-overlay", "div"),
+    presetFeedbackOverlayBackdrop: optionalElement("#preset-feedback-overlay-backdrop", "div"),
+    presetFeedbackTitle: optionalElement("#preset-feedback-title", "h2"),
+    presetFeedbackMessage: optionalElement("#preset-feedback-message", "p"),
+    presetFeedbackList: optionalElement("#preset-feedback-list", "ul"),
+    presetFeedbackPrimaryButton: optionalElement("#preset-feedback-primary", "button"),
+    presetFeedbackSecondaryButton: optionalElement("#preset-feedback-secondary", "button"),
+    epicLoginWebviewButton: optionalElement("#epic-login-webview", "button"),
+    epicLogoutButton: optionalElement("#epic-logout", "button"),
+    epicAuthStatus: optionalElement("#epic-auth-status", "span"),
     checkUpdateButton: mustElement<HTMLButtonElement>("#check-update"),
     updateStatus: mustElement<HTMLSpanElement>("#update-status"),
-    officialLinkButtons: mustElement<HTMLDivElement>("#official-link-buttons"),
-    officialLinkIcons: mustElement<HTMLDivElement>("#official-link-icons"),
+    officialLinkButtons: optionalElement("#official-link-buttons", "div"),
+    officialLinkIcons: optionalElement("#official-link-icons", "div"),
     themeToggleSystem: mustElement<HTMLButtonElement>("#theme-toggle-system"),
     themeToggleLight: mustElement<HTMLButtonElement>("#theme-toggle-light"),
     themeToggleDark: mustElement<HTMLButtonElement>("#theme-toggle-dark"),

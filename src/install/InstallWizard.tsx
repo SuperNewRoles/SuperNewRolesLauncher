@@ -1,20 +1,27 @@
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  EPIC_LOGIN_ENABLED,
+  MIGRATION_ENABLED,
+  PRESETS_ENABLED,
+  modConfig,
+} from "../app/modConfig";
+import { isPlatformSelectable } from "../app/platformSelection";
+import {
   epicLoginWebview,
   epicSessionRestore,
   epicStatusGet,
   finderDetectPlatforms,
   migrationImport,
   migrationValidateArchivePassword,
+  modInstall,
+  modPreservedSaveDataMergePresets,
+  modPreservedSaveDataStatus,
+  modReleasesList,
+  modSaveDataImport,
+  modSaveDataMergePresets,
+  modSaveDataPreview,
   settingsUpdate,
-  snrInstall,
-  snrPreservedSaveDataMergePresets,
-  snrPreservedSaveDataStatus,
-  snrReleasesList,
-  snrSaveDataImport,
-  snrSaveDataMergePresets,
-  snrSaveDataPreview,
 } from "../app/services/tauriClient";
 import { type ThemePreference, applyTheme, getStoredTheme, setStoredTheme } from "../app/theme";
 import type {
@@ -90,6 +97,9 @@ export default function InstallWizard() {
   const [epicUserDisplay, setEpicUserDisplay] = useState<string | null>(null);
   const releasesRequestIdRef = useRef(0);
   const migrationPasswordValidationRequestIdRef = useRef(0);
+  const installProgressEventName = modConfig.events.installProgress;
+  const migrationExtension = modConfig.migration.extension;
+  const migrationLegacyExtension = "snrdata";
 
   const resetImportState = useCallback(() => {
     setImportEnabled(false);
@@ -117,7 +127,7 @@ export default function InstallWizard() {
     setReleaseTag("");
 
     try {
-      const rels = await snrReleasesList();
+      const rels = await modReleasesList();
       if (releasesRequestIdRef.current !== requestId) {
         return;
       }
@@ -148,7 +158,7 @@ export default function InstallWizard() {
     try {
       const platforms = await finderDetectPlatforms();
       setDetectedPlatforms(platforms);
-      const preservedSaveDataStatus = await snrPreservedSaveDataStatus().catch(() => ({
+      const preservedSaveDataStatus = await modPreservedSaveDataStatus().catch(() => ({
         available: false,
         files: 0,
       }));
@@ -163,25 +173,45 @@ export default function InstallWizard() {
     }
   }, [fetchReleasesForInstall, resetImportState]);
 
-  const onPlatformSelect = useCallback((path: string, plat: GamePlatform) => {
-    setAmongUsPath(path);
-    setPlatform(plat);
-    if (plat === "epic") {
-      setStep("epic-login");
-    } else {
-      setStep("version");
-    }
-  }, []);
+  const onPlatformSelect = useCallback(
+    (path: string, plat: GamePlatform) => {
+      if (!isPlatformSelectable(plat, EPIC_LOGIN_ENABLED)) {
+        setError(t("launch.errorEpicFeatureDisabled"));
+        setStep("platform");
+        return;
+      }
 
-  const onManualFolderSelect = useCallback(async (path: string, plat: GamePlatform) => {
-    setAmongUsPath(path);
-    setPlatform(plat);
-    if (plat === "epic") {
-      setStep("epic-login");
-    } else {
-      setStep("version");
-    }
-  }, []);
+      setAmongUsPath(path);
+      setPlatform(plat);
+      setError(null);
+      if (plat === "epic" && EPIC_LOGIN_ENABLED) {
+        setStep("epic-login");
+      } else {
+        setStep("version");
+      }
+    },
+    [t],
+  );
+
+  const onManualFolderSelect = useCallback(
+    (path: string, plat: GamePlatform) => {
+      if (!isPlatformSelectable(plat, EPIC_LOGIN_ENABLED)) {
+        setError(t("launch.errorEpicFeatureDisabled"));
+        setStep("platform");
+        return;
+      }
+
+      setAmongUsPath(path);
+      setPlatform(plat);
+      setError(null);
+      if (plat === "epic" && EPIC_LOGIN_ENABLED) {
+        setStep("epic-login");
+      } else {
+        setStep("version");
+      }
+    },
+    [t],
+  );
 
   const onEpicLoginDone = useCallback(() => {
     setStep("version");
@@ -201,7 +231,7 @@ export default function InstallWizard() {
     setImportPreviewError(null);
 
     try {
-      const preview = await snrSaveDataPreview(sourcePath);
+      const preview = await modSaveDataPreview(sourcePath);
       setImportSourceAmongUsPath(preview.sourceAmongUsPath);
       setImportSourceSaveDataPath(preview.sourceSaveDataPath);
       setImportPreviewPresets(preview.presets);
@@ -211,19 +241,23 @@ export default function InstallWizard() {
     }
   }, []);
 
-  const isMigrationPasswordError = useCallback((message: string): boolean => {
-    const normalized = message.toLowerCase();
-    return (
-      normalized.includes("incorrect password") ||
-      normalized.includes("invalid password") ||
-      normalized.includes("failed to decrypt .snrdata") ||
-      normalized.includes("password may be incorrect") ||
-      normalized.includes("please provide a password")
-    );
-  }, []);
+  const isMigrationPasswordError = useCallback(
+    (message: string): boolean => {
+      const normalized = message.toLowerCase();
+      return (
+        normalized.includes("incorrect password") ||
+        normalized.includes("invalid password") ||
+        normalized.includes(`failed to decrypt .${migrationExtension.toLowerCase()}`) ||
+        normalized.includes("failed to decrypt .snrdata") ||
+        normalized.includes("password may be incorrect") ||
+        normalized.includes("please provide a password")
+      );
+    },
+    [migrationExtension],
+  );
 
   const validateMigrationPassword = useCallback(async (): Promise<boolean> => {
-    if (!migrationImportEnabled) {
+    if (!MIGRATION_ENABLED || !migrationImportEnabled) {
       return true;
     }
 
@@ -297,16 +331,17 @@ export default function InstallWizard() {
       return;
     }
 
-    if (migrationImportEnabled && migrationArchivePath.trim().length === 0) {
+    if (MIGRATION_ENABLED && migrationImportEnabled && migrationArchivePath.trim().length === 0) {
       setMigrationArchiveError(t("installFlow.importArchiveNotConfigured"));
       return;
     }
-    if (migrationImportEnabled && migrationPassword.trim().length === 0) {
+    if (MIGRATION_ENABLED && migrationImportEnabled && migrationPassword.trim().length === 0) {
       setMigrationArchiveError(t("installFlow.importArchivePasswordRequired"));
       return;
     }
 
     if (
+      MIGRATION_ENABLED &&
       migrationImportEnabled &&
       (migrationPasswordValidationState === "checking" ||
         migrationPasswordValidationState === "idle" ||
@@ -341,17 +376,17 @@ export default function InstallWizard() {
       setStep("import");
       return;
     }
-    if (migrationImportEnabled && migrationArchivePath.trim().length === 0) {
+    if (MIGRATION_ENABLED && migrationImportEnabled && migrationArchivePath.trim().length === 0) {
       setMigrationArchiveError(t("installFlow.importArchiveNotConfigured"));
       setStep("import");
       return;
     }
-    if (migrationImportEnabled && migrationPassword.trim().length === 0) {
+    if (MIGRATION_ENABLED && migrationImportEnabled && migrationPassword.trim().length === 0) {
       setMigrationArchiveError(t("installFlow.importArchivePasswordRequired"));
       setStep("import");
       return;
     }
-    if (migrationImportEnabled) {
+    if (MIGRATION_ENABLED && migrationImportEnabled) {
       const validated = await validateMigrationPassword();
       if (!validated) {
         setStep("import");
@@ -369,7 +404,7 @@ export default function InstallWizard() {
       setProgressMessage(t("installFlow.importingSaveData"));
       while (true) {
         try {
-          await snrSaveDataImport(importSourceAmongUsPath);
+          await modSaveDataImport(importSourceAmongUsPath);
           return true;
         } catch (importError) {
           const message = String(importError);
@@ -414,7 +449,7 @@ export default function InstallWizard() {
       setProgressMessage(t("installFlow.importingSaveDataPresetMerge"));
       while (true) {
         try {
-          await snrSaveDataMergePresets(importSourceAmongUsPath);
+          await modSaveDataMergePresets(importSourceAmongUsPath);
           return true;
         } catch (mergeError) {
           const message = String(mergeError);
@@ -435,7 +470,7 @@ export default function InstallWizard() {
       setProgressMessage(t("installFlow.importingPreservedSaveDataPresetMerge"));
       while (true) {
         try {
-          await snrPreservedSaveDataMergePresets();
+          await modPreservedSaveDataMergePresets();
           return true;
         } catch (mergeError) {
           const message = String(mergeError);
@@ -464,7 +499,7 @@ export default function InstallWizard() {
         gamePlatform: platform,
         selectedReleaseTag: releaseTag,
       });
-      await snrInstall({
+      await modInstall({
         tag: releaseTag,
         platform,
         restorePreservedSaveData: preservedSaveDataAvailable && restoreSaveData,
@@ -476,13 +511,21 @@ export default function InstallWizard() {
       if (importEnabled) {
         saveDataImported = await runSaveDataImportFlow();
       }
-      if (migrationImportEnabled) {
+      if (MIGRATION_ENABLED && migrationImportEnabled) {
         migrationImported = await runMigrationImportFlow();
       }
-      if (importEnabled && migrationImportEnabled && saveDataImported && migrationImported) {
+      if (
+        PRESETS_ENABLED &&
+        MIGRATION_ENABLED &&
+        importEnabled &&
+        migrationImportEnabled &&
+        saveDataImported &&
+        migrationImported
+      ) {
         await runSaveDataPresetMergeFlow();
       }
       if (
+        PRESETS_ENABLED &&
         preservedSaveDataAvailable &&
         restoreSaveData &&
         (saveDataImported || migrationImported)
@@ -525,7 +568,7 @@ export default function InstallWizard() {
     if (step === "platform") {
       setStep("welcome");
     } else if (step === "version") {
-      setStep(platform === "epic" ? "epic-login" : "platform");
+      setStep(platform === "epic" && EPIC_LOGIN_ENABLED ? "epic-login" : "platform");
     } else if (step === "epic-login") {
       setStep("platform");
     } else if (step === "import") {
@@ -536,7 +579,7 @@ export default function InstallWizard() {
   }, [step, platform]);
 
   useEffect(() => {
-    const unlisten = listen<InstallProgressPayload>("snr-install-progress", (event) => {
+    const unlisten = listen<InstallProgressPayload>(installProgressEventName, (event) => {
       const payload = event.payload;
       setProgress(Math.max(0, Math.min(100, payload.progress ?? 0)));
       setProgressMessage(payload.message);
@@ -544,7 +587,7 @@ export default function InstallWizard() {
     return () => {
       void unlisten.then((u) => u());
     };
-  }, []);
+  }, [installProgressEventName]);
 
   useEffect(() => {
     const unsubSuccess = listen("epic-login-success", () => {
@@ -559,6 +602,11 @@ export default function InstallWizard() {
   }, []);
 
   useEffect(() => {
+    if (!EPIC_LOGIN_ENABLED) {
+      setEpicLoggedIn(false);
+      setEpicUserDisplay(null);
+      return;
+    }
     void epicSessionRestore().catch(() => {});
     void epicStatusGet()
       .then((s) => {
@@ -604,6 +652,7 @@ export default function InstallWizard() {
         <PlatformStep
           t={t}
           detectedPlatforms={detectedPlatforms}
+          epicEnabled={EPIC_LOGIN_ENABLED}
           onSelect={onPlatformSelect}
           onManualSelect={onManualFolderSelect}
           onBack={onBack}
@@ -648,7 +697,10 @@ export default function InstallWizard() {
         <ImportStep
           t={t}
           importEnabled={importEnabled}
-          migrationImportEnabled={migrationImportEnabled}
+          migrationEnabled={MIGRATION_ENABLED}
+          migrationExtension={migrationExtension}
+          migrationLegacyExtension={migrationLegacyExtension}
+          migrationImportEnabled={MIGRATION_ENABLED && migrationImportEnabled}
           sourceAmongUsPath={importSourceAmongUsPath}
           sourceSaveDataPath={importSourceSaveDataPath}
           previewPresets={importPreviewPresets}

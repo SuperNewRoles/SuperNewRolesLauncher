@@ -5,6 +5,7 @@ dist/
 # Tauri/Rust
 src-tauri/target/
 src-tauri/Cargo.lock
+src-tauri/tauri.generated.conf.json
 
 # Logs
 npm-debug.log*
@@ -15,3 +16,5 @@ pnpm-debug.log*
 .tmp/
 
 SuperNewRolesModded/
+RemotionPV/
+.agents/skills/remotion-best-practices/

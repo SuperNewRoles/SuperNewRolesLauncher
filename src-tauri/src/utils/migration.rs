@@ -11,24 +11,17 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Runtime};
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
-use crate::utils::settings;
+use crate::utils::{mod_profile, settings};
 
 const PROFILE_ARCHIVE_PREFIX: &str = "profile";
 const LOCALLOW_ARCHIVE_PREFIX: &str = "locallow";
-const LOCALLOW_ALLOWED_PREFIX: &str = "Innersloth/SuperNewRoles";
 const DEFAULT_ARCHIVE_DIR_NAME: &str = "migrations";
 
 const PROFILE_BACKUP_DIR_NAME: &str = "profile_backup";
 const LOCALLOW_BACKUP_DIR_NAME: &str = "locallow_backup";
 
-const PROFILE_INCLUDE_REGEX_PATTERNS: [&str; 4] = [
-    r"^SuperNewRolesNext/SaveData/Options\.data$",
-    r"^SuperNewRolesNext/SaveData/PresetOptions_(0|[1-9]\d*)\.data$",
-    r"^SuperNewRolesNext/SaveData/SuperTrophyData\.dat$",
-    r"^SuperNewRolesNext/SaveData/CustomCosmetics\.data$",
-];
-
-const ARCHIVE_MAGIC: &[u8; 8] = b"SNRDATA1";
+const LEGACY_MIGRATION_EXTENSION: &str = "snrdata";
+const LEGACY_ARCHIVE_MAGIC: &[u8] = b"SNRDATA1";
 const ARCHIVE_VERSION: u8 = 1;
 const CONTAINER_FLAG_ENCRYPTED: u8 = 0b0000_0001;
 const ENCRYPTION_SALT_LEN: usize = 16;
@@ -63,8 +56,26 @@ struct PlannedImportFile {
     is_profile_target: bool,
 }
 
+fn migration_extension() -> &'static str {
+    mod_profile::get().migration.extension.as_str()
+}
+
+fn archive_magic_bytes() -> &'static [u8] {
+    mod_profile::get().migration.magic.as_bytes()
+}
+
+fn locallow_relative_root_path() -> PathBuf {
+    mod_profile::local_low_root_path()
+}
+
+fn locallow_allowed_prefix() -> String {
+    normalize_path_for_archive(&locallow_relative_root_path())
+}
+
 fn compile_profile_patterns() -> Result<Vec<Regex>, String> {
-    PROFILE_INCLUDE_REGEX_PATTERNS
+    mod_profile::get()
+        .migration
+        .profile_include_patterns
         .iter()
         .map(|pattern| {
             Regex::new(pattern).map_err(|e| format!("Invalid profile regex '{pattern}': {e}"))
@@ -160,7 +171,7 @@ fn resolve_locallow_root() -> Result<PathBuf, String> {
 
 fn resolve_locallow_snr_dir() -> Result<(PathBuf, PathBuf), String> {
     let locallow_root = resolve_locallow_root()?;
-    let snr_dir = locallow_root.join("Innersloth").join("SuperNewRoles");
+    let snr_dir = locallow_root.join(locallow_relative_root_path());
     Ok((locallow_root, snr_dir))
 }
 
@@ -186,8 +197,11 @@ fn collect_locallow_files(
         })?;
 
         let relative_normalized = normalize_path_for_archive(relative);
-        if relative_normalized == LOCALLOW_ALLOWED_PREFIX
-            || relative_normalized.starts_with("Innersloth/SuperNewRoles/")
+        let allowed_prefix = locallow_allowed_prefix();
+        if relative_normalized == allowed_prefix
+            || relative_normalized
+                .strip_prefix(&allowed_prefix)
+                .is_some_and(|suffix| suffix.starts_with('/'))
         {
             matched.push((file_path, relative_normalized));
         }
@@ -197,11 +211,13 @@ fn collect_locallow_files(
 }
 
 fn archive_extension_is_supported(path: &Path) -> bool {
+    let configured_extension = migration_extension();
     path.extension()
         .and_then(|ext| ext.to_str())
         .map(|ext| {
             let ext_lower = ext.to_ascii_lowercase();
-            ext_lower == "snrdata"
+            ext_lower == configured_extension.to_ascii_lowercase()
+                || ext_lower == LEGACY_MIGRATION_EXTENSION
         })
         .unwrap_or(false)
 }
@@ -213,15 +229,18 @@ fn make_default_archive_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, 
         .unwrap_or_default()
         .as_secs();
 
-    Ok(base_dir
-        .join(DEFAULT_ARCHIVE_DIR_NAME)
-        .join(format!("snr-migration-{timestamp}.snrdata")))
+    Ok(base_dir.join(DEFAULT_ARCHIVE_DIR_NAME).join(format!(
+        "{}-migration-{timestamp}.{}",
+        mod_profile::get().mod_info.id,
+        migration_extension()
+    )))
 }
 
 fn resolve_archive_output_path<R: Runtime>(
     app: &AppHandle<R>,
     output_path: Option<String>,
 ) -> Result<PathBuf, String> {
+    let extension = migration_extension();
     let mut output = if let Some(path) = output_path {
         let trimmed = path.trim();
         if trimmed.is_empty() {
@@ -234,15 +253,15 @@ fn resolve_archive_output_path<R: Runtime>(
     };
 
     match output.extension().and_then(|ext| ext.to_str()) {
-        Some(ext) if ext.eq_ignore_ascii_case("snrdata") => {}
+        Some(ext) if ext.eq_ignore_ascii_case(extension) => {}
         Some(_) => {
             return Err(format!(
-                "Export path must end with .snrdata: {}",
+                "Export path must end with .{extension}: {}",
                 output.display()
             ));
         }
         None => {
-            output.set_extension("snrdata");
+            output.set_extension(extension);
         }
     }
 
@@ -323,9 +342,11 @@ fn build_snrdata_container(
     encryption_enabled: bool,
     password: Option<&str>,
 ) -> Result<(Vec<u8>, bool), String> {
+    let archive_magic = archive_magic_bytes();
+    let extension = migration_extension();
     if !encryption_enabled {
-        let mut container = Vec::with_capacity(ARCHIVE_MAGIC.len() + 2 + zip_bytes.len());
-        container.extend_from_slice(ARCHIVE_MAGIC);
+        let mut container = Vec::with_capacity(archive_magic.len() + 2 + zip_bytes.len());
+        container.extend_from_slice(archive_magic);
         container.push(ARCHIVE_VERSION);
         container.push(0);
         container.extend_from_slice(zip_bytes);
@@ -345,13 +366,13 @@ fn build_snrdata_container(
     let cipher = XChaCha20Poly1305::new((&key).into());
     let ciphertext = cipher
         .encrypt(XNonce::from_slice(&nonce), zip_bytes)
-        .map_err(|_| "Failed to encrypt .snrdata payload".to_string())?;
+        .map_err(|_| format!("Failed to encrypt .{extension} payload"))?;
     key.fill(0);
 
     let mut container = Vec::with_capacity(
-        ARCHIVE_MAGIC.len() + 2 + ENCRYPTION_SALT_LEN + ENCRYPTION_NONCE_LEN + ciphertext.len(),
+        archive_magic.len() + 2 + ENCRYPTION_SALT_LEN + ENCRYPTION_NONCE_LEN + ciphertext.len(),
     );
-    container.extend_from_slice(ARCHIVE_MAGIC);
+    container.extend_from_slice(archive_magic);
     container.push(ARCHIVE_VERSION);
     container.push(CONTAINER_FLAG_ENCRYPTED);
     container.extend_from_slice(&salt);
@@ -365,59 +386,64 @@ fn extract_zip_bytes_from_archive_bytes(
     archive_bytes: &[u8],
     password: Option<&str>,
 ) -> Result<(Vec<u8>, bool), String> {
-    if archive_bytes.starts_with(ARCHIVE_MAGIC) {
-        if archive_bytes.len() < ARCHIVE_MAGIC.len() + 2 {
-            return Err("Invalid .snrdata header".to_string());
-        }
+    let extension = migration_extension();
+    let configured_magic = archive_magic_bytes();
+    let active_magic = if archive_bytes.starts_with(configured_magic) {
+        configured_magic
+    } else if archive_bytes.starts_with(LEGACY_ARCHIVE_MAGIC) {
+        LEGACY_ARCHIVE_MAGIC
+    } else {
+        return Ok((archive_bytes.to_vec(), false));
+    };
 
-        let version = archive_bytes[ARCHIVE_MAGIC.len()];
-        if version != ARCHIVE_VERSION {
-            return Err(format!("Unsupported .snrdata version: {version}"));
-        }
-
-        let flags = archive_bytes[ARCHIVE_MAGIC.len() + 1];
-        if flags & !CONTAINER_FLAG_ENCRYPTED != 0 {
-            return Err("Unsupported .snrdata flags".to_string());
-        }
-
-        let payload = &archive_bytes[(ARCHIVE_MAGIC.len() + 2)..];
-        let encrypted = (flags & CONTAINER_FLAG_ENCRYPTED) != 0;
-        if !encrypted {
-            return Ok((payload.to_vec(), false));
-        }
-
-        if payload.len() < ENCRYPTION_SALT_LEN + ENCRYPTION_NONCE_LEN + 1 {
-            return Err("Encrypted .snrdata payload is too short".to_string());
-        }
-
-        let salt: [u8; ENCRYPTION_SALT_LEN] = payload[..ENCRYPTION_SALT_LEN]
-            .try_into()
-            .map_err(|_| "Invalid .snrdata salt".to_string())?;
-        let nonce_start = ENCRYPTION_SALT_LEN;
-        let nonce_end = nonce_start + ENCRYPTION_NONCE_LEN;
-        let nonce: [u8; ENCRYPTION_NONCE_LEN] = payload[nonce_start..nonce_end]
-            .try_into()
-            .map_err(|_| "Invalid .snrdata nonce".to_string())?;
-        let ciphertext = &payload[nonce_end..];
-
-        let password = password.filter(|value| !value.is_empty()).ok_or_else(|| {
-            "This .snrdata file is encrypted. Please provide a password.".to_string()
-        })?;
-
-        let mut key = derive_encryption_key(password, &salt)?;
-        let cipher = XChaCha20Poly1305::new((&key).into());
-        let plaintext = cipher
-            .decrypt(XNonce::from_slice(&nonce), ciphertext)
-            .map_err(|_| {
-                "Failed to decrypt .snrdata. The password may be incorrect or the file is corrupted."
-                    .to_string()
-            })?;
-        key.fill(0);
-
-        return Ok((plaintext, true));
+    if archive_bytes.len() < active_magic.len() + 2 {
+        return Err(format!("Invalid .{extension} header"));
     }
 
-    Ok((archive_bytes.to_vec(), false))
+    let version = archive_bytes[active_magic.len()];
+    if version != ARCHIVE_VERSION {
+        return Err(format!("Unsupported .{extension} version: {version}"));
+    }
+
+    let flags = archive_bytes[active_magic.len() + 1];
+    if flags & !CONTAINER_FLAG_ENCRYPTED != 0 {
+        return Err(format!("Unsupported .{extension} flags"));
+    }
+
+    let payload = &archive_bytes[(active_magic.len() + 2)..];
+    let encrypted = (flags & CONTAINER_FLAG_ENCRYPTED) != 0;
+    if !encrypted {
+        return Ok((payload.to_vec(), false));
+    }
+
+    if payload.len() < ENCRYPTION_SALT_LEN + ENCRYPTION_NONCE_LEN + 1 {
+        return Err(format!("Encrypted .{extension} payload is too short"));
+    }
+
+    let salt: [u8; ENCRYPTION_SALT_LEN] = payload[..ENCRYPTION_SALT_LEN]
+        .try_into()
+        .map_err(|_| format!("Invalid .{extension} salt"))?;
+    let nonce_start = ENCRYPTION_SALT_LEN;
+    let nonce_end = nonce_start + ENCRYPTION_NONCE_LEN;
+    let nonce: [u8; ENCRYPTION_NONCE_LEN] = payload[nonce_start..nonce_end]
+        .try_into()
+        .map_err(|_| format!("Invalid .{extension} nonce"))?;
+    let ciphertext = &payload[nonce_end..];
+
+    let password = password.filter(|value| !value.is_empty()).ok_or_else(|| {
+        format!("This .{extension} file is encrypted. Please provide a password.")
+    })?;
+
+    let mut key = derive_encryption_key(password, &salt)?;
+    let cipher = XChaCha20Poly1305::new((&key).into());
+    let plaintext = cipher
+        .decrypt(XNonce::from_slice(&nonce), ciphertext)
+        .map_err(|_| {
+            format!("Failed to decrypt .{extension}. The password may be incorrect or the file is corrupted.")
+        })?;
+    key.fill(0);
+
+    Ok((plaintext, true))
 }
 
 fn read_zip_bytes_from_archive_file(
@@ -434,8 +460,11 @@ fn read_zip_bytes_from_archive_file(
 }
 
 fn is_locallow_entry_allowed(relative_normalized: &str) -> bool {
-    relative_normalized == LOCALLOW_ALLOWED_PREFIX
-        || relative_normalized.starts_with("Innersloth/SuperNewRoles/")
+    let allowed_prefix = locallow_allowed_prefix();
+    relative_normalized == allowed_prefix
+        || relative_normalized
+            .strip_prefix(&allowed_prefix)
+            .is_some_and(|suffix| suffix.starts_with('/'))
 }
 
 fn resolve_entry_target(
@@ -674,8 +703,7 @@ fn backup_and_clean_locallow(locallow_snr_dir: &Path, backup_root: &Path) -> Res
 
     let backup_locallow_dir = backup_root
         .join(LOCALLOW_BACKUP_DIR_NAME)
-        .join("Innersloth")
-        .join("SuperNewRoles");
+        .join(locallow_relative_root_path());
     copy_directory_recursive(locallow_snr_dir, &backup_locallow_dir)?;
 
     fs::remove_dir_all(locallow_snr_dir).map_err(|e| {
@@ -705,8 +733,7 @@ fn restore_locallow_from_backup(locallow_snr_dir: &Path, backup_root: &Path) -> 
 
     let backup_locallow_dir = backup_root
         .join(LOCALLOW_BACKUP_DIR_NAME)
-        .join("Innersloth")
-        .join("SuperNewRoles");
+        .join(locallow_relative_root_path());
     copy_directory_recursive(&backup_locallow_dir, locallow_snr_dir)
 }
 
@@ -854,8 +881,7 @@ pub fn import_migration_data<R: Runtime>(
 
     let launcher_settings = settings::load_or_init_settings(app)?;
     let profile_root = PathBuf::from(launcher_settings.profile_path);
-    let locallow_root = resolve_locallow_root()?;
-    let locallow_snr_dir = locallow_root.join("Innersloth").join("SuperNewRoles");
+    let (locallow_root, locallow_snr_dir) = resolve_locallow_snr_dir()?;
     let profile_patterns = compile_profile_patterns()?;
 
     let planned_files = plan_import_files(

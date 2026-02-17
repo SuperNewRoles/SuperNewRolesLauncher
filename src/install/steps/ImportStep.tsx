@@ -6,6 +6,9 @@ import type { MessageKey } from "../../i18n";
 interface ImportStepProps {
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
   importEnabled: boolean;
+  migrationEnabled: boolean;
+  migrationExtension: string;
+  migrationLegacyExtension: string;
   migrationImportEnabled: boolean;
   migrationPasswordValidationState: "idle" | "checking" | "valid" | "invalid";
   sourceAmongUsPath: string;
@@ -29,6 +32,9 @@ interface ImportStepProps {
 export default function ImportStep({
   t,
   importEnabled,
+  migrationEnabled,
+  migrationExtension,
+  migrationLegacyExtension,
   migrationImportEnabled,
   migrationPasswordValidationState,
   sourceAmongUsPath,
@@ -55,7 +61,8 @@ export default function ImportStep({
 
   const canProceed =
     (!importEnabled || (hasFolderPreview && !previewError && !previewing)) &&
-    (!migrationImportEnabled ||
+    (!migrationEnabled ||
+      !migrationImportEnabled ||
       (hasArchivePath &&
         migrationPassword.trim().length > 0 &&
         !pickingArchive &&
@@ -92,7 +99,12 @@ export default function ImportStep({
       selectedPath = await open({
         directory: false,
         multiple: false,
-        filters: [{ name: "snrdata", extensions: ["snrdata"] }],
+        filters: [
+          {
+            name: migrationExtension,
+            extensions: Array.from(new Set([migrationExtension, migrationLegacyExtension])),
+          },
+        ],
       });
     } catch (error) {
       console.error("Failed to open migration archive picker:", error);
@@ -215,50 +227,52 @@ export default function ImportStep({
           )}
         </div>
 
-        <div className="import-option-block">
-          <label className="confirm-checkbox import-toggle">
-            <input
-              type="checkbox"
-              checked={migrationImportEnabled}
-              onChange={(event) => onMigrationImportEnabledChange(event.target.checked)}
-            />
-            {t("installFlow.importArchiveEnable")}
-          </label>
+        {migrationEnabled && (
+          <div className="import-option-block">
+            <label className="confirm-checkbox import-toggle">
+              <input
+                type="checkbox"
+                checked={migrationImportEnabled}
+                onChange={(event) => onMigrationImportEnabledChange(event.target.checked)}
+              />
+              {t("installFlow.importArchiveEnable")}
+            </label>
 
-          {migrationImportEnabled && (
-            <div className="import-step-content">
-              <div className="import-archive-fields">
-                <button
-                  type="button"
-                  className="btn-manual-select"
-                  onClick={handleSelectArchive}
-                  disabled={pickingArchive}
-                >
-                  📦 {t("installFlow.importArchiveSelect")}
-                </button>
-                <p className="import-path-line">
-                  <strong>{t("installFlow.importArchivePath")}:</strong>{" "}
-                  <code>{migrationArchivePath || t("common.unset")}</code>
-                </p>
-                <label className="stack import-password-field" htmlFor="import-archive-password">
-                  <span>{t("installFlow.importArchivePassword")}</span>
-                  <input
-                    id="import-archive-password"
-                    type="password"
-                    value={migrationPassword}
-                    placeholder={t("migration.overlay.passwordPlaceholder")}
-                    autoComplete="new-password"
-                    onChange={(event) => onMigrationPasswordChange(event.target.value)}
-                    onBlur={() => onMigrationPasswordBlur()}
-                  />
-                </label>
-                {archiveStatus && (
-                  <p className={`import-preview-status ${archiveStatusClass}`}>{archiveStatus}</p>
-                )}
+            {migrationImportEnabled && (
+              <div className="import-step-content">
+                <div className="import-archive-fields">
+                  <button
+                    type="button"
+                    className="btn-manual-select"
+                    onClick={handleSelectArchive}
+                    disabled={pickingArchive}
+                  >
+                    📦 {t("installFlow.importArchiveSelect")}
+                  </button>
+                  <p className="import-path-line">
+                    <strong>{t("installFlow.importArchivePath")}:</strong>{" "}
+                    <code>{migrationArchivePath || t("common.unset")}</code>
+                  </p>
+                  <label className="stack import-password-field" htmlFor="import-archive-password">
+                    <span>{t("installFlow.importArchivePassword")}</span>
+                    <input
+                      id="import-archive-password"
+                      type="password"
+                      value={migrationPassword}
+                      placeholder={t("migration.overlay.passwordPlaceholder")}
+                      autoComplete="new-password"
+                      onChange={(event) => onMigrationPasswordChange(event.target.value)}
+                      onBlur={() => onMigrationPasswordBlur()}
+                    />
+                  </label>
+                  {archiveStatus && (
+                    <p className={`import-preview-status ${archiveStatusClass}`}>{archiveStatus}</p>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="confirm-actions">

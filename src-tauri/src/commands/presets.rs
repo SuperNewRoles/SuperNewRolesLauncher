@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
 
-use crate::utils::presets;
+use crate::utils::{mod_profile, presets};
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -40,9 +40,14 @@ pub struct PresetImportResult {
     pub imported: Vec<ImportedPresetResult>,
 }
 
+fn ensure_presets_enabled() -> Result<(), String> {
+    mod_profile::ensure_feature_enabled(mod_profile::Feature::Presets)
+}
+
 /// ローカルプリセット一覧を取得する。
 #[tauri::command]
 pub fn presets_list_local<R: Runtime>(app: AppHandle<R>) -> Result<Vec<PresetSummary>, String> {
+    ensure_presets_enabled()?;
     let presets = presets::list_local_presets(&app)?;
     Ok(presets
         .into_iter()
@@ -61,6 +66,7 @@ pub fn presets_export<R: Runtime>(
     preset_ids: Vec<i32>,
     output_path: Option<String>,
 ) -> Result<PresetExportResult, String> {
+    ensure_presets_enabled()?;
     let result = presets::export_selected_presets(&app, preset_ids, output_path)?;
     Ok(PresetExportResult {
         archive_path: result.archive_path.to_string_lossy().to_string(),
@@ -71,6 +77,7 @@ pub fn presets_export<R: Runtime>(
 /// プリセットアーカイブ内容を確認する。
 #[tauri::command]
 pub fn presets_inspect_archive(archive_path: String) -> Result<Vec<PresetSummary>, String> {
+    ensure_presets_enabled()?;
     let normalized = archive_path.trim();
     if normalized.is_empty() {
         return Err("Preset archive path is required".to_string());
@@ -94,6 +101,7 @@ pub fn presets_import_archive<R: Runtime>(
     archive_path: String,
     selections: Vec<PresetImportSelectionInput>,
 ) -> Result<PresetImportResult, String> {
+    ensure_presets_enabled()?;
     let normalized = archive_path.trim();
     if normalized.is_empty() {
         return Err("Preset archive path is required".to_string());
