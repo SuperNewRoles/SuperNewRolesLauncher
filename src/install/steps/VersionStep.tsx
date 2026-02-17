@@ -1,5 +1,5 @@
-import type { GamePlatform, SnrReleaseSummary } from "../../app/types";
 import { MOD_DISPLAY_NAME } from "../../app/modConfig";
+import type { GamePlatform, SnrReleaseSummary } from "../../app/types";
 import type { MessageKey } from "../../i18n";
 import { EPIC_SVG, STEAM_SVG } from "./PlatformStep";
 

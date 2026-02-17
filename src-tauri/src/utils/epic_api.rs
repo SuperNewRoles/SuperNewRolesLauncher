@@ -132,7 +132,7 @@ fn storage() -> &'static KeyringStorage<EpicSession> {
 }
 
 fn storage_service_name() -> &'static str {
-    *STORAGE_SERVICE_NAME.get_or_init(|| {
+    STORAGE_SERVICE_NAME.get_or_init(|| {
         let identifier = mod_profile::get().branding.identifier.trim();
         let value = if identifier.is_empty() {
             "launcher-epic-session".to_string()
@@ -144,7 +144,7 @@ fn storage_service_name() -> &'static str {
 }
 
 fn fallback_session_dir_name() -> &'static str {
-    *FALLBACK_SESSION_DIR_NAME.get_or_init(|| {
+    FALLBACK_SESSION_DIR_NAME.get_or_init(|| {
         let launcher_name = mod_profile::get().branding.launcher_name.trim();
         let value = if launcher_name.is_empty() {
             "Launcher".to_string()

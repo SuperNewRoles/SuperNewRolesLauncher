@@ -229,13 +229,11 @@ fn make_default_archive_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, 
         .unwrap_or_default()
         .as_secs();
 
-    Ok(base_dir
-        .join(DEFAULT_ARCHIVE_DIR_NAME)
-        .join(format!(
-            "{}-migration-{timestamp}.{}",
-            mod_profile::get().mod_info.id,
-            migration_extension()
-        )))
+    Ok(base_dir.join(DEFAULT_ARCHIVE_DIR_NAME).join(format!(
+        "{}-migration-{timestamp}.{}",
+        mod_profile::get().mod_info.id,
+        migration_extension()
+    )))
 }
 
 fn resolve_archive_output_path<R: Runtime>(
@@ -432,9 +430,9 @@ fn extract_zip_bytes_from_archive_bytes(
         .map_err(|_| format!("Invalid .{extension} nonce"))?;
     let ciphertext = &payload[nonce_end..];
 
-    let password = password
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| format!("This .{extension} file is encrypted. Please provide a password."))?;
+    let password = password.filter(|value| !value.is_empty()).ok_or_else(|| {
+        format!("This .{extension} file is encrypted. Please provide a password.")
+    })?;
 
     let mut key = derive_encryption_key(password, &salt)?;
     let cipher = XChaCha20Poly1305::new((&key).into());

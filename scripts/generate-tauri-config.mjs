@@ -8,11 +8,7 @@ const workspaceRoot = path.resolve(__dirname, "..");
 
 const modConfigPath = path.join(workspaceRoot, "src", "shared", "mod.config.json");
 const baseTauriConfigPath = path.join(workspaceRoot, "src-tauri", "tauri.conf.json");
-const outputTauriConfigPath = path.join(
-  workspaceRoot,
-  "src-tauri",
-  "tauri.generated.conf.json",
-);
+const outputTauriConfigPath = path.join(workspaceRoot, "src-tauri", "tauri.generated.conf.json");
 
 async function loadJson(filePath) {
   const raw = await readFile(filePath, "utf8");

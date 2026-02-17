@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  type LaunchErrorMessageKey,
   localizeLaunchErrorMessage,
   normalizeInvokeErrorMessage,
-  type LaunchErrorMessageKey,
 } from "./launchErrorLocalization";
 
 const t = (key: LaunchErrorMessageKey, params?: Record<string, string | number>): string => {
@@ -34,15 +34,15 @@ describe("launch error localization", () => {
   });
 
   it("localizes Epic feature disabled error", () => {
-    const raw =
-      "Error invoking 'launch_vanilla': Epic launch is disabled by mod.config.json.";
+    const raw = "Error invoking 'launch_vanilla': Epic launch is disabled by mod.config.json.";
     expect(localizeLaunchErrorMessage(raw, "Among Us.exe", t)).toBe(
       "launch.errorEpicFeatureDisabled",
     );
   });
 
   it("maps invalid launch target error to Among Us folder localization", () => {
-    const raw = "Error invoking 'launch_modded': Launch target is not Among Us.exe: C:/Games/AU.exe";
+    const raw =
+      "Error invoking 'launch_modded': Launch target is not Among Us.exe: C:/Games/AU.exe";
     expect(localizeLaunchErrorMessage(raw, "Among Us.exe", t)).toBe(
       "installFlow.invalidAmongUsFolder",
     );

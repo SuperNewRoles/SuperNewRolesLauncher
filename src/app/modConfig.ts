@@ -157,14 +157,30 @@ function assertModConfig(input: ModConfig): ModConfig {
   ensureNonEmpty(input.events.installProgress, "events.installProgress");
   ensureNonEmpty(input.events.legacyInstallProgress, "events.legacyInstallProgress");
   input.apis.announceBaseUrl = normalizeBaseUrl(input.apis.announceBaseUrl, "apis.announceBaseUrl");
-  input.apis.reportingBaseUrl = ensureNonEmpty(input.apis.reportingBaseUrl, "apis.reportingBaseUrl");
-  input.apis.reportingTermsUrl = ensureNonEmpty(input.apis.reportingTermsUrl, "apis.reportingTermsUrl");
+  input.apis.reportingBaseUrl = ensureNonEmpty(
+    input.apis.reportingBaseUrl,
+    "apis.reportingBaseUrl",
+  );
+  input.apis.reportingTermsUrl = ensureNonEmpty(
+    input.apis.reportingTermsUrl,
+    "apis.reportingTermsUrl",
+  );
 
-  if (!Array.isArray(input.paths.profileRequiredFiles) || input.paths.profileRequiredFiles.length === 0) {
-    throw new Error("Invalid mod config: 'paths.profileRequiredFiles' must contain at least one entry.");
+  if (
+    !Array.isArray(input.paths.profileRequiredFiles) ||
+    input.paths.profileRequiredFiles.length === 0
+  ) {
+    throw new Error(
+      "Invalid mod config: 'paths.profileRequiredFiles' must contain at least one entry.",
+    );
   }
-  if (!Array.isArray(input.migration.profileIncludePatterns) || input.migration.profileIncludePatterns.length === 0) {
-    throw new Error("Invalid mod config: 'migration.profileIncludePatterns' must contain at least one entry.");
+  if (
+    !Array.isArray(input.migration.profileIncludePatterns) ||
+    input.migration.profileIncludePatterns.length === 0
+  ) {
+    throw new Error(
+      "Invalid mod config: 'migration.profileIncludePatterns' must contain at least one entry.",
+    );
   }
   if (!Array.isArray(input.links.official)) {
     throw new Error("Invalid mod config: 'links.official' must be an array.");

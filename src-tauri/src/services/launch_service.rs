@@ -3,8 +3,7 @@
 
 use crate::utils::{
     epic_api::{self, EpicApi},
-    mod_profile,
-    settings,
+    mod_profile, settings,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -35,10 +34,7 @@ fn modded_shortcut_file_name() -> &'static str {
 }
 
 fn modded_shortcut_description() -> String {
-    format!(
-        "Launch {} modded",
-        mod_profile::get().mod_info.display_name
-    )
+    format!("Launch {} modded", mod_profile::get().mod_info.display_name)
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -185,7 +181,8 @@ fn is_pid_running(pid: u32) -> bool {
         .lines()
         .map(str::trim)
         .any(|line| {
-            line.to_ascii_lowercase().starts_with(&executable_prefix) && line.contains(&pid_fragment)
+            line.to_ascii_lowercase().starts_with(&executable_prefix)
+                && line.contains(&pid_fragment)
         })
 }
 

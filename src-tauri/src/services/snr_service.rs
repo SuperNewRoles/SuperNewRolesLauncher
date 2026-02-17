@@ -43,7 +43,11 @@ fn install_progress_legacy_event() -> &'static str {
 }
 
 fn patcher_manifest_url() -> &'static str {
-    mod_profile::get().distribution.patchers.manifest_url.as_str()
+    mod_profile::get()
+        .distribution
+        .patchers
+        .manifest_url
+        .as_str()
 }
 
 fn patcher_base_url() -> String {
@@ -64,7 +68,12 @@ fn asset_regex_for_platform(platform: &settings::GamePlatform) -> Result<Regex, 
         settings::GamePlatform::Steam => &mod_profile::get().distribution.asset_regex.steam,
         settings::GamePlatform::Epic => &mod_profile::get().distribution.asset_regex.epic,
     };
-    Regex::new(pattern).map_err(|e| format!("Invalid asset regex for platform '{}': {e}", platform.as_str()))
+    Regex::new(pattern).map_err(|e| {
+        format!(
+            "Invalid asset regex for platform '{}': {e}",
+            platform.as_str()
+        )
+    })
 }
 
 fn scale_progress(stage_percent: f64, start: f64, end: f64) -> f64 {
@@ -667,8 +676,7 @@ fn profile_save_data_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, Str
         settings::save_settings(app, &launcher_settings)?;
     }
 
-    Ok(PathBuf::from(launcher_settings.profile_path.trim())
-        .join(save_data_root()))
+    Ok(PathBuf::from(launcher_settings.profile_path.trim()).join(save_data_root()))
 }
 
 fn copy_directory_recursive(source: &Path, destination: &Path) -> Result<(), String> {
@@ -857,18 +865,20 @@ fn promote_staging_to_profile(staging: &Path, profile: &Path, backup: &Path) -> 
 
 pub async fn list_snr_releases() -> Result<Vec<SnrReleaseSummary>, String> {
     let client = download::github_client()?;
-    let steam_regex = Regex::new(&mod_profile::get().distribution.asset_regex.steam).map_err(|e| {
-        format!(
-            "Invalid mod config distribution.assetRegex.steam '{}': {e}",
-            mod_profile::get().distribution.asset_regex.steam
-        )
-    })?;
-    let epic_regex = Regex::new(&mod_profile::get().distribution.asset_regex.epic).map_err(|e| {
-        format!(
-            "Invalid mod config distribution.assetRegex.epic '{}': {e}",
-            mod_profile::get().distribution.asset_regex.epic
-        )
-    })?;
+    let steam_regex =
+        Regex::new(&mod_profile::get().distribution.asset_regex.steam).map_err(|e| {
+            format!(
+                "Invalid mod config distribution.assetRegex.steam '{}': {e}",
+                mod_profile::get().distribution.asset_regex.steam
+            )
+        })?;
+    let epic_regex =
+        Regex::new(&mod_profile::get().distribution.asset_regex.epic).map_err(|e| {
+            format!(
+                "Invalid mod config distribution.assetRegex.epic '{}': {e}",
+                mod_profile::get().distribution.asset_regex.epic
+            )
+        })?;
 
     let releases = client
         .get(mod_profile::github_releases_api_url())

@@ -30,6 +30,8 @@ import {
   OFFICIAL_LINKS,
   REPORTING_NOTIFICATION_STORAGE_KEY,
 } from "./constants";
+import { collectAppDom } from "./dom";
+import { localizeLaunchErrorMessage } from "./launchErrorLocalization";
 import {
   ANNOUNCE_ENABLED,
   CONNECT_LINKS_ENABLED,
@@ -39,8 +41,6 @@ import {
   REPORTING_ENABLED,
   modConfig,
 } from "./modConfig";
-import { collectAppDom } from "./dom";
-import { localizeLaunchErrorMessage } from "./launchErrorLocalization";
 import {
   filterSelectablePlatformCandidates,
   getPlatformIconPath,
@@ -1405,11 +1405,14 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     presetOpenExportButton.disabled = !PRESETS_ENABLED || control.presetRefreshButtonDisabled;
     presetOverlayCloseButton.disabled = presetProcessing;
     presetRefreshButton.disabled = !PRESETS_ENABLED || control.presetRefreshButtonDisabled;
-    presetSelectAllLocalButton.disabled = !PRESETS_ENABLED || control.presetSelectAllLocalButtonDisabled;
+    presetSelectAllLocalButton.disabled =
+      !PRESETS_ENABLED || control.presetSelectAllLocalButtonDisabled;
     presetClearLocalButton.disabled = !PRESETS_ENABLED || control.presetClearLocalButtonDisabled;
     presetExportButton.disabled = !PRESETS_ENABLED || control.presetExportButtonDisabled;
-    presetSelectAllArchiveButton.disabled = !PRESETS_ENABLED || control.presetSelectAllArchiveButtonDisabled;
-    presetClearArchiveButton.disabled = !PRESETS_ENABLED || control.presetClearArchiveButtonDisabled;
+    presetSelectAllArchiveButton.disabled =
+      !PRESETS_ENABLED || control.presetSelectAllArchiveButtonDisabled;
+    presetClearArchiveButton.disabled =
+      !PRESETS_ENABLED || control.presetClearArchiveButtonDisabled;
     presetImportButton.disabled = !PRESETS_ENABLED || control.presetImportButtonDisabled;
     presetFeedbackPrimaryButton.disabled = presetProcessing;
     presetFeedbackSecondaryButton.disabled = presetProcessing;
@@ -2265,9 +2268,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         filters: [
           {
             name: migrationExtension,
-            extensions: Array.from(
-              new Set([migrationExtension, migrationLegacyExtension]),
-            ),
+            extensions: Array.from(new Set([migrationExtension, migrationLegacyExtension])),
           },
         ],
       });

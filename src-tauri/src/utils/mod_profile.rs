@@ -212,14 +212,10 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
         &profile.distribution.asset_regex.epic,
     )?;
     Regex::new(&profile.distribution.asset_regex.steam).map_err(|e| {
-        format!(
-            "Invalid mod config: distribution.assetRegex.steam is not a valid regex: {e}"
-        )
+        format!("Invalid mod config: distribution.assetRegex.steam is not a valid regex: {e}")
     })?;
     Regex::new(&profile.distribution.asset_regex.epic).map_err(|e| {
-        format!(
-            "Invalid mod config: distribution.assetRegex.epic is not a valid regex: {e}"
-        )
+        format!("Invalid mod config: distribution.assetRegex.epic is not a valid regex: {e}")
     })?;
     non_empty(
         "distribution.updaterLatestJsonUrl",
@@ -268,7 +264,12 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
                 .to_string(),
         );
     }
-    for (idx, pattern) in profile.migration.profile_include_patterns.iter().enumerate() {
+    for (idx, pattern) in profile
+        .migration
+        .profile_include_patterns
+        .iter()
+        .enumerate()
+    {
         non_empty(&format!("migration.profileIncludePatterns[{idx}]"), pattern)?;
         Regex::new(pattern).map_err(|e| {
             format!(
@@ -286,7 +287,10 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
     {
         return Err("Invalid mod config: presets.extension must be alphanumeric.".to_string());
     }
-    non_empty("presets.optionsArchivePath", &profile.presets.options_archive_path)?;
+    non_empty(
+        "presets.optionsArchivePath",
+        &profile.presets.options_archive_path,
+    )?;
     non_empty("presets.saveDataRoot", &profile.presets.save_data_root)?;
 
     non_empty("apis.announceBaseUrl", &profile.apis.announce_base_url)?;
@@ -297,7 +301,10 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
     non_empty("apis.reportingTermsUrl", &profile.apis.reporting_terms_url)?;
 
     non_empty("links.wikiUrl", &profile.links.wiki_url)?;
-    non_empty("links.supportDiscordUrl", &profile.links.support_discord_url)?;
+    non_empty(
+        "links.supportDiscordUrl",
+        &profile.links.support_discord_url,
+    )?;
     for (idx, item) in profile.links.official.iter().enumerate() {
         non_empty(&format!("links.official[{idx}].label"), &item.label)?;
         non_empty(&format!("links.official[{idx}].url"), &item.url)?;
@@ -359,9 +366,7 @@ pub fn ensure_feature_enabled(feature: Feature) -> Result<(), String> {
         Feature::EpicLogin => "epicLogin",
         Feature::ConnectLinks => "connectLinks",
     };
-    Err(format!(
-        "Feature '{name}' is disabled by mod.config.json."
-    ))
+    Err(format!("Feature '{name}' is disabled by mod.config.json."))
 }
 
 pub fn github_releases_api_url() -> String {

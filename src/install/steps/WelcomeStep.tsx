@@ -1,5 +1,5 @@
-import type { ThemePreference } from "../../app/theme";
 import { LAUNCHER_NAME } from "../../app/modConfig";
+import type { ThemePreference } from "../../app/theme";
 import type { LocaleCode } from "../../i18n";
 import type { MessageKey } from "../../i18n";
 

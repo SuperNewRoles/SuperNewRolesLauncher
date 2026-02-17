@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  type NormalizedPlatformCandidate,
   filterSelectablePlatformCandidates,
   isPlatformSelectable,
-  type NormalizedPlatformCandidate,
 } from "./platformSelection";
 
 describe("platform selection availability", () => {

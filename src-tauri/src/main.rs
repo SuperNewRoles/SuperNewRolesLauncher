@@ -199,10 +199,9 @@ pub fn run() {
             }
         })
         .setup(move |app| {
-            crate::utils::mod_profile::validate()
-                .map_err(|error| -> Box<dyn std::error::Error> {
-                    Box::new(std::io::Error::other(error))
-                })?;
+            crate::utils::mod_profile::validate().map_err(
+                |error| -> Box<dyn std::error::Error> { Box::new(std::io::Error::other(error)) },
+            )?;
             setup_tray(app.handle())?;
 
             if auto_launch_modded {

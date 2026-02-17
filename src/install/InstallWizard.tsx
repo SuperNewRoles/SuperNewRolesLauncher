@@ -6,6 +6,7 @@ import {
   PRESETS_ENABLED,
   modConfig,
 } from "../app/modConfig";
+import { isPlatformSelectable } from "../app/platformSelection";
 import {
   epicLoginWebview,
   epicSessionRestore,
@@ -22,7 +23,6 @@ import {
   modSaveDataPreview,
   settingsUpdate,
 } from "../app/services/tauriClient";
-import { isPlatformSelectable } from "../app/platformSelection";
 import { type ThemePreference, applyTheme, getStoredTheme, setStoredTheme } from "../app/theme";
 import type {
   GamePlatform,

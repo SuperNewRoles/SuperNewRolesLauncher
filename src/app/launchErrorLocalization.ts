@@ -7,10 +7,7 @@ export type LaunchErrorMessageKey =
   | "launch.errorEpicAuthInitFailed"
   | "launch.errorEpicAuthInitFailedWithDetail";
 
-type Translator = (
-  key: LaunchErrorMessageKey,
-  params?: Record<string, string | number>,
-) => string;
+type Translator = (key: LaunchErrorMessageKey, params?: Record<string, string | number>) => string;
 
 const EPIC_AUTH_REQUIRED_ERROR_PREFIX = "Epic launch requires Epic authentication";
 const EPIC_AUTH_CHECK_FAILED_ERROR_PREFIX =

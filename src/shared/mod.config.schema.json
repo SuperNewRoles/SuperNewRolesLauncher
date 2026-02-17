@@ -81,14 +81,7 @@
     "features": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "announce",
-        "reporting",
-        "presets",
-        "migration",
-        "epicLogin",
-        "connectLinks"
-      ],
+      "required": ["announce", "reporting", "presets", "migration", "epicLogin", "connectLinks"],
       "properties": {
         "announce": {
           "type": "boolean"
@@ -113,13 +106,7 @@
     "distribution": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "source",
-        "githubRepo",
-        "assetRegex",
-        "patchers",
-        "updaterLatestJsonUrl"
-      ],
+      "required": ["source", "githubRepo", "assetRegex", "patchers", "updaterLatestJsonUrl"],
       "properties": {
         "source": {
           "type": "string",

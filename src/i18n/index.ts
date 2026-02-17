@@ -1,6 +1,6 @@
+import modConfig from "../shared/mod.config.json";
 import en from "./locales/en";
 import ja from "./locales/ja";
-import modConfig from "../shared/mod.config.json";
 
 type LocaleMessages = Record<string, string>;
 
