@@ -33,6 +33,7 @@ fn modded_shortcut_file_name() -> &'static str {
     mod_profile::get().branding.modded_shortcut_name.as_str()
 }
 
+#[cfg(windows)]
 fn modded_shortcut_description() -> String {
     format!("Launch {} modded", mod_profile::get().mod_info.display_name)
 }
