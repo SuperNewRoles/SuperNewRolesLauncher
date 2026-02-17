@@ -663,18 +663,17 @@ pub async fn send_report<R: Runtime>(
 
     let formatted_message = format_report_message(app, &input);
 
-    let launcher_settings = settings::load_or_init_settings(app).map_err(|e| {
+    let launcher_settings = settings::load_or_init_settings(app).inspect_err(|_| {
         emit_report_send_progress(app, "failed", 0.0, 0, 0);
-        e
     })?;
-    let client = reporting_client().map_err(|e| {
+    let client = reporting_client().inspect_err(|_| {
         emit_report_send_progress(app, "failed", 0.0, 0, 0);
-        e
     })?;
-    let (token, _, _) = resolve_valid_token(app, &client, true).await.map_err(|e| {
-        emit_report_send_progress(app, "failed", 0.0, 0, 0);
-        e
-    })?;
+    let (token, _, _) = resolve_valid_token(app, &client, true)
+        .await
+        .inspect_err(|_| {
+            emit_report_send_progress(app, "failed", 0.0, 0, 0);
+        })?;
 
     let mut payload = Map::new();
     payload.insert("message".to_string(), Value::String(formatted_message));

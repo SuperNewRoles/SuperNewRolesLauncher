@@ -371,7 +371,7 @@ fn ensure_file_exists(path: &Path, label: &str) -> Result<(), String> {
     }
 }
 
-fn ensure_valid_among_us_launch_target<'a>(game_exe_path: &'a Path) -> Result<&'a Path, String> {
+fn ensure_valid_among_us_launch_target(game_exe_path: &Path) -> Result<&Path, String> {
     let game_dir = game_exe_path
         .parent()
         .ok_or_else(|| "Invalid game executable path".to_string())?;
