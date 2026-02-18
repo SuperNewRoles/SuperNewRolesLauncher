@@ -1103,7 +1103,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   function queueLauncherAutoMinimize(
-    windowMs: number | null = LAUNCHER_AUTO_MINIMIZE_WINDOW_MS
+    windowMs: number | null = LAUNCHER_AUTO_MINIMIZE_WINDOW_MS,
   ): void {
     clearLauncherAutoMinimizePending();
     launcherAutoMinimizePending = true;
