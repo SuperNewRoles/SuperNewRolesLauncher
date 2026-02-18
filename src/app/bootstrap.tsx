@@ -120,7 +120,7 @@ const ANNOUNCE_BADGE_FETCH_GAP_MS = 30_000;
 const ANNOUNCE_BADGE_POLL_INTERVAL_MS = 300_000;
 const LAUNCHER_MINIMIZE_EFFECT_DURATION_MS = 260;
 const LAUNCHER_AUTO_MINIMIZE_WINDOW_MS = 30_000;
-const MODDED_FIRST_SETUP_VISIBLE_MS = 5_000;
+const MODDED_FIRST_SETUP_POLL_INTERVAL_MS = 500;
 const LAUNCH_ERROR_DISPLAY_MS = 20_000;
 const SETTINGS_OVERLAY_TRANSITION_MS = 220;
 const LOCALE_SWITCH_RELOAD_ANIMATION_FLAG_KEY = "ui.localeSwitchReloadAnimation";
@@ -1030,29 +1030,88 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     syncAnnounceBadgeFromItems(items);
   }
 
-  let launcherAutoMinimizeNotBefore = 0;
-  let launcherAutoMinimizeDelayTimer: number | null = null;
+  let awaitingFirstSetupCompletionForMinimize = false;
+  let firstSetupPollTimer: number | null = null;
+  let firstSetupPollGeneration = 0;
+
+  function stopFirstSetupCompletionPolling(): void {
+    awaitingFirstSetupCompletionForMinimize = false;
+    firstSetupPollGeneration += 1;
+    if (firstSetupPollTimer !== null) {
+      window.clearTimeout(firstSetupPollTimer);
+      firstSetupPollTimer = null;
+    }
+  }
+
+  function startFirstSetupCompletionPolling(gameExe: string): void {
+    stopFirstSetupCompletionPolling();
+    awaitingFirstSetupCompletionForMinimize = true;
+    const generation = firstSetupPollGeneration;
+
+    const scheduleNext = (): void => {
+      firstSetupPollTimer = window.setTimeout(() => {
+        void pollOnce();
+      }, MODDED_FIRST_SETUP_POLL_INTERVAL_MS);
+    };
+
+    const pollOnce = async (): Promise<void> => {
+      if (generation !== firstSetupPollGeneration) {
+        return;
+      }
+      if (!launcherAutoMinimizePending) {
+        stopFirstSetupCompletionPolling();
+        return;
+      }
+
+      try {
+        const pending = await launchModdedFirstSetupPending(gameExe);
+        if (generation !== firstSetupPollGeneration) {
+          return;
+        }
+        if (!pending) {
+          stopFirstSetupCompletionPolling();
+          setLaunchStatus(t("launch.moddedSent"));
+          if (launcherAutoMinimizePending) {
+            clearLauncherAutoMinimizePending();
+            void minimizeLauncherWindowWithEffect();
+          }
+          return;
+        }
+      } catch {
+        if (generation !== firstSetupPollGeneration) {
+          return;
+        }
+      }
+
+      if (!launcherAutoMinimizePending) {
+        stopFirstSetupCompletionPolling();
+        return;
+      }
+      scheduleNext();
+    };
+
+    scheduleNext();
+  }
 
   function clearLauncherAutoMinimizePending(): void {
     launcherAutoMinimizePending = false;
-    launcherAutoMinimizeNotBefore = 0;
     if (launcherAutoMinimizeTimer !== null) {
       window.clearTimeout(launcherAutoMinimizeTimer);
       launcherAutoMinimizeTimer = null;
     }
-    if (launcherAutoMinimizeDelayTimer !== null) {
-      window.clearTimeout(launcherAutoMinimizeDelayTimer);
-      launcherAutoMinimizeDelayTimer = null;
-    }
+    stopFirstSetupCompletionPolling();
   }
 
-  function queueLauncherAutoMinimize(delayMs = 0): void {
+  function queueLauncherAutoMinimize(windowMs: number | null = LAUNCHER_AUTO_MINIMIZE_WINDOW_MS): void {
     clearLauncherAutoMinimizePending();
     launcherAutoMinimizePending = true;
-    launcherAutoMinimizeNotBefore = Date.now() + Math.max(0, delayMs);
+    if (windowMs === null) {
+      launcherAutoMinimizeTimer = null;
+      return;
+    }
     launcherAutoMinimizeTimer = window.setTimeout(() => {
       clearLauncherAutoMinimizePending();
-    }, LAUNCHER_AUTO_MINIMIZE_WINDOW_MS);
+    }, windowMs);
   }
 
   async function minimizeLauncherWindowWithEffect(): Promise<void> {
@@ -1465,27 +1524,16 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     gameRunning = running;
 
     if (!runningBefore && gameRunning && launcherAutoMinimizePending) {
-      const waitMs = launcherAutoMinimizeNotBefore - Date.now();
-      if (waitMs > 0) {
-        if (launcherAutoMinimizeDelayTimer !== null) {
-          window.clearTimeout(launcherAutoMinimizeDelayTimer);
-        }
-        launcherAutoMinimizeDelayTimer = window.setTimeout(() => {
-          launcherAutoMinimizeDelayTimer = null;
-          if (!launcherAutoMinimizePending) {
-            return;
-          }
-          clearLauncherAutoMinimizePending();
-          void minimizeLauncherWindowWithEffect();
-        }, waitMs);
-      } else {
+      if (!awaitingFirstSetupCompletionForMinimize) {
         clearLauncherAutoMinimizePending();
         void minimizeLauncherWindowWithEffect();
       }
     }
 
     if (!isLaunchStatusLocked()) {
-      if (gameRunning) {
+      if (awaitingFirstSetupCompletionForMinimize) {
+        launchStatus.textContent = t("launch.moddedFirstSetupStarting");
+      } else if (gameRunning) {
         launchStatus.textContent = t("launch.gameRunning");
       } else if (!launchInProgress) {
         launchStatus.textContent = t("launch.gameStopped");
@@ -2998,28 +3046,23 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     try {
       const gameExe = await gameExePathFromSettings();
-      let keepFirstSetupStatusVisible = false;
-      let autoMinimizeDelayMs = 0;
+      let firstSetupPending = false;
       try {
-        const firstSetupPending = await launchModdedFirstSetupPending(gameExe);
-        if (firstSetupPending) {
-          keepFirstSetupStatusVisible = true;
-          autoMinimizeDelayMs = MODDED_FIRST_SETUP_VISIBLE_MS;
-          setLaunchStatusWithLock(
-            t("launch.moddedFirstSetupStarting"),
-            MODDED_FIRST_SETUP_VISIBLE_MS,
-          );
-        }
+        firstSetupPending = await launchModdedFirstSetupPending(gameExe);
       } catch {
         // 判定失敗時は通常の起動文言を維持する。
       }
-      queueLauncherAutoMinimize(autoMinimizeDelayMs);
+      queueLauncherAutoMinimize(firstSetupPending ? null : LAUNCHER_AUTO_MINIMIZE_WINDOW_MS);
+      if (firstSetupPending) {
+        setLaunchStatus(t("launch.moddedFirstSetupStarting"));
+        startFirstSetupCompletionPolling(gameExe);
+      }
       await launchModded({
         gameExe,
         profilePath: settings.profilePath,
         platform: settings.gamePlatform,
       });
-      if (!keepFirstSetupStatusVisible) {
+      if (!firstSetupPending) {
         setLaunchStatus(t("launch.moddedSent"));
       }
     } catch (error) {

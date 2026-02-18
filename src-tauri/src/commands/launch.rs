@@ -30,8 +30,11 @@ pub fn launch_shortcut_create() -> Result<String, String> {
 
 /// Modded起動時にBepInExの初回セットアップが必要かを返す。
 #[tauri::command]
-pub fn launch_modded_first_setup_pending(game_exe: String) -> Result<bool, String> {
-    launch_service::modded_first_setup_pending(game_exe)
+pub fn launch_modded_first_setup_pending<R: Runtime>(
+    app: AppHandle<R>,
+    game_exe: String,
+) -> Result<bool, String> {
+    launch_service::modded_first_setup_pending(&app, game_exe)
 }
 
 /// Modded起動を実行する。

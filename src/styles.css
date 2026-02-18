@@ -6005,6 +6005,7 @@ body.locale-switch-animating {
   padding: 16px 18px 90px;
   line-height: 1.7;
   font-size: 14px;
+  white-space: pre-line;
 }
 
 .announce-detail-body p,

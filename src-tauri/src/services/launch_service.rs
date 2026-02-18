@@ -445,12 +445,35 @@ fn ensure_steam_appid_file_if_needed(game_dir: &Path, platform: &str) -> Result<
     Ok(())
 }
 
-pub fn modded_first_setup_pending(game_exe: String) -> Result<bool, String> {
+pub fn modded_first_setup_pending<R: Runtime>(
+    app: &AppHandle<R>,
+    game_exe: String,
+) -> Result<bool, String> {
+    let has_non_empty_interop = |root: &Path| -> bool {
+        let interop_dir = root.join("BepInEx").join("interop");
+        if !interop_dir.is_dir() {
+            return false;
+        }
+
+        match fs::read_dir(&interop_dir) {
+            Ok(entries) => entries.filter_map(Result::ok).next().is_some(),
+            Err(_) => false,
+        }
+    };
+
     let game_exe_path = PathBuf::from(game_exe);
     let game_dir = ensure_valid_among_us_launch_target(&game_exe_path)?;
-    let bepinex_config = game_dir.join("BepInEx").join("config").join("BepInEx.cfg");
+    if has_non_empty_interop(game_dir) {
+        return Ok(false);
+    }
 
-    Ok(!bepinex_config.is_file())
+    let launcher_settings = settings::load_or_init_settings(app)?;
+    let profile_path = launcher_settings.profile_path.trim();
+    if profile_path.is_empty() {
+        return Ok(true);
+    }
+
+    Ok(!has_non_empty_interop(Path::new(profile_path)))
 }
 
 async fn add_epic_auth_argument_if_needed(
