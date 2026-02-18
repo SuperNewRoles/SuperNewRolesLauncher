@@ -1032,11 +1032,7 @@ pub fn import_savedata_from_among_us_into_profile<R: Runtime>(
     }
     if source_bepinex_config_path.is_dir() {
         let target_bepinex_config_path = target_parent.join("BepInEx").join("config");
-        if let Err(error) =
-            copy_directory_recursive(&source_bepinex_config_path, &target_bepinex_config_path)
-        {
-            return Err(error);
-        }
+        copy_directory_recursive(&source_bepinex_config_path, &target_bepinex_config_path)?;
     }
 
     Ok(SaveDataImportResult {
