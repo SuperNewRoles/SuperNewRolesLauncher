@@ -40,6 +40,14 @@ describe("launch error localization", () => {
     );
   });
 
+  it("localizes wrapped missing BepInEx IL2CPP DLL error", () => {
+    const raw =
+      "Error invoking 'launch_modded': BepInEx IL2CPP DLL not found: C:\\...\\BepInEx.Unity.IL2CPP.dll";
+    expect(localizeLaunchErrorMessage(raw, "Among Us.exe", t)).toBe(
+      "launch.errorBepInExIl2CppDllMissing",
+    );
+  });
+
   it("maps invalid launch target error to Among Us folder localization", () => {
     const raw =
       "Error invoking 'launch_modded': Launch target is not Among Us.exe: C:/Games/AU.exe";

@@ -353,7 +353,7 @@ const ja = {
 
   "launch.moddedStarting": "Mod起動中...",
   "launch.moddedFirstSetupStarting":
-    "Mod初回起動中...（BepInExをセットアップ中のため、起動まで時間がかかる場合があります）",
+    "Mod起動中...（初回起動のため、起動まで時間がかかる場合があります）",
   "launch.moddedSent": "Modを起動しています...",
   "launch.moddedFailed": "Mod起動失敗: {error}",
   "launch.vanillaStarting": "Vanilla起動中...",
@@ -373,6 +373,8 @@ const ja = {
   "launch.errorEpicAuthInitFailedWithDetail": "Epic認証の初期化に失敗しました。詳細: {error}",
   "launch.errorEpicFeatureDisabled":
     "このビルドではEpic起動は無効です。Among Usの再選択でSteamを選んでください。",
+  "launch.errorBepInExIl2CppDllMissing":
+    "プロファイルが破損しています。設定からアンインストールして再インストールしてください。",
   "launch.gameRunning": "ゲーム実行中",
   "launch.gameStopped": "ゲーム停止中",
 

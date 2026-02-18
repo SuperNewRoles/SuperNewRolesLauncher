@@ -5,7 +5,8 @@ export type LaunchErrorMessageKey =
   | "launch.errorEpicAuthCheckFailedWithDetail"
   | "launch.errorEpicFeatureDisabled"
   | "launch.errorEpicAuthInitFailed"
-  | "launch.errorEpicAuthInitFailedWithDetail";
+  | "launch.errorEpicAuthInitFailedWithDetail"
+  | "launch.errorBepInExIl2CppDllMissing";
 
 type Translator = (key: LaunchErrorMessageKey, params?: Record<string, string | number>) => string;
 
@@ -14,6 +15,7 @@ const EPIC_AUTH_CHECK_FAILED_ERROR_PREFIX =
   "Epic authentication check failed. Please log in to Epic and try again:";
 const EPIC_AUTH_INIT_FAILED_ERROR_PREFIX = "Failed to initialize Epic authentication:";
 const EPIC_FEATURE_DISABLED_ERROR_PREFIX = "Epic launch is disabled by mod.config.json.";
+const BEPINEX_IL2CPP_DLL_NOT_FOUND_ERROR_PREFIX = "BepInEx IL2CPP DLL not found:";
 const INVALID_AMONG_US_FOLDER_ERROR_PREFIX =
   "The selected folder is not an Among Us installation directory:";
 
@@ -52,6 +54,10 @@ export function localizeLaunchErrorMessage(
 
   if (message.startsWith(EPIC_FEATURE_DISABLED_ERROR_PREFIX)) {
     return t("launch.errorEpicFeatureDisabled");
+  }
+
+  if (message.startsWith(BEPINEX_IL2CPP_DLL_NOT_FOUND_ERROR_PREFIX)) {
+    return t("launch.errorBepInExIl2CppDllMissing");
   }
 
   if (

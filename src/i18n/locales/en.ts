@@ -381,6 +381,8 @@ const en: Record<keyof typeof ja, string> = {
     "Failed to initialize Epic authentication. Detail: {error}",
   "launch.errorEpicFeatureDisabled":
     "Epic launch is disabled in this build. Reselect Among Us and choose Steam.",
+  "launch.errorBepInExIl2CppDllMissing":
+    "The profile is corrupted. Please uninstall and reinstall it from the settings.",
   "launch.gameRunning": "Game is running",
   "launch.gameStopped": "Game is stopped",
 
