@@ -97,7 +97,7 @@ jobs:
           generateReleaseNotes: true
           releaseDraft: true
           prerelease: false
-          releaseAssetNamePattern: "[name]_[arch][setup][ext]"
+          assetNamePattern: "[name]_[arch][setup][ext]"
           args: --config src-tauri/tauri.generated.conf.json --bundles nsis
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
