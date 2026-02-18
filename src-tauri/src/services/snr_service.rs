@@ -667,6 +667,10 @@ fn resolve_source_save_data_path(source_among_us_path: &str) -> Result<(PathBuf,
     Ok((among_us_path, source_save_data_path))
 }
 
+fn source_bepinex_config_path(source_among_us_path: &Path) -> PathBuf {
+    source_among_us_path.join("BepInEx").join("config")
+}
+
 fn profile_save_data_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     let mut launcher_settings = settings::load_or_init_settings(app)?;
     if launcher_settings.profile_path.trim().is_empty() {
@@ -961,9 +965,13 @@ pub fn preview_savedata_from_among_us(
 ) -> Result<SaveDataPreviewResult, String> {
     let (among_us_path, source_save_data_path) =
         resolve_source_save_data_path(&source_among_us_path)?;
+    let source_bepinex_config_path = source_bepinex_config_path(&among_us_path);
 
     let mut files = Vec::new();
     collect_files_recursive(&source_save_data_path, &mut files)?;
+    if source_bepinex_config_path.is_dir() {
+        collect_files_recursive(&source_bepinex_config_path, &mut files)?;
+    }
 
     let presets = presets::list_presets_from_save_data_dir(&source_save_data_path)?
         .into_iter()
@@ -988,6 +996,8 @@ pub fn import_savedata_from_among_us_into_profile<R: Runtime>(
 ) -> Result<SaveDataImportResult, String> {
     let preview = preview_savedata_from_among_us(source_among_us_path)?;
     let source_save_data_path = PathBuf::from(&preview.source_save_data_path);
+    let source_among_us_path = PathBuf::from(&preview.source_among_us_path);
+    let source_bepinex_config_path = source_bepinex_config_path(&source_among_us_path);
     let target_save_data_path = profile_save_data_path(app)?;
 
     let target_parent = target_save_data_path.parent().ok_or_else(|| {
@@ -1019,6 +1029,15 @@ pub fn import_savedata_from_among_us_into_profile<R: Runtime>(
         let _ = clean_path(&staging_path);
         let _ = clean_path(&backup_path);
         return Err(error);
+    }
+    if source_bepinex_config_path.is_dir() {
+        let target_bepinex_config_path = target_parent.join("BepInEx").join("config");
+        if let Err(error) = copy_directory_recursive(
+            &source_bepinex_config_path,
+            &target_bepinex_config_path,
+        ) {
+            return Err(error);
+        }
     }
 
     Ok(SaveDataImportResult {

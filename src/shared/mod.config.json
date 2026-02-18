@@ -39,7 +39,7 @@
     "amongUsExe": "Among Us.exe",
     "amongUsDataDir": "Among Us_Data",
     "saveDataRoot": "SuperNewRolesNext/SaveData",
-    "localLowRoot": "Innersloth/SuperNewRoles",
+    "localLowRoot": "Innersloth/Among Us/SuperNewRolesNextSecrets",
     "reportTokenRelativePath": "Innersloth/Among Us/SuperNewRolesNextSecrets/RequestInGame.token",
     "profileRequiredFiles": [
       "winhttp.dll",
@@ -55,7 +55,8 @@
       "^SuperNewRolesNext/SaveData/Options\\.data$",
       "^SuperNewRolesNext/SaveData/PresetOptions_(0|[1-9]\\d*)\\.data$",
       "^SuperNewRolesNext/SaveData/SuperTrophyData\\.dat$",
-      "^SuperNewRolesNext/SaveData/CustomCosmetics\\.data$"
+      "^SuperNewRolesNext/SaveData/CustomCosmetics\\.data$",
+      "^BepInEx/config/.*$"
     ]
   },
   "presets": {
