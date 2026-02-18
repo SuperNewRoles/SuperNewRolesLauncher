@@ -54,7 +54,7 @@ Use this template for both languages:
 Do not add irrelevant sections.
 
 ## Download Notice Rules (required)
-- direct asset URL: `https://github.com/SuperNewRoles/SuperNewRolesLauncher/releases/download/{tag}/SuperNewRolesLauncher_x64-setup.exe`
+- Please make sure to specify the version in the release link.
 
 ## Example (v0.1.1)
 ```markdown
