@@ -3914,6 +3914,30 @@ body.settings-overlay-open .tab-settings-shell {
   cursor: pointer;
 }
 
+.settings-switch-text {
+  min-width: 0;
+}
+
+.settings-switch-row-child {
+  margin-left: 16px;
+  padding-left: 18px;
+  border-left: 2px solid rgba(var(--accent-rgb), 0.24);
+}
+
+.settings-switch-row.is-disabled {
+  opacity: 0.56;
+  filter: saturate(0.35);
+  cursor: not-allowed;
+}
+
+.settings-switch-row.is-disabled .settings-switch-control input {
+  cursor: not-allowed;
+}
+
+.settings-switch-row.is-disabled.settings-switch-row-child {
+  border-left-color: rgba(127, 127, 127, 0.42);
+}
+
 .settings-switch-control {
   position: relative;
   display: inline-flex;

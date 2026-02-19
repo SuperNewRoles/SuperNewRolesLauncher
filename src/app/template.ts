@@ -178,14 +178,17 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                     <button id="reselect-among-us-button" type="button" class="settings-general-primary-action">${t("settings.general.reselectAmongUs")}</button>
                     <div class="settings-general-divider" aria-hidden="true"></div>
                     <label class="settings-switch-row" for="close-to-tray-on-close">
-                      <span>${t("launcher.closeToTrayOnClose")}</span>
+                      <span class="settings-switch-text">${t("launcher.closeToTrayOnClose")}</span>
                       <span class="settings-switch-control">
                         <input id="close-to-tray-on-close" type="checkbox" />
                         <span class="settings-switch-slider" aria-hidden="true"></span>
                       </span>
                     </label>
-                    <label class="settings-switch-row" for="close-webview-on-tray-background">
-                      <span>${t("launcher.closeWebviewOnTrayBackground")}</span>
+                    <label
+                      class="settings-switch-row settings-switch-row-child"
+                      for="close-webview-on-tray-background"
+                    >
+                      <span class="settings-switch-text">${t("launcher.closeWebviewOnTrayBackground")}</span>
                       <span class="settings-switch-control">
                         <input id="close-webview-on-tray-background" type="checkbox" />
                         <span class="settings-switch-slider" aria-hidden="true"></span>

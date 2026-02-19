@@ -437,11 +437,21 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     themeToggleLight,
     themeToggleDark,
   } = collectAppDom();
+  const closeToTrayOnCloseRow = closeToTrayOnCloseInput.closest<HTMLElement>(".settings-switch-row");
+  const closeWebviewOnTrayBackgroundRow =
+    closeWebviewOnTrayBackgroundInput.closest<HTMLElement>(".settings-switch-row");
   const migrationExtension = modConfig.migration.extension;
   const migrationLegacyExtension = "snrdata";
   const presetExtension = modConfig.presets.extension;
   const presetLegacyExtension = "snrpresets";
   const installProgressEventName = modConfig.events.installProgress;
+
+  function syncSwitchRowDisabledState(
+    input: HTMLInputElement,
+    rowElement: HTMLElement | null,
+  ): void {
+    rowElement?.classList.toggle("is-disabled", input.disabled);
+  }
 
   function updateThemeButtons(theme: ThemePreference) {
     themeToggleSystem.classList.toggle("active", theme === "system");
@@ -1481,6 +1491,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     closeToTrayOnCloseInput.disabled = control.closeToTrayOnCloseInputDisabled;
     closeWebviewOnTrayBackgroundInput.disabled =
       control.closeWebviewOnTrayBackgroundInputDisabled;
+    syncSwitchRowDisabledState(closeToTrayOnCloseInput, closeToTrayOnCloseRow);
+    syncSwitchRowDisabledState(
+      closeWebviewOnTrayBackgroundInput,
+      closeWebviewOnTrayBackgroundRow,
+    );
     const migrationProcessing = migrationExporting || migrationImporting;
     migrationExportButton.disabled = !MIGRATION_ENABLED || control.migrationExportButtonDisabled;
     migrationImportButton.disabled = !MIGRATION_ENABLED || control.migrationImportButtonDisabled;
