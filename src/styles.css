@@ -1574,6 +1574,23 @@ progress {
   justify-content: center;
   gap: 24px;
   min-height: 60vh;
+  transition: opacity 0s, transform 0s;
+}
+
+.install-step-complete.leaving {
+  animation: complete-step-leave 0.28s cubic-bezier(0.4, 0, 1, 1) both;
+  pointer-events: none;
+}
+
+@keyframes complete-step-leave {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96) translateY(-12px);
+  }
 }
 
 /* ── Success Icon ── */
@@ -2465,6 +2482,8 @@ progress {
   gap: 16px;
   align-items: center;
   width: 100%;
+  text-align: center;
+  padding: 8px 0 4px;
 }
 
 .connect-description {

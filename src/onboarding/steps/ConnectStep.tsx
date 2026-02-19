@@ -89,7 +89,6 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
   return (
     <OnboardingLayout
       t={t}
-      image={<div className="placeholder-icon">🔗</div>}
       onNext={onNext}
       onBack={onBack}
       nextDisabled={nextDisabled}
