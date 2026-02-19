@@ -135,7 +135,11 @@ export function AnnounceCenter({
       if (!force) {
         const cached = articleCacheRef.current.get(articleId);
         if (cached) {
+          if (latestDetailRequestIdRef.current === requestId) {
+            setLoadingDetail(false);
+          }
           if (
+            isMountedRef.current &&
             latestDetailRequestIdRef.current === requestId &&
             selectedArticleIdRef.current === articleId
           ) {
@@ -269,11 +273,21 @@ export function AnnounceCenter({
 
     const target = items.find((item) => item.id === openArticleId);
     if (!target) {
-      if (openArticleReloadRequestedRef.current === openArticleId) {
+      if (openArticleReloadRequestedRef.current !== openArticleId) {
+        openArticleReloadRequestedRef.current = openArticleId;
+        void refreshArticles(true);
         return;
       }
-      openArticleReloadRequestedRef.current = openArticleId;
-      void refreshArticles(true);
+
+      // Notification target may not appear in the first page list;
+      // fallback to direct detail fetch so the deep-link still opens.
+      openArticleReloadRequestedRef.current = null;
+      handledOpenArticleIdRef.current = openArticleId;
+      setSelectedArticleId(openArticleId);
+      selectedArticleIdRef.current = openArticleId;
+      setStatusMessage("");
+      void loadDetail(openArticleId, true);
+      onOpenArticleHandled?.(openArticleId);
       return;
     }
 

@@ -7,6 +7,7 @@ mod utils;
 use std::ffi::OsStr;
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
+    mpsc, Mutex,
     Arc,
 };
 use std::time::Duration;
@@ -26,26 +27,52 @@ const TRAY_WEBVIEW_KEEPALIVE_MS: u64 = 30 * 60 * 1000;
 #[derive(Debug)]
 struct TrayWebviewDestroyState {
     generation: AtomicU64,
+    pending_cancel_tx: Mutex<Option<mpsc::Sender<()>>>,
 }
 
 impl TrayWebviewDestroyState {
     fn new() -> Self {
         Self {
             generation: AtomicU64::new(0),
+            pending_cancel_tx: Mutex::new(None),
         }
     }
 
     fn cancel_pending(&self) {
         self.generation.fetch_add(1, Ordering::SeqCst);
+        if let Ok(mut guard) = self.pending_cancel_tx.lock() {
+            if let Some(cancel_tx) = guard.take() {
+                let _ = cancel_tx.send(());
+            }
+        }
     }
 
     fn schedule_destroy<R: tauri::Runtime + 'static>(self: &Arc<Self>, app: AppHandle<R>) {
         let generation = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
+        let (cancel_tx, cancel_rx) = mpsc::channel::<()>();
+
+        if let Ok(mut guard) = self.pending_cancel_tx.lock() {
+            if let Some(previous_cancel_tx) = guard.replace(cancel_tx) {
+                let _ = previous_cancel_tx.send(());
+            }
+        } else {
+            return;
+        }
+
         let state = self.clone();
         std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(TRAY_WEBVIEW_KEEPALIVE_MS));
+            match cancel_rx.recv_timeout(Duration::from_millis(TRAY_WEBVIEW_KEEPALIVE_MS)) {
+                Ok(()) | Err(mpsc::RecvTimeoutError::Disconnected) => return,
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+            }
             if state.generation.load(Ordering::SeqCst) != generation {
                 return;
+            }
+
+            if let Ok(mut guard) = state.pending_cancel_tx.lock() {
+                if state.generation.load(Ordering::SeqCst) == generation {
+                    guard.take();
+                }
             }
 
             let should_destroy = match crate::utils::settings::load_or_init_settings(&app) {
