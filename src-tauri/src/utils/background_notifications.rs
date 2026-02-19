@@ -4,10 +4,13 @@ use std::time::{Duration, Instant};
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager, Runtime};
+#[cfg(target_os = "windows")]
+use tauri::Emitter;
+use tauri::{AppHandle, Manager, Runtime};
 
 use crate::utils::{mod_profile, reporting_api, settings};
 
+#[cfg(target_os = "windows")]
 pub const BACKGROUND_NOTIFICATION_OPEN_EVENT: &str = "background-notification-open";
 
 const REPORT_POLL_INTERVAL: Duration = Duration::from_secs(60);
@@ -389,6 +392,7 @@ fn pending_open_target_storage() -> &'static Mutex<Option<NotificationOpenTarget
     PENDING_OPEN_TARGET.get_or_init(|| Mutex::new(None))
 }
 
+#[cfg(target_os = "windows")]
 fn set_pending_open_target(target: NotificationOpenTarget) {
     if let Ok(mut guard) = pending_open_target_storage().lock() {
         *guard = Some(target);
