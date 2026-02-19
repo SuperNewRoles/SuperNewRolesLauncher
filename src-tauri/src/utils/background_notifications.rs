@@ -135,17 +135,16 @@ impl BackgroundNotificationWorker {
 
         self.report.handle_enable_transition();
 
-        let notification_state = match tauri::async_runtime::block_on(
-            reporting_api::get_notifications(app),
-        ) {
-            Ok(state) => state,
-            Err(error) => {
-                eprintln!(
+        let notification_state =
+            match tauri::async_runtime::block_on(reporting_api::get_notifications(app)) {
+                Ok(state) => state,
+                Err(error) => {
+                    eprintln!(
                     "[background-notifications] failed to fetch reporting notifications: {error}"
                 );
-                return;
-            }
-        };
+                    return;
+                }
+            };
 
         let mut discovered_items = Vec::new();
         for thread in notification_state.threads {

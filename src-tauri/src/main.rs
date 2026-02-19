@@ -7,8 +7,7 @@ mod utils;
 use std::ffi::OsStr;
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
-    mpsc, Mutex,
-    Arc,
+    mpsc, Arc, Mutex,
 };
 use std::time::Duration;
 use tauri::{
