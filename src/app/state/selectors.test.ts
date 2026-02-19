@@ -60,6 +60,8 @@ describe("computeControlState", () => {
       profilePath: "C:/profile",
       closeToTrayOnClose: false,
       closeWebviewOnTrayBackground: true,
+      reportNotificationsEnabled: true,
+      announceNotificationsEnabled: true,
       uiLocale: "ja",
       onboardingCompleted: true,
     };
@@ -77,6 +79,8 @@ describe("computeControlState", () => {
       profilePath: "C:/profile",
       closeToTrayOnClose: true,
       closeWebviewOnTrayBackground: true,
+      reportNotificationsEnabled: true,
+      announceNotificationsEnabled: true,
       uiLocale: "ja",
       onboardingCompleted: true,
     };
@@ -99,6 +103,8 @@ describe("computeControlState", () => {
       profilePath: "C:/profile",
       closeToTrayOnClose: true,
       closeWebviewOnTrayBackground: true,
+      reportNotificationsEnabled: true,
+      announceNotificationsEnabled: true,
       uiLocale: "ja",
       onboardingCompleted: true,
     };
@@ -120,6 +126,8 @@ describe("computeControlState", () => {
       profilePath: "C:/profile",
       closeToTrayOnClose: true,
       closeWebviewOnTrayBackground: true,
+      reportNotificationsEnabled: true,
+      announceNotificationsEnabled: true,
       uiLocale: "ja",
       onboardingCompleted: true,
     };

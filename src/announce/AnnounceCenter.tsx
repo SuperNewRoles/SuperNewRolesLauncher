@@ -17,6 +17,8 @@ interface AnnounceCenterProps {
   locale: LocaleCode;
   t: Translator;
   onArticlesUpdated?: (items: AnnounceArticleMinimal[]) => void;
+  openArticleId?: string | null;
+  onOpenArticleHandled?: (articleId: string) => void;
 }
 
 function formatDateTime(value: string, locale: LocaleCode): string {
@@ -64,7 +66,13 @@ function resolveLatestVisibleCreatedAt(items: AnnounceArticleMinimal[]): number 
   return latestCreatedAt;
 }
 
-export function AnnounceCenter({ locale, t, onArticlesUpdated }: AnnounceCenterProps) {
+export function AnnounceCenter({
+  locale,
+  t,
+  onArticlesUpdated,
+  openArticleId,
+  onOpenArticleHandled,
+}: AnnounceCenterProps) {
   const [readCreatedAt, setReadCreatedAt] = useState<number | null>(() =>
     getAnnounceReadCreatedAt(),
   );
@@ -78,6 +86,8 @@ export function AnnounceCenter({ locale, t, onArticlesUpdated }: AnnounceCenterP
   const [statusMessage, setStatusMessage] = useState<string>("");
   const readCreatedAtRef = useRef<number | null>(readCreatedAt);
   const selectedArticleIdRef = useRef<string | null>(null);
+  const openArticleReloadRequestedRef = useRef<string | null>(null);
+  const handledOpenArticleIdRef = useRef<string | null>(null);
   const initialAutoReadPendingRef = useRef(true);
   const articleCacheRef = useRef<Map<string, AnnounceArticle>>(new Map());
   const isMountedRef = useRef(false);
@@ -235,6 +245,35 @@ export function AnnounceCenter({ locale, t, onArticlesUpdated }: AnnounceCenterP
       window.clearInterval(timer);
     };
   }, [refreshArticles]);
+
+  useEffect(() => {
+    if (!openArticleId) {
+      openArticleReloadRequestedRef.current = null;
+      handledOpenArticleIdRef.current = null;
+      return;
+    }
+    if (handledOpenArticleIdRef.current === openArticleId) {
+      return;
+    }
+
+    const target = items.find((item) => item.id === openArticleId);
+    if (!target) {
+      if (openArticleReloadRequestedRef.current === openArticleId) {
+        return;
+      }
+      openArticleReloadRequestedRef.current = openArticleId;
+      void refreshArticles(true);
+      return;
+    }
+
+    openArticleReloadRequestedRef.current = null;
+    handledOpenArticleIdRef.current = openArticleId;
+    setSelectedArticleId(openArticleId);
+    selectedArticleIdRef.current = openArticleId;
+    setStatusMessage("");
+    void loadDetail(openArticleId, true);
+    onOpenArticleHandled?.(openArticleId);
+  }, [items, loadDetail, onOpenArticleHandled, openArticleId, refreshArticles]);
 
   const handleSelectArticle = useCallback(
     (item: AnnounceArticleMinimal): void => {

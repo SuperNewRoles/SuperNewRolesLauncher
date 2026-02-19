@@ -6,9 +6,10 @@ mod utils;
 
 use std::ffi::OsStr;
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU64, Ordering},
     Arc,
 };
+use std::time::Duration;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -20,6 +21,51 @@ const TRAY_ID: &str = "main-tray";
 const TRAY_MENU_SHOW_ID: &str = "tray_show";
 const TRAY_MENU_LAUNCH_ID: &str = "tray_launch";
 const TRAY_MENU_EXIT_ID: &str = "tray_exit";
+const TRAY_WEBVIEW_KEEPALIVE_MS: u64 = 30 * 60 * 1000;
+
+#[derive(Debug)]
+struct TrayWebviewDestroyState {
+    generation: AtomicU64,
+}
+
+impl TrayWebviewDestroyState {
+    fn new() -> Self {
+        Self {
+            generation: AtomicU64::new(0),
+        }
+    }
+
+    fn cancel_pending(&self) {
+        self.generation.fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn schedule_destroy<R: tauri::Runtime + 'static>(self: &Arc<Self>, app: AppHandle<R>) {
+        let generation = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
+        let state = self.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(TRAY_WEBVIEW_KEEPALIVE_MS));
+            if state.generation.load(Ordering::SeqCst) != generation {
+                return;
+            }
+
+            let should_destroy = match crate::utils::settings::load_or_init_settings(&app) {
+                Ok(settings) => {
+                    settings.close_to_tray_on_close && settings.close_webview_on_tray_background
+                }
+                Err(_) => true,
+            };
+            if !should_destroy {
+                return;
+            }
+
+            if let Some(window) = app.get_webview_window("main") {
+                if matches!(window.is_visible(), Ok(false)) {
+                    let _ = window.destroy();
+                }
+            }
+        });
+    }
+}
 
 fn tray_menu_labels(locale: &str) -> (String, String, String) {
     let short_name = mod_profile::get().mod_info.short_name.clone();
@@ -53,6 +99,7 @@ fn should_auto_launch_modded() -> bool {
 fn start_modded_autolaunch<R: tauri::Runtime>(
     app_handle: AppHandle<R>,
     bypass_close_to_tray: Arc<AtomicBool>,
+    tray_webview_destroy_state: Arc<TrayWebviewDestroyState>,
     exit_on_success: bool,
 ) {
     commands::launch::clear_autolaunch_error();
@@ -66,13 +113,15 @@ fn start_modded_autolaunch<R: tauri::Runtime>(
             }
             Err(error) => {
                 commands::launch::set_autolaunch_error(error);
-                show_main_window(&app_handle);
+                show_main_window(&app_handle, &tray_webview_destroy_state);
             }
         }
     });
 }
 
-fn create_main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> Option<tauri::WebviewWindow<R>> {
+pub(crate) fn create_main_window<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+) -> Option<tauri::WebviewWindow<R>> {
     let window_config = app
         .config()
         .app
@@ -83,14 +132,14 @@ fn create_main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> Option<tauri::We
     builder.build().ok()
 }
 
-fn get_or_create_main_window<R: tauri::Runtime>(
+pub(crate) fn get_or_create_main_window<R: tauri::Runtime>(
     app: &AppHandle<R>,
 ) -> Option<tauri::WebviewWindow<R>> {
     app.get_webview_window("main")
         .or_else(|| create_main_window(app))
 }
 
-fn show_main_window<R: tauri::Runtime>(app: &AppHandle<R>) {
+pub(crate) fn show_main_window_now<R: tauri::Runtime>(app: &AppHandle<R>) {
     if let Some(window) = get_or_create_main_window(app) {
         let _ = window.show();
         let _ = window.unminimize();
@@ -98,7 +147,18 @@ fn show_main_window<R: tauri::Runtime>(app: &AppHandle<R>) {
     }
 }
 
-fn setup_tray<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+fn show_main_window<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+    tray_webview_destroy_state: &Arc<TrayWebviewDestroyState>,
+) {
+    tray_webview_destroy_state.cancel_pending();
+    show_main_window_now(app);
+}
+
+fn setup_tray<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+    tray_webview_destroy_state: Arc<TrayWebviewDestroyState>,
+) -> tauri::Result<()> {
     let mod_profile = mod_profile::get();
     let locale = crate::utils::settings::load_or_init_settings(app)
         .map(|settings| settings.ui_locale)
@@ -111,11 +171,24 @@ fn setup_tray<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let exit_item = MenuItem::with_id(app, TRAY_MENU_EXIT_ID, exit_label, true, None::<&str>)?;
     let tray_menu = Menu::with_items(app, &[&launch_item, &show_item, &exit_item])?;
 
+    let tray_webview_destroy_state_for_tray = tray_webview_destroy_state.clone();
     let mut tray_builder = TrayIconBuilder::with_id(TRAY_ID)
         .menu(&tray_menu)
         .show_menu_on_left_click(false)
         .tooltip(mod_profile.branding.tray_tooltip.clone())
-        .on_tray_icon_event(|tray, event| {
+        .on_tray_icon_event(move |tray, event| {
+            if matches!(
+                event,
+                TrayIconEvent::Click {
+                    button: MouseButton::Left,
+                    button_state: MouseButtonState::Down,
+                    ..
+                }
+            ) {
+                let _ = get_or_create_main_window(tray.app_handle());
+                return;
+            }
+
             if matches!(
                 event,
                 TrayIconEvent::Click {
@@ -124,7 +197,7 @@ fn setup_tray<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                     ..
                 }
             ) {
-                show_main_window(tray.app_handle());
+                show_main_window(tray.app_handle(), &tray_webview_destroy_state_for_tray);
             }
         });
 
@@ -145,6 +218,12 @@ pub fn run() {
     let bypass_close_to_tray_for_menu = bypass_close_to_tray.clone();
     let bypass_close_to_tray_for_window = bypass_close_to_tray.clone();
     let bypass_close_to_tray_for_exit = bypass_close_to_tray.clone();
+    let tray_webview_destroy_state = Arc::new(TrayWebviewDestroyState::new());
+    let tray_webview_destroy_state_for_single_instance = tray_webview_destroy_state.clone();
+    let tray_webview_destroy_state_for_menu = tray_webview_destroy_state.clone();
+    let tray_webview_destroy_state_for_window = tray_webview_destroy_state.clone();
+    let tray_webview_destroy_state_for_setup = tray_webview_destroy_state.clone();
+    let tray_webview_destroy_state_for_autolaunch = tray_webview_destroy_state.clone();
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(
@@ -153,12 +232,13 @@ pub fn run() {
                     start_modded_autolaunch(
                         app.clone(),
                         bypass_close_to_tray_for_single_instance.clone(),
+                        tray_webview_destroy_state_for_single_instance.clone(),
                         false,
                     );
                     return;
                 }
 
-                show_main_window(app);
+                show_main_window(app, &tray_webview_destroy_state_for_single_instance);
             },
         ))
         .plugin(tauri_plugin_opener::init())
@@ -167,13 +247,15 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .on_menu_event(move |app, event| {
             if event.id() == TRAY_MENU_SHOW_ID {
-                show_main_window(app);
+                show_main_window(app, &tray_webview_destroy_state_for_menu);
                 return;
             }
 
             if event.id() == TRAY_MENU_LAUNCH_ID {
                 let app_handle = app.clone();
                 let _bypass_close_to_tray_for_menu = bypass_close_to_tray_for_menu.clone();
+                let tray_webview_destroy_state_for_launch =
+                    tray_webview_destroy_state_for_menu.clone();
                 tauri::async_runtime::spawn(async move {
                     match commands::launch::launch_modded_from_saved_settings(app_handle.clone())
                         .await
@@ -183,7 +265,7 @@ pub fn run() {
                         }
                         Err(error) => {
                             commands::launch::set_autolaunch_error(error);
-                            show_main_window(&app_handle);
+                            show_main_window(&app_handle, &tray_webview_destroy_state_for_launch);
                         }
                     }
                 });
@@ -216,10 +298,12 @@ pub fn run() {
 
                 if close_to_tray.0 {
                     api.prevent_close();
+                    let _ = window.hide();
                     if close_to_tray.1 {
-                        let _ = window.destroy();
+                        tray_webview_destroy_state_for_window
+                            .schedule_destroy(window.app_handle().clone());
                     } else {
-                        let _ = window.hide();
+                        tray_webview_destroy_state_for_window.cancel_pending();
                     }
                 }
             }
@@ -228,16 +312,22 @@ pub fn run() {
             crate::utils::mod_profile::validate().map_err(
                 |error| -> Box<dyn std::error::Error> { Box::new(std::io::Error::other(error)) },
             )?;
-            setup_tray(app.handle())?;
+            setup_tray(app.handle(), tray_webview_destroy_state_for_setup.clone())?;
+            crate::utils::background_notifications::start_worker(app.handle().clone());
 
             if auto_launch_modded {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.hide();
                 }
 
-                start_modded_autolaunch(app.handle().clone(), bypass_close_to_tray.clone(), true);
+                start_modded_autolaunch(
+                    app.handle().clone(),
+                    bypass_close_to_tray.clone(),
+                    tray_webview_destroy_state_for_autolaunch.clone(),
+                    true,
+                );
             } else {
-                show_main_window(app.handle());
+                show_main_window(app.handle(), &tray_webview_destroy_state_for_setup);
             }
 
             Ok(())
@@ -280,6 +370,7 @@ pub fn run() {
             commands::reporting::reporting_report_send,
             commands::reporting::reporting_notification_flag_get,
             commands::reporting::reporting_log_source_get,
+            commands::notifications::notifications_take_open_target,
             commands::launch::launch_modded,
             commands::launch::launch_vanilla,
             commands::launch::launch_shortcut_create,

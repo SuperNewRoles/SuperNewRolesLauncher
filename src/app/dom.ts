@@ -14,6 +14,9 @@ export interface AppDom {
   closeToTrayOnCloseInput: HTMLInputElement;
   closeWebviewOnTrayBackgroundInput: HTMLInputElement;
   settingsGeneralStatus: HTMLSpanElement;
+  reportNotificationsEnabledInput: HTMLInputElement;
+  announceNotificationsEnabledInput: HTMLInputElement;
+  settingsNotificationsStatus: HTMLSpanElement;
   settingsShortcutStatus: HTMLSpanElement;
   uninstallButton: HTMLButtonElement;
   settingsSupportDiscordLinkButton: HTMLButtonElement;
@@ -134,6 +137,13 @@ export function collectAppDom(): AppDom {
       "#close-webview-on-tray-background",
     ),
     settingsGeneralStatus: mustElement<HTMLSpanElement>("#settings-general-status"),
+    reportNotificationsEnabledInput: mustElement<HTMLInputElement>(
+      "#settings-report-notifications-enabled",
+    ),
+    announceNotificationsEnabledInput: mustElement<HTMLInputElement>(
+      "#settings-announce-notifications-enabled",
+    ),
+    settingsNotificationsStatus: mustElement<HTMLSpanElement>("#settings-notifications-status"),
     settingsShortcutStatus: mustElement<HTMLSpanElement>("#settings-shortcut-status"),
     uninstallButton: mustElement<HTMLButtonElement>("#uninstall-snr"),
     settingsSupportDiscordLinkButton: optionalElement("#settings-support-discord-link", "button"),

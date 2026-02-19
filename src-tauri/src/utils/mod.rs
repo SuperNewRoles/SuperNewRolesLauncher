@@ -1,3 +1,4 @@
+pub mod background_notifications;
 pub mod download;
 pub mod epic_api;
 pub mod finder;

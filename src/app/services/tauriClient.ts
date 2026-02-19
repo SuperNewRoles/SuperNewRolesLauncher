@@ -8,6 +8,7 @@ import type {
   MigrationExportResult,
   MigrationImportResult,
   MigrationPasswordValidationResult,
+  NotificationOpenTarget,
   PreservedSaveDataStatus,
   PresetExportResult,
   PresetImportResult,
@@ -220,6 +221,10 @@ export function reportingNotificationFlagGet(): Promise<boolean> {
 
 export function reportingLogSourceGet(): Promise<ReportingLogSourceInfo> {
   return invoke<ReportingLogSourceInfo>("reporting_log_source_get");
+}
+
+export function notificationsTakeOpenTarget(): Promise<NotificationOpenTarget | null> {
+  return invoke<NotificationOpenTarget | null>("notifications_take_open_target");
 }
 
 // 起動関連API

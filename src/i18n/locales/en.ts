@@ -35,6 +35,8 @@ const en: Record<keyof typeof ja, string> = {
   "launcher.openProfileFolder": "Open profile folder",
   "launcher.closeToTrayOnClose": "Keep running in background when closing window",
   "launcher.closeWebviewOnTrayBackground": "Save memory while running in background",
+  "launcher.reportNotificationsEnabled": "Enable report notifications",
+  "launcher.announceNotificationsEnabled": "Enable announcement notifications",
   "launcher.installSnr": "Install {modShort}",
   "launcher.restoreSavedDataOnInstall": "Restore preserved save data",
   "launcher.uninstallMod": "Uninstall Mod",
@@ -47,11 +49,13 @@ const en: Record<keyof typeof ja, string> = {
   "settings.tab": "Settings",
   "preset.tab": "Presets",
   "settings.category.general": "General",
+  "settings.category.notifications": "Notifications",
   "settings.category.migration": "Data Migration",
   "settings.category.appVersion": "App Version",
   "settings.appVersion.description": "Check the current launcher version and update status.",
   "settings.appVersion.badge": "Launcher",
   "settings.general.title": "General Settings",
+  "settings.notifications.title": "Notification Settings",
   "settings.general.reselectAmongUs": "Reselect Among Us",
   "settings.general.shortcutTitle": "Shortcut",
   "settings.general.shortcutDescription":
@@ -276,6 +280,9 @@ const en: Record<keyof typeof ja, string> = {
   "settings.closeToTrayOnCloseSaved": "Close behavior saved: run in background = {state}",
   "settings.closeWebviewOnTrayBackgroundSaved":
     "Saved memory usage settings for background processes = {state}",
+  "settings.reportNotificationsEnabledSaved": "Saved report notification setting: {state}",
+  "settings.announceNotificationsEnabledSaved":
+    "Saved announcement notification setting: {state}",
   "settings.platformChanged": "Platform changed to {platform}.",
   "settings.tagSelected": "Selected tag: {tag}",
 

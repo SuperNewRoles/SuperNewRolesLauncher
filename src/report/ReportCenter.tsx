@@ -20,6 +20,8 @@ const PANEL_CLOSE_ANIMATION_MS = 300;
 
 interface ReportCenterProps {
   t: Translator;
+  openThreadId?: string | null;
+  onOpenThreadHandled?: (threadId: string) => void;
 }
 
 function formatActionError(error: unknown): string {
@@ -27,7 +29,7 @@ function formatActionError(error: unknown): string {
   return raw.replace(/^Error invoking '[^']+':\s*/u, "").trim() || raw;
 }
 
-export function ReportCenter({ t }: ReportCenterProps) {
+export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCenterProps) {
   const [isReady, setIsReady] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [threads, setThreads] = useState<ReportThread[]>([]);
@@ -45,6 +47,8 @@ export function ReportCenter({ t }: ReportCenterProps) {
   const reportThreadsLoadingRef = useRef(false);
   const messageCacheRef = useRef<Map<string, ReportMessage[]>>(new Map());
   const messageRequestIdRef = useRef(0);
+  const openThreadReloadRequestedRef = useRef<string | null>(null);
+  const handledOpenThreadIdRef = useRef<string | null>(null);
 
   const clearClosePanelTimeout = useCallback(() => {
     if (closePanelTimeoutRef.current !== null) {
@@ -193,6 +197,32 @@ export function ReportCenter({ t }: ReportCenterProps) {
     },
     [clearClosePanelTimeout],
   );
+
+  useEffect(() => {
+    if (!openThreadId) {
+      openThreadReloadRequestedRef.current = null;
+      handledOpenThreadIdRef.current = null;
+      return;
+    }
+    if (handledOpenThreadIdRef.current === openThreadId) {
+      return;
+    }
+
+    const targetThread = threads.find((thread) => thread.threadId === openThreadId);
+    if (targetThread) {
+      openThreadReloadRequestedRef.current = null;
+      handledOpenThreadIdRef.current = openThreadId;
+      handleThreadSelect(targetThread);
+      onOpenThreadHandled?.(openThreadId);
+      return;
+    }
+
+    if (openThreadReloadRequestedRef.current === openThreadId) {
+      return;
+    }
+    openThreadReloadRequestedRef.current = openThreadId;
+    void loadThreads({ force: true });
+  }, [handleThreadSelect, loadThreads, onOpenThreadHandled, openThreadId, threads]);
 
   const handleClosePanel = useCallback(() => {
     setIsPanelOpen(false);

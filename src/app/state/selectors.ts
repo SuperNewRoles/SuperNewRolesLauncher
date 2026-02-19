@@ -24,6 +24,8 @@ export interface ControlState {
   openProfileFolderButtonDisabled: boolean;
   closeToTrayOnCloseInputDisabled: boolean;
   closeWebviewOnTrayBackgroundInputDisabled: boolean;
+  reportNotificationsEnabledInputDisabled: boolean;
+  announceNotificationsEnabledInputDisabled: boolean;
   migrationExportButtonDisabled: boolean;
   migrationImportButtonDisabled: boolean;
   migrationImportPathInputDisabled: boolean;
@@ -146,6 +148,10 @@ export function computeControlState(state: AppStateSnapshot): ControlState {
       installOrUninstallBusy ||
       dataTransferBusy ||
       !closeToTrayEnabled,
+    reportNotificationsEnabledInputDisabled:
+      state.launchInProgress || installOrUninstallBusy || dataTransferBusy,
+    announceNotificationsEnabledInputDisabled:
+      state.launchInProgress || installOrUninstallBusy || dataTransferBusy,
     migrationExportButtonDisabled:
       !hasSettings ||
       dataTransferBusy ||
