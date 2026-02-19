@@ -66,6 +66,8 @@ pub struct ReportNotificationThread {
     pub thread_id: String,
     pub thread_name: String,
     pub latest_message: String,
+    pub latest_message_id: String,
+    pub latest_message_created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -158,6 +160,20 @@ struct NotificationThreadItem {
     thread_name: Option<String>,
     #[serde(alias = "message")]
     latest_message: Option<String>,
+    #[serde(
+        alias = "message_id",
+        alias = "messageId",
+        alias = "latest_message_id",
+        alias = "latestMessageId"
+    )]
+    latest_message_id: Option<String>,
+    #[serde(
+        alias = "created_at",
+        alias = "createdAt",
+        alias = "latest_message_created_at",
+        alias = "latestMessageCreatedAt"
+    )]
+    latest_message_created_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -946,6 +962,8 @@ pub async fn get_notifications<R: Runtime>(
             thread_id: item.thread_id.unwrap_or_default(),
             thread_name: item.thread_name.unwrap_or_default(),
             latest_message: item.latest_message.unwrap_or_default(),
+            latest_message_id: item.latest_message_id.unwrap_or_default(),
+            latest_message_created_at: item.latest_message_created_at.unwrap_or_default(),
         })
         .collect::<Vec<_>>();
 

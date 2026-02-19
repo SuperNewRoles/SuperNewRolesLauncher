@@ -21,6 +21,8 @@ const TRAY_ID: &str = "main-tray";
 const TRAY_MENU_SHOW_ID: &str = "tray_show";
 const TRAY_MENU_LAUNCH_ID: &str = "tray_launch";
 const TRAY_MENU_EXIT_ID: &str = "tray_exit";
+// Keep the hidden webview alive for 30 minutes so short tray sessions do not
+// repeatedly pay window teardown/startup costs, while still eventually freeing memory.
 const TRAY_WEBVIEW_KEEPALIVE_MS: u64 = 30 * 60 * 1000;
 
 #[derive(Debug)]
@@ -211,6 +213,7 @@ fn setup_tray<R: tauri::Runtime>(
                     ..
                 }
             ) {
+                tray_webview_destroy_state_for_tray.cancel_pending();
                 let _ = get_or_create_main_window(tray.app_handle());
                 return;
             }

@@ -161,7 +161,12 @@ impl BackgroundNotificationWorker {
                 thread.thread_name.trim().to_string()
             };
 
-            let message_key = report_latest_message_key(&thread_id, &thread.latest_message);
+            let message_key = report_latest_message_key(
+                &thread_id,
+                &thread.latest_message,
+                &thread.latest_message_id,
+                &thread.latest_message_created_at,
+            );
             if message_key.is_empty() {
                 continue;
             }
@@ -346,34 +351,46 @@ pub fn start_worker<R: Runtime + 'static>(app: AppHandle<R>) {
         let mut next_announce_poll = Instant::now();
 
         loop {
-            let now = Instant::now();
-            let should_poll_report = now >= next_report_poll;
-            let should_poll_announce = now >= next_announce_poll;
+            let tick_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let now = Instant::now();
+                let should_poll_report = now >= next_report_poll;
+                let should_poll_announce = now >= next_announce_poll;
 
-            if should_poll_report || should_poll_announce {
-                let current_settings = settings::load_or_init_settings(&app).ok();
-                let report_enabled = current_settings
-                    .as_ref()
-                    .map(|s| s.report_notifications_enabled)
-                    .unwrap_or(true);
-                let announce_enabled = current_settings
-                    .as_ref()
-                    .map(|s| s.announce_notifications_enabled)
-                    .unwrap_or(true);
-                let locale = current_settings
-                    .as_ref()
-                    .map(|s| normalize_locale(&s.ui_locale))
-                    .unwrap_or("ja");
-                let suppress_notifications = is_main_window_visible(&app);
+                if should_poll_report || should_poll_announce {
+                    let current_settings = settings::load_settings_or_default(&app).ok();
+                    let report_enabled = current_settings
+                        .as_ref()
+                        .map(|s| s.report_notifications_enabled)
+                        .unwrap_or(true);
+                    let announce_enabled = current_settings
+                        .as_ref()
+                        .map(|s| s.announce_notifications_enabled)
+                        .unwrap_or(true);
+                    let locale = current_settings
+                        .as_ref()
+                        .map(|s| normalize_locale(&s.ui_locale))
+                        .unwrap_or("ja");
+                    let suppress_notifications = is_main_window_visible(&app);
 
-                if should_poll_report {
-                    worker.poll_report(&app, report_enabled, suppress_notifications);
-                    next_report_poll = now + REPORT_POLL_INTERVAL;
+                    if should_poll_report {
+                        worker.poll_report(&app, report_enabled, suppress_notifications);
+                        next_report_poll = now + REPORT_POLL_INTERVAL;
+                    }
+                    if should_poll_announce {
+                        worker.poll_announce(
+                            &app,
+                            announce_enabled,
+                            locale,
+                            suppress_notifications,
+                        );
+                        next_announce_poll = now + ANNOUNCE_POLL_INTERVAL;
+                    }
                 }
-                if should_poll_announce {
-                    worker.poll_announce(&app, announce_enabled, locale, suppress_notifications);
-                    next_announce_poll = now + ANNOUNCE_POLL_INTERVAL;
-                }
+            }));
+            if tick_result.is_err() {
+                eprintln!(
+                    "[background-notifications] worker tick panicked; continuing notification loop"
+                );
             }
 
             std::thread::sleep(WORKER_TICK_INTERVAL);
@@ -407,14 +424,32 @@ fn normalize_locale(value: &str) -> &'static str {
     }
 }
 
-fn report_latest_message_key(thread_id: &str, latest_message: &str) -> String {
+fn report_latest_message_key(
+    thread_id: &str,
+    latest_message: &str,
+    latest_message_id: &str,
+    latest_message_created_at: &str,
+) -> String {
     let normalized_thread_id = thread_id.trim();
     if normalized_thread_id.is_empty() {
         return String::new();
     }
 
+    let normalized_message_id = latest_message_id.trim();
+    if !normalized_message_id.is_empty() {
+        return format!("{normalized_thread_id}:id:{normalized_message_id}");
+    }
+
+    let normalized_created_at = latest_message_created_at.trim();
+    if !normalized_created_at.is_empty() {
+        return format!(
+            "{normalized_thread_id}:created:{normalized_created_at}:{}",
+            condense_whitespace(latest_message.trim())
+        );
+    }
+
     format!(
-        "{normalized_thread_id}:{}",
+        "{normalized_thread_id}:body:{}",
         condense_whitespace(latest_message.trim())
     )
 }
@@ -510,13 +545,49 @@ fn condense_whitespace(value: &str) -> String {
 
 fn markdown_to_plain_text(value: &str) -> String {
     let mut plain = value.replace("\r\n", "\n").replace('\r', "\n");
-    for marker in [
-        "```", "`", "**", "__", "~~", "###", "##", "#", "*", "_", ">", "[", "]", "(", ")", "!",
-        "-", "|",
-    ] {
+    let mut normalized_lines = Vec::new();
+    for line in plain.lines() {
+        let mut current = line.trim_start();
+        while let Some(next) = strip_markdown_line_prefix(current) {
+            current = next;
+        }
+        normalized_lines.push(current);
+    }
+    plain = normalized_lines.join(" ");
+
+    for marker in ["```", "`", "**", "__", "~~"] {
         plain = plain.replace(marker, " ");
     }
     condense_whitespace(&plain)
+}
+
+fn strip_markdown_line_prefix(value: &str) -> Option<&str> {
+    for marker in [
+        "###### ", "##### ", "#### ", "### ", "## ", "# ", "> ", "- ", "* ", "+ ",
+    ] {
+        if let Some(stripped) = value.strip_prefix(marker) {
+            return Some(stripped.trim_start());
+        }
+    }
+
+    let mut chars = value.chars();
+    let mut digit_count = 0usize;
+    while let Some(ch) = chars.next() {
+        if ch.is_ascii_digit() {
+            digit_count += 1;
+            continue;
+        }
+
+        if ch == '.' && digit_count > 0 {
+            let rest = chars.as_str();
+            if let Some(stripped) = rest.strip_prefix(' ') {
+                return Some(stripped.trim_start());
+            }
+        }
+        break;
+    }
+
+    None
 }
 
 fn truncate_chars(value: &str, max_chars: usize) -> String {

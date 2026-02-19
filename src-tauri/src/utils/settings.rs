@@ -147,13 +147,13 @@ pub fn save_settings<R: Runtime>(
     Ok(())
 }
 
-pub fn load_or_init_settings<R: Runtime>(app: &AppHandle<R>) -> Result<LauncherSettings, String> {
+pub fn load_settings_or_default<R: Runtime>(
+    app: &AppHandle<R>,
+) -> Result<LauncherSettings, String> {
     let path = settings_path(app)?;
     let mut default_settings = make_default_settings(app)?;
 
-    // 初回起動では既定値を即保存し、以降の処理を同一フローにそろえる。
     if !path.exists() {
-        save_settings(app, &default_settings)?;
         return Ok(default_settings);
     }
 
@@ -182,10 +182,23 @@ pub fn load_or_init_settings<R: Runtime>(app: &AppHandle<R>) -> Result<LauncherS
     }
     default_settings.onboarding_completed = on_disk.onboarding_completed.unwrap_or(false);
 
+    Ok(normalize_settings(default_settings))
+}
+
+pub fn load_or_init_settings<R: Runtime>(app: &AppHandle<R>) -> Result<LauncherSettings, String> {
+    let path = settings_path(app)?;
+
+    // 初回起動では既定値を即保存し、以降の処理を同一フローにそろえる。
+    if !path.exists() {
+        let default_settings = make_default_settings(app)?;
+        save_settings(app, &default_settings)?;
+        return Ok(default_settings);
+    }
+
+    let settings = load_settings_or_default(app)?;
     // 読み込み直後に正規化して再保存し、以降の設定形式を安定化する。
-    default_settings = normalize_settings(default_settings);
-    save_settings(app, &default_settings)?;
-    Ok(default_settings)
+    save_settings(app, &settings)?;
+    Ok(settings)
 }
 
 pub fn apply_settings_input<R: Runtime>(
