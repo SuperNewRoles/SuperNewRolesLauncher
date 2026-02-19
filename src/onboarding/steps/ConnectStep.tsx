@@ -94,8 +94,8 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
       onBack={onBack}
       nextDisabled={nextDisabled}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: "16px", alignItems: "center" }}>
-        <div>{t("onboarding.connect.body")}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "18px", alignItems: "center" }}>
+        <p style={{ margin: 0, opacity: 0.85, lineHeight: 1.6 }}>{t("onboarding.connect.body")}</p>
         <div className="connect-buttons-section">
           {showConnectLinks && (
             <div className="connect-buttons-row connect-buttons-row-links">
@@ -140,10 +140,10 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
           </div>
         </div>
         {shortcutStatus === "created" && (
-          <div className="status-line success">{t("onboarding.connect.shortcutCreated")}</div>
+          <div className="status-line success" style={{ marginTop: 4 }}>{t("onboarding.connect.shortcutCreated")}</div>
         )}
         {shortcutStatus === "error" && shortcutErrorMessage && (
-          <div className="status-line error">{shortcutErrorMessage}</div>
+          <div className="status-line error" style={{ marginTop: 4 }}>{shortcutErrorMessage}</div>
         )}
       </div>
     </OnboardingLayout>

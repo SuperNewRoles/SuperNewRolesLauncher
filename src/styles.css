@@ -2462,17 +2462,35 @@ progress {
 .connect-buttons-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 20px;
   align-items: center;
   width: 100%;
-  margin-top: 16px;
+  margin-top: 20px;
 }
 
 .connect-buttons-row {
   display: flex;
-  gap: 16px;
+  gap: 14px;
   flex-wrap: wrap;
   justify-content: center;
+}
+
+.connect-buttons-row-actions {
+  position: relative;
+  padding-top: 8px;
+}
+
+.connect-buttons-row-actions::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, transparent, var(--muted), transparent);
+  opacity: 0.35;
 }
 
 .connect-btn {
@@ -2480,75 +2498,151 @@ progress {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  width: 126px;
-  height: 108px;
-  border-radius: 12px;
-  border: none;
+  gap: 10px;
+  width: 132px;
+  height: 112px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1),
+              box-shadow 0.25s cubic-bezier(0.2, 0.7, 0.2, 1),
+              filter 0.25s ease;
   color: white;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: hidden;
+  animation: connect-btn-entrance 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.connect-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,0.18) 0%, transparent 50%);
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.connect-buttons-row .connect-btn:nth-child(1) { animation-delay: 0.04s; }
+.connect-buttons-row .connect-btn:nth-child(2) { animation-delay: 0.1s; }
+.connect-buttons-row .connect-btn:nth-child(3) { animation-delay: 0.16s; }
+
+@keyframes connect-btn-entrance {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .connect-btn .icon {
-  font-size: 2.5rem;
+  font-size: 2.2rem;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(4px);
+  transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1),
+              background 0.25s ease;
 }
 
 .connect-btn .icon svg {
-  width: 2.42rem;
-  height: 2.42rem;
+  width: 1.7rem;
+  height: 1.7rem;
   display: block;
 }
 
 .connect-btn .icon img {
-  width: 2.42rem;
-  height: 2.42rem;
+  width: 1.7rem;
+  height: 1.7rem;
   display: block;
   object-fit: contain;
 }
 
 .connect-btn .label {
-  font-size: 0.9rem;
-  font-weight: bold;
+  font-size: 0.82rem;
+  font-weight: 700;
   text-align: center;
   line-height: 1.2;
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 .connect-btn:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  transform: translateY(-5px) scale(1.04);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18), 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.connect-btn:hover .icon {
+  transform: scale(1.08);
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .connect-btn:active {
-  transform: translateY(-2px);
+  transform: translateY(-2px) scale(1.01);
+  transition-duration: 0.08s;
 }
 
 .connect-btn:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+  filter: saturate(0.6);
+}
+
+.connect-btn:disabled:hover {
+  transform: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.connect-btn:disabled:hover .icon {
+  transform: none;
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .btn-discord {
-  background-color: #5865f2; /* Discord Blurple */
+  background: linear-gradient(135deg, #7289da 0%, #5865f2 100%);
+}
+
+.btn-discord:hover {
+  box-shadow: 0 12px 28px rgba(88, 101, 242, 0.35), 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .btn-twitter {
-  background-color: #000000; /* X Black */
+  background: linear-gradient(135deg, #2a2a2a 0%, #000000 100%);
+}
+
+.btn-twitter:hover {
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35), 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .btn-fanbox {
-  background-color: #06a6f2;
+  background: linear-gradient(135deg, #2ebcff 0%, #06a6f2 100%);
+}
+
+.btn-fanbox:hover {
+  box-shadow: 0 12px 28px rgba(6, 166, 242, 0.35), 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .btn-shortcut {
-  background-color: #27ae60; /* Green */
+  background: linear-gradient(135deg, #36d672 0%, #27ae60 100%);
+}
+
+.btn-shortcut:hover {
+  box-shadow: 0 12px 28px rgba(39, 174, 96, 0.35), 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .btn-shortcut.success {
-  background-color: #27ae60; /* Green */
+  background: linear-gradient(135deg, #36d672 0%, #27ae60 100%);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 /* Loading Spinner */
