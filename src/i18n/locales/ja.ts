@@ -451,13 +451,13 @@ const ja = {
   "installFlow.importingSaveDataPresetMerge": "既存SaveDataのプリセットを統合中...",
   "installFlow.importingPreservedSaveDataPresetMerge": "保持セーブデータのプリセットを統合中...",
   "installFlow.importRetrySkipPrompt":
-    "SaveDataの取り込みに失敗しました。\\n\\n{error}\\n\\nOK: 再試行 / キャンセル: スキップ",
+    "SaveDataの取り込みに失敗しました。\n\n{error}\n\nOK: 再試行 / キャンセル: スキップ",
   "installFlow.importRetrySkipPromptMigration":
-    "お引越しアーカイブの取り込みに失敗しました。\\n\\n{error}\\n\\nOK: 再試行 / キャンセル: スキップ",
+    "お引越しアーカイブの取り込みに失敗しました。\n\n{error}\n\nOK: 再試行 / キャンセル: スキップ",
   "installFlow.importRetrySkipPromptSaveDataPresetMerge":
-    "既存SaveDataプリセットの統合に失敗しました。\\n\\n{error}\\n\\nOK: 再試行 / キャンセル: スキップ",
+    "既存SaveDataプリセットの統合に失敗しました。\n\n{error}\n\nOK: 再試行 / キャンセル: スキップ",
   "installFlow.importRetrySkipPromptPreservedSaveDataPresetMerge":
-    "保持セーブデータプリセットの統合に失敗しました。\\n\\n{error}\\n\\nOK: 再試行 / キャンセル: スキップ",
+    "保持セーブデータプリセットの統合に失敗しました。\n\n{error}\n\nOK: 再試行 / キャンセル: スキップ",
   "installFlow.importSkippedNotice":
     "データ取り込みはスキップされました。必要なら後で再実行してください。理由: {reason}",
 

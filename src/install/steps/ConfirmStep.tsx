@@ -16,6 +16,7 @@ interface ConfirmStepProps {
   showRestoreSaveDataOption: boolean;
   restoreSaveData: boolean;
   onRestoreChange: (value: boolean) => void;
+  installing: boolean;
   onInstall: () => void;
   onBack: () => void;
   error: string | null;
@@ -34,6 +35,7 @@ export default function ConfirmStep({
   showRestoreSaveDataOption,
   restoreSaveData,
   onRestoreChange,
+  installing,
   onInstall,
   onBack,
   error,
@@ -65,7 +67,7 @@ export default function ConfirmStep({
 
   return (
     <div className="install-step install-step-confirm">
-      <button type="button" className="btn-back" onClick={onBack}>
+      <button type="button" className="btn-back" onClick={onBack} disabled={installing}>
         ← {t("installFlow.back")}
       </button>
       <h2 className="step-title">{t("installFlow.confirmTitle")}</h2>
@@ -122,7 +124,7 @@ export default function ConfirmStep({
         )}
       </div>
       <div className="confirm-actions">
-        <button type="button" className="btn-primary" onClick={onInstall}>
+        <button type="button" className="btn-primary" onClick={onInstall} disabled={installing}>
           {t("installFlow.install")}
         </button>
       </div>

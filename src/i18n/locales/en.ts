@@ -458,13 +458,13 @@ const en: Record<keyof typeof ja, string> = {
   "installFlow.importingSaveDataPresetMerge": "Merging presets from existing SaveData...",
   "installFlow.importingPreservedSaveDataPresetMerge": "Merging presets from preserved SaveData...",
   "installFlow.importRetrySkipPrompt":
-    "Failed to import SaveData.\\n\\n{error}\\n\\nOK: Retry / Cancel: Skip",
+    "Failed to import SaveData.\n\n{error}\n\nOK: Retry / Cancel: Skip",
   "installFlow.importRetrySkipPromptMigration":
-    "Failed to import migration archive.\\n\\n{error}\\n\\nOK: Retry / Cancel: Skip",
+    "Failed to import migration archive.\n\n{error}\n\nOK: Retry / Cancel: Skip",
   "installFlow.importRetrySkipPromptSaveDataPresetMerge":
-    "Failed to merge presets from existing SaveData.\\n\\n{error}\\n\\nOK: Retry / Cancel: Skip",
+    "Failed to merge presets from existing SaveData.\n\n{error}\n\nOK: Retry / Cancel: Skip",
   "installFlow.importRetrySkipPromptPreservedSaveDataPresetMerge":
-    "Failed to merge presets from preserved SaveData.\\n\\n{error}\\n\\nOK: Retry / Cancel: Skip",
+    "Failed to merge presets from preserved SaveData.\n\n{error}\n\nOK: Retry / Cancel: Skip",
   "installFlow.importSkippedNotice":
     "Data import was skipped. You can retry later if needed. Reason: {reason}",
 
