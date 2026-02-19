@@ -2,10 +2,7 @@ import type { MessageKey } from "../i18n";
 
 const UNKNOWN_IMPORT_ERROR_MESSAGE = "Unknown import error";
 
-type Translator = (
-  key: MessageKey,
-  params?: Record<string, string | number>,
-) => string;
+type Translator = (key: MessageKey, params?: Record<string, string | number>) => string;
 
 interface RunImportOperationWithRetryPromptOptions {
   operation: () => Promise<unknown>;

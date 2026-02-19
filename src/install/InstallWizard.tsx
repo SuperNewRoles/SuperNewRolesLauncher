@@ -38,8 +38,8 @@ import {
   saveLocale,
 } from "../i18n";
 import type { MessageKey } from "../i18n";
-import { runImportOperationWithRetryPrompt } from "./importErrorDialogPolicy";
 import StepTransition from "./StepTransition";
+import { runImportOperationWithRetryPrompt } from "./importErrorDialogPolicy";
 import CompleteStep from "./steps/CompleteStep";
 import ConfirmStep from "./steps/ConfirmStep";
 import DetectingStep from "./steps/DetectingStep";

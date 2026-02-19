@@ -2520,20 +2520,30 @@ progress {
   cursor: pointer;
   text-align: left;
   position: relative;
-  transition: background 0.18s ease,
-              border-color 0.18s ease,
-              box-shadow 0.18s ease,
-              transform 0.18s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s
+    cubic-bezier(0.2, 0.7, 0.2, 1);
   animation: connect-card-in 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
-.connect-card-list .connect-card:nth-child(1) { animation-delay: 0.03s; }
-.connect-card-list .connect-card:nth-child(2) { animation-delay: 0.08s; }
-.connect-card-list .connect-card:nth-child(3) { animation-delay: 0.13s; }
+.connect-card-list .connect-card:nth-child(1) {
+  animation-delay: 0.03s;
+}
+.connect-card-list .connect-card:nth-child(2) {
+  animation-delay: 0.08s;
+}
+.connect-card-list .connect-card:nth-child(3) {
+  animation-delay: 0.13s;
+}
 
 @keyframes connect-card-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Icon circle */
@@ -2569,7 +2579,7 @@ progress {
   color: #5865f2;
 }
 .connect-card[data-brand="twitter"] .connect-card-icon {
-  background: rgba(60, 60, 60, 0.10);
+  background: rgba(60, 60, 60, 0.1);
   color: var(--text);
 }
 .connect-card[data-brand="fanbox"] .connect-card-icon {
@@ -2584,7 +2594,7 @@ progress {
 /* Dark-mode overrides for brand tints */
 :root[data-theme="dark"] .connect-card[data-brand="discord"] .connect-card-icon,
 [data-theme="dark"] .connect-card[data-brand="discord"] .connect-card-icon {
-  background: rgba(88, 101, 242, 0.20);
+  background: rgba(88, 101, 242, 0.2);
 }
 :root[data-theme="dark"] .connect-card[data-brand="twitter"] .connect-card-icon,
 [data-theme="dark"] .connect-card[data-brand="twitter"] .connect-card-icon {
@@ -2593,11 +2603,11 @@ progress {
 }
 :root[data-theme="dark"] .connect-card[data-brand="fanbox"] .connect-card-icon,
 [data-theme="dark"] .connect-card[data-brand="fanbox"] .connect-card-icon {
-  background: rgba(6, 166, 242, 0.20);
+  background: rgba(6, 166, 242, 0.2);
 }
 :root[data-theme="dark"] .connect-card[data-brand="shortcut"] .connect-card-icon,
 [data-theme="dark"] .connect-card[data-brand="shortcut"] .connect-card-icon {
-  background: rgba(39, 174, 96, 0.20);
+  background: rgba(39, 174, 96, 0.2);
 }
 
 /* Text area */

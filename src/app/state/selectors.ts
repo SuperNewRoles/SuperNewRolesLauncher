@@ -144,10 +144,7 @@ export function computeControlState(state: AppStateSnapshot): ControlState {
     closeToTrayOnCloseInputDisabled:
       state.launchInProgress || installOrUninstallBusy || dataTransferBusy,
     closeWebviewOnTrayBackgroundInputDisabled:
-      state.launchInProgress ||
-      installOrUninstallBusy ||
-      dataTransferBusy ||
-      !closeToTrayEnabled,
+      state.launchInProgress || installOrUninstallBusy || dataTransferBusy || !closeToTrayEnabled,
     reportNotificationsEnabledInputDisabled:
       state.launchInProgress || installOrUninstallBusy || dataTransferBusy,
     announceNotificationsEnabledInputDisabled:

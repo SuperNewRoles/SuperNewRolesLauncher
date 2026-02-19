@@ -276,8 +276,7 @@ const ja = {
   "settings.closeWebviewOnTrayBackgroundSaved":
     "バックグラウンド常駐中のメモリ節約設定を保存しました: {state}",
   "settings.reportNotificationsEnabledSaved": "報告通知の設定を保存しました: {state}",
-  "settings.announceNotificationsEnabledSaved":
-    "アナウンス通知の設定を保存しました: {state}",
+  "settings.announceNotificationsEnabledSaved": "アナウンス通知の設定を保存しました: {state}",
   "settings.platformChanged": "プラットフォームを {platform} に変更しました。",
   "settings.tagSelected": "選択タグ: {tag}",
 

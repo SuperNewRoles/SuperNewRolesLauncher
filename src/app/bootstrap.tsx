@@ -445,7 +445,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     themeToggleLight,
     themeToggleDark,
   } = collectAppDom();
-  const closeToTrayOnCloseRow = closeToTrayOnCloseInput.closest<HTMLElement>(".settings-switch-row");
+  const closeToTrayOnCloseRow =
+    closeToTrayOnCloseInput.closest<HTMLElement>(".settings-switch-row");
   const closeWebviewOnTrayBackgroundRow =
     closeWebviewOnTrayBackgroundInput.closest<HTMLElement>(".settings-switch-row");
   const reportNotificationsEnabledRow =
@@ -1547,20 +1548,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     openAmongUsFolderButton.disabled = control.openAmongUsFolderButtonDisabled;
     openProfileFolderButton.disabled = control.openProfileFolderButtonDisabled;
     closeToTrayOnCloseInput.disabled = control.closeToTrayOnCloseInputDisabled;
-    closeWebviewOnTrayBackgroundInput.disabled =
-      control.closeWebviewOnTrayBackgroundInputDisabled;
+    closeWebviewOnTrayBackgroundInput.disabled = control.closeWebviewOnTrayBackgroundInputDisabled;
     reportNotificationsEnabledInput.disabled = control.reportNotificationsEnabledInputDisabled;
     announceNotificationsEnabledInput.disabled = control.announceNotificationsEnabledInputDisabled;
     syncSwitchRowDisabledState(closeToTrayOnCloseInput, closeToTrayOnCloseRow);
-    syncSwitchRowDisabledState(
-      closeWebviewOnTrayBackgroundInput,
-      closeWebviewOnTrayBackgroundRow,
-    );
+    syncSwitchRowDisabledState(closeWebviewOnTrayBackgroundInput, closeWebviewOnTrayBackgroundRow);
     syncSwitchRowDisabledState(reportNotificationsEnabledInput, reportNotificationsEnabledRow);
-    syncSwitchRowDisabledState(
-      announceNotificationsEnabledInput,
-      announceNotificationsEnabledRow,
-    );
+    syncSwitchRowDisabledState(announceNotificationsEnabledInput, announceNotificationsEnabledRow);
     const migrationProcessing = migrationExporting || migrationImporting;
     migrationExportButton.disabled = !MIGRATION_ENABLED || control.migrationExportButtonDisabled;
     migrationImportButton.disabled = !MIGRATION_ENABLED || control.migrationImportButtonDisabled;

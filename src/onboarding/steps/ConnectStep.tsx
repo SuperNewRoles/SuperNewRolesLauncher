@@ -87,18 +87,18 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
   };
 
   return (
-    <OnboardingLayout
-      t={t}
-      onNext={onNext}
-      onBack={onBack}
-      nextDisabled={nextDisabled}
-    >
+    <OnboardingLayout t={t} onNext={onNext} onBack={onBack} nextDisabled={nextDisabled}>
       <div className="connect-section">
         <p className="connect-description">{t("onboarding.connect.body")}</p>
 
         {showConnectLinks && (
           <div className="connect-card-list">
-            <button type="button" className="connect-card" data-brand="discord" onClick={handleDiscord}>
+            <button
+              type="button"
+              className="connect-card"
+              data-brand="discord"
+              onClick={handleDiscord}
+            >
               <span className="connect-card-icon" aria-hidden="true">
                 <SocialIconGraphic icon={SOCIAL_ICON_SPECS.discord} />
               </span>
@@ -106,10 +106,17 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
                 <span className="connect-card-name">Discord</span>
                 <span className="connect-card-sub">{t("onboarding.connect.discordSub")}</span>
               </span>
-              <span className="connect-card-arrow" aria-hidden="true">›</span>
+              <span className="connect-card-arrow" aria-hidden="true">
+                ›
+              </span>
             </button>
 
-            <button type="button" className="connect-card" data-brand="twitter" onClick={handleTwitter}>
+            <button
+              type="button"
+              className="connect-card"
+              data-brand="twitter"
+              onClick={handleTwitter}
+            >
               <span className="connect-card-icon" aria-hidden="true">
                 <SocialIconGraphic icon={SOCIAL_ICON_SPECS.x} />
               </span>
@@ -117,10 +124,17 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
                 <span className="connect-card-name">X (Twitter)</span>
                 <span className="connect-card-sub">{t("onboarding.connect.twitterSub")}</span>
               </span>
-              <span className="connect-card-arrow" aria-hidden="true">›</span>
+              <span className="connect-card-arrow" aria-hidden="true">
+                ›
+              </span>
             </button>
 
-            <button type="button" className="connect-card" data-brand="fanbox" onClick={handleFanbox}>
+            <button
+              type="button"
+              className="connect-card"
+              data-brand="fanbox"
+              onClick={handleFanbox}
+            >
               <span className="connect-card-icon" aria-hidden="true">
                 <SocialIconGraphic icon={SOCIAL_ICON_SPECS.fanbox} />
               </span>
@@ -128,7 +142,9 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
                 <span className="connect-card-name">pixiv FANBOX</span>
                 <span className="connect-card-sub">{t("onboarding.connect.fanboxSub")}</span>
               </span>
-              <span className="connect-card-arrow" aria-hidden="true">›</span>
+              <span className="connect-card-arrow" aria-hidden="true">
+                ›
+              </span>
             </button>
           </div>
         )}
@@ -158,7 +174,9 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
         </div>
 
         {shortcutStatus === "error" && shortcutErrorMessage && (
-          <div className="status-line error" style={{ marginTop: 4 }}>{shortcutErrorMessage}</div>
+          <div className="status-line error" style={{ marginTop: 4 }}>
+            {shortcutErrorMessage}
+          </div>
         )}
       </div>
     </OnboardingLayout>

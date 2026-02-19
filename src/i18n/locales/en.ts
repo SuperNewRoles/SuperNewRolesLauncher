@@ -281,8 +281,7 @@ const en: Record<keyof typeof ja, string> = {
   "settings.closeWebviewOnTrayBackgroundSaved":
     "Saved memory usage settings for background processes = {state}",
   "settings.reportNotificationsEnabledSaved": "Saved report notification setting: {state}",
-  "settings.announceNotificationsEnabledSaved":
-    "Saved announcement notification setting: {state}",
+  "settings.announceNotificationsEnabledSaved": "Saved announcement notification setting: {state}",
   "settings.platformChanged": "Platform changed to {platform}.",
   "settings.tagSelected": "Selected tag: {tag}",
 
