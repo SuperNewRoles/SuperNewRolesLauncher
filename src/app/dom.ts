@@ -12,6 +12,7 @@ export interface AppDom {
   openAmongUsFolderButton: HTMLButtonElement;
   openProfileFolderButton: HTMLButtonElement;
   closeToTrayOnCloseInput: HTMLInputElement;
+  closeWebviewOnTrayBackgroundInput: HTMLInputElement;
   settingsGeneralStatus: HTMLSpanElement;
   settingsShortcutStatus: HTMLSpanElement;
   uninstallButton: HTMLButtonElement;
@@ -129,6 +130,9 @@ export function collectAppDom(): AppDom {
     openAmongUsFolderButton: mustElement<HTMLButtonElement>("#open-among-us-folder"),
     openProfileFolderButton: mustElement<HTMLButtonElement>("#open-profile-folder"),
     closeToTrayOnCloseInput: mustElement<HTMLInputElement>("#close-to-tray-on-close"),
+    closeWebviewOnTrayBackgroundInput: mustElement<HTMLInputElement>(
+      "#close-webview-on-tray-background",
+    ),
     settingsGeneralStatus: mustElement<HTMLSpanElement>("#settings-general-status"),
     settingsShortcutStatus: mustElement<HTMLSpanElement>("#settings-shortcut-status"),
     uninstallButton: mustElement<HTMLButtonElement>("#uninstall-snr"),

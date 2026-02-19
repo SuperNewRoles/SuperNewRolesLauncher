@@ -124,6 +124,7 @@ const MODDED_FIRST_SETUP_POLL_INTERVAL_MS = 500;
 const LAUNCH_ERROR_DISPLAY_MS = 20_000;
 const SETTINGS_OVERLAY_TRANSITION_MS = 220;
 const LOCALE_SWITCH_RELOAD_ANIMATION_FLAG_KEY = "ui.localeSwitchReloadAnimation";
+const LAST_MAIN_TAB_STORAGE_KEY = "ui.lastMainTab";
 const ONBOARDING_SPOTLIGHT_CLASS = "onboarding-spotlight-target";
 const ONBOARDING_SPOTLIGHT_FOCUS_CLASS = "onboarding-spotlight-target-focus";
 const ONBOARDING_EXIT_ANIMATION_MS = 340;
@@ -258,6 +259,26 @@ function consumeLocaleSwitchReloadAnimation(): boolean {
   }
 }
 
+function saveLastMainTab(tabId: MainTabId): void {
+  try {
+    localStorage.setItem(LAST_MAIN_TAB_STORAGE_KEY, tabId);
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function loadLastMainTab(): MainTabId {
+  try {
+    const value = localStorage.getItem(LAST_MAIN_TAB_STORAGE_KEY) ?? "home";
+    if (isMainTabId(value) && isMainTabEnabled(value)) {
+      return value;
+    }
+  } catch {
+    // ignore storage failures
+  }
+  return "home";
+}
+
 function setLocaleSwitchAnimationScrollLock(active: boolean): void {
   document.documentElement.classList.toggle("locale-switch-animating", active);
   document.body.classList.toggle("locale-switch-animating", active);
@@ -334,6 +355,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     openAmongUsFolderButton,
     openProfileFolderButton,
     closeToTrayOnCloseInput,
+    closeWebviewOnTrayBackgroundInput,
     settingsGeneralStatus,
     settingsShortcutStatus,
     uninstallButton,
@@ -456,6 +478,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
 
     activeTab = tabId;
+    saveLastMainTab(tabId);
 
     const reportPanel = document.querySelector<HTMLDivElement>("#tab-report");
     const announcePanel = document.querySelector<HTMLDivElement>("#tab-announce");
@@ -722,7 +745,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let onboardingReturnTab: MainTabId | null = null;
   let reportCenterRoot: Root | null = null;
   let announceCenterRoot: Root | null = null;
-  let activeTab: MainTabId = "home";
+  let activeTab: MainTabId = loadLastMainTab();
   let reportHomeNotificationLastFetchedAt = 0;
   let reportHomeNotificationFetching = false;
   let reportHomeNotificationPollTimer: number | null = null;
@@ -1456,6 +1479,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     openAmongUsFolderButton.disabled = control.openAmongUsFolderButtonDisabled;
     openProfileFolderButton.disabled = control.openProfileFolderButtonDisabled;
     closeToTrayOnCloseInput.disabled = control.closeToTrayOnCloseInputDisabled;
+    closeWebviewOnTrayBackgroundInput.disabled =
+      control.closeWebviewOnTrayBackgroundInputDisabled;
     const migrationProcessing = migrationExporting || migrationImporting;
     migrationExportButton.disabled = !MIGRATION_ENABLED || control.migrationExportButtonDisabled;
     migrationImportButton.disabled = !MIGRATION_ENABLED || control.migrationImportButtonDisabled;
@@ -1575,6 +1600,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       return;
     }
     closeToTrayOnCloseInput.checked = settings.closeToTrayOnClose;
+    closeWebviewOnTrayBackgroundInput.checked = settings.closeWebviewOnTrayBackground;
   }
 
   async function reloadSettings(): Promise<LauncherSettings> {
@@ -2137,6 +2163,18 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     await saveSettings({ closeToTrayOnClose: enabled });
     setGeneralStatusLine(
       t("settings.closeToTrayOnCloseSaved", {
+        state: enabled ? t("common.on") : t("common.off"),
+      }),
+      "success",
+    );
+    updateButtons();
+  });
+
+  closeWebviewOnTrayBackgroundInput.addEventListener("change", async () => {
+    const enabled = closeWebviewOnTrayBackgroundInput.checked;
+    await saveSettings({ closeWebviewOnTrayBackground: enabled });
+    setGeneralStatusLine(
+      t("settings.closeWebviewOnTrayBackgroundSaved", {
         state: enabled ? t("common.on") : t("common.off"),
       }),
       "success",
@@ -3234,6 +3272,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   renderLocalPresetList();
   renderArchivePresetList();
   renderPresetOverlayContent();
+  if (activeTab !== "home") {
+    switchTab(activeTab);
+  }
 
   type VersionDisplayState = "loading" | "ready" | "error";
   type UpdateStatusState =

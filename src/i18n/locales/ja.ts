@@ -32,6 +32,7 @@ const ja = {
   "launcher.openAmongUsFolder": "AmongUsフォルダを開く",
   "launcher.openProfileFolder": "プロファイルフォルダを開く",
   "launcher.closeToTrayOnClose": "閉じる時にバックグラウンド常駐する",
+  "launcher.closeWebviewOnTrayBackground": "バックグラウンド常駐中はメモリを節約する",
   "launcher.installSnr": "{modShort}をインストール",
   "launcher.restoreSavedDataOnInstall": "アンインストール時に保持したセーブデータを復元する",
   "launcher.uninstallMod": "Modをアンインストール",
@@ -268,6 +269,8 @@ const ja = {
 
   "settings.amongUsPathSaved": "Among Usパスを保存しました。",
   "settings.closeToTrayOnCloseSaved": "閉じる時の常駐設定を保存しました: {state}",
+  "settings.closeWebviewOnTrayBackgroundSaved":
+    "バックグラウンド常駐中のメモリ節約設定を保存しました: {state}",
   "settings.platformChanged": "プラットフォームを {platform} に変更しました。",
   "settings.tagSelected": "選択タグ: {tag}",
 

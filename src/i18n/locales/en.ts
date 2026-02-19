@@ -34,6 +34,7 @@ const en: Record<keyof typeof ja, string> = {
   "launcher.openAmongUsFolder": "Open Among Us folder",
   "launcher.openProfileFolder": "Open profile folder",
   "launcher.closeToTrayOnClose": "Keep running in background when closing window",
+  "launcher.closeWebviewOnTrayBackground": "Save memory while running in background",
   "launcher.installSnr": "Install {modShort}",
   "launcher.restoreSavedDataOnInstall": "Restore preserved save data",
   "launcher.uninstallMod": "Uninstall Mod",
@@ -273,6 +274,8 @@ const en: Record<keyof typeof ja, string> = {
 
   "settings.amongUsPathSaved": "Among Us path saved.",
   "settings.closeToTrayOnCloseSaved": "Close behavior saved: run in background = {state}",
+  "settings.closeWebviewOnTrayBackgroundSaved":
+    "Saved memory usage settings for background processes = {state}",
   "settings.platformChanged": "Platform changed to {platform}.",
   "settings.tagSelected": "Selected tag: {tag}",
 

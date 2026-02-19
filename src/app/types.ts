@@ -12,6 +12,7 @@ export interface LauncherSettings {
   selectedReleaseTag: string;
   profilePath: string;
   closeToTrayOnClose: boolean;
+  closeWebviewOnTrayBackground: boolean;
   uiLocale: string;
   onboardingCompleted: boolean;
 }
@@ -22,6 +23,7 @@ export interface LauncherSettingsInput {
   selectedReleaseTag?: string;
   profilePath?: string;
   closeToTrayOnClose?: boolean;
+  closeWebviewOnTrayBackground?: boolean;
   uiLocale?: string;
   onboardingCompleted?: boolean;
 }

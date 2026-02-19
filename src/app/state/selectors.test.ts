@@ -51,6 +51,23 @@ describe("computeControlState", () => {
     expect(result.migrationExportButtonDisabled).toBe(true);
   });
 
+  it("常駐設定がOFFのとき WebView解放スイッチは無効になる", () => {
+    const state = createBaseSnapshot();
+    state.settings = {
+      amongUsPath: "C:/AmongUs",
+      gamePlatform: "steam",
+      selectedReleaseTag: "v1.0.0",
+      profilePath: "C:/profile",
+      closeToTrayOnClose: false,
+      closeWebviewOnTrayBackground: true,
+      uiLocale: "ja",
+      onboardingCompleted: true,
+    };
+
+    const result = computeControlState(state);
+    expect(result.closeWebviewOnTrayBackgroundInputDisabled).toBe(true);
+  });
+
   it("起動可能状態で Vanilla 起動が有効になる", () => {
     const state = createBaseSnapshot();
     state.settings = {
@@ -59,6 +76,7 @@ describe("computeControlState", () => {
       selectedReleaseTag: "v1.0.0",
       profilePath: "C:/profile",
       closeToTrayOnClose: true,
+      closeWebviewOnTrayBackground: true,
       uiLocale: "ja",
       onboardingCompleted: true,
     };
@@ -69,6 +87,7 @@ describe("computeControlState", () => {
     expect(result.launchVanillaButtonDisabled).toBe(false);
     expect(result.launchModdedButtonDisabled).toBe(false);
     expect(result.installButtonDisabled).toBe(false);
+    expect(result.closeWebviewOnTrayBackgroundInputDisabled).toBe(false);
   });
 
   it("ゲーム実行中は launch 系が無効になる", () => {
@@ -79,6 +98,7 @@ describe("computeControlState", () => {
       selectedReleaseTag: "v1.0.0",
       profilePath: "C:/profile",
       closeToTrayOnClose: true,
+      closeWebviewOnTrayBackground: true,
       uiLocale: "ja",
       onboardingCompleted: true,
     };
@@ -99,6 +119,7 @@ describe("computeControlState", () => {
       selectedReleaseTag: "v1.0.0",
       profilePath: "C:/profile",
       closeToTrayOnClose: true,
+      closeWebviewOnTrayBackground: true,
       uiLocale: "ja",
       onboardingCompleted: true,
     };

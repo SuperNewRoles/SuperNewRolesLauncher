@@ -184,6 +184,13 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                         <span class="settings-switch-slider" aria-hidden="true"></span>
                       </span>
                     </label>
+                    <label class="settings-switch-row" for="close-webview-on-tray-background">
+                      <span>${t("launcher.closeWebviewOnTrayBackground")}</span>
+                      <span class="settings-switch-control">
+                        <input id="close-webview-on-tray-background" type="checkbox" />
+                        <span class="settings-switch-slider" aria-hidden="true"></span>
+                      </span>
+                    </label>
                     <div class="settings-general-action-grid">
                       <button id="open-among-us-folder" type="button" class="settings-folder-action-button"><span class="settings-folder-action-icon" aria-hidden="true">📁</span><span>${t("launcher.openAmongUsFolder")}</span></button>
                       <button id="open-profile-folder" type="button" class="settings-folder-action-button"><span class="settings-folder-action-icon" aria-hidden="true">📁</span><span>${t("launcher.openProfileFolder")}</span></button>

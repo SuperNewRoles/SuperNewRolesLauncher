@@ -12,7 +12,7 @@ use std::sync::{
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager,
+    AppHandle, Manager, RunEvent, WebviewWindowBuilder,
 };
 use utils::mod_profile;
 
@@ -72,8 +72,26 @@ fn start_modded_autolaunch<R: tauri::Runtime>(
     });
 }
 
+fn create_main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> Option<tauri::WebviewWindow<R>> {
+    let window_config = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|window| window.label == "main")?;
+    let builder = WebviewWindowBuilder::from_config(app, window_config).ok()?;
+    builder.build().ok()
+}
+
+fn get_or_create_main_window<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+) -> Option<tauri::WebviewWindow<R>> {
+    app.get_webview_window("main")
+        .or_else(|| create_main_window(app))
+}
+
 fn show_main_window<R: tauri::Runtime>(app: &AppHandle<R>) {
-    if let Some(window) = app.get_webview_window("main") {
+    if let Some(window) = get_or_create_main_window(app) {
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
@@ -126,8 +144,9 @@ pub fn run() {
     let bypass_close_to_tray_for_single_instance = bypass_close_to_tray.clone();
     let bypass_close_to_tray_for_menu = bypass_close_to_tray.clone();
     let bypass_close_to_tray_for_window = bypass_close_to_tray.clone();
+    let bypass_close_to_tray_for_exit = bypass_close_to_tray.clone();
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(
             move |app, args, _cwd| {
                 if args_contain_autolaunch_modded(args) {
@@ -188,13 +207,20 @@ pub fn run() {
 
                 let close_to_tray =
                     match crate::utils::settings::load_or_init_settings(window.app_handle()) {
-                        Ok(settings) => settings.close_to_tray_on_close,
-                        Err(_) => true,
+                        Ok(settings) => (
+                            settings.close_to_tray_on_close,
+                            settings.close_webview_on_tray_background,
+                        ),
+                        Err(_) => (true, true),
                     };
 
-                if close_to_tray {
+                if close_to_tray.0 {
                     api.prevent_close();
-                    let _ = window.hide();
+                    if close_to_tray.1 {
+                        let _ = window.destroy();
+                    } else {
+                        let _ = window.hide();
+                    }
                 }
             }
         })
@@ -210,8 +236,8 @@ pub fn run() {
                 }
 
                 start_modded_autolaunch(app.handle().clone(), bypass_close_to_tray.clone(), true);
-            } else if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
+            } else {
+                show_main_window(app.handle());
             }
 
             Ok(())
@@ -268,8 +294,32 @@ pub fn run() {
             commands::epic_commands::epic_status_get,
             commands::epic_commands::epic_logout,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(move |app_handle, event| {
+        if let RunEvent::ExitRequested { api, code, .. } = event {
+            if code.is_some() || bypass_close_to_tray_for_exit.load(Ordering::SeqCst) {
+                return;
+            }
+
+            // No windows + close-to-tray + close-webview mode means this exit was caused
+            // by destroying the main window, so keep the tray process alive.
+            if app_handle.get_webview_window("main").is_none() {
+                let keep_alive_without_window =
+                    match crate::utils::settings::load_or_init_settings(app_handle) {
+                        Ok(settings) => {
+                            settings.close_to_tray_on_close
+                                && settings.close_webview_on_tray_background
+                        }
+                        Err(_) => true,
+                    };
+                if keep_alive_without_window {
+                    api.prevent_exit();
+                }
+            }
+        }
+    });
 }
 
 fn main() {

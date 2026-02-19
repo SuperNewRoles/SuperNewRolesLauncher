@@ -23,6 +23,7 @@ export interface ControlState {
   openAmongUsFolderButtonDisabled: boolean;
   openProfileFolderButtonDisabled: boolean;
   closeToTrayOnCloseInputDisabled: boolean;
+  closeWebviewOnTrayBackgroundInputDisabled: boolean;
   migrationExportButtonDisabled: boolean;
   migrationImportButtonDisabled: boolean;
   migrationImportPathInputDisabled: boolean;
@@ -75,6 +76,7 @@ export function computeControlState(state: AppStateSnapshot): ControlState {
     !installOrUninstallBusy &&
     !dataTransferBusy &&
     !shortcutBusy;
+  const closeToTrayEnabled = state.settings?.closeToTrayOnClose ?? false;
 
   const hasImportableArchivePreset = state.archivePresets.some((preset) => preset.hasDataFile);
   const presetControlsDisabled =
@@ -139,6 +141,11 @@ export function computeControlState(state: AppStateSnapshot): ControlState {
       !hasProfilePath || state.launchInProgress || installOrUninstallBusy || dataTransferBusy,
     closeToTrayOnCloseInputDisabled:
       state.launchInProgress || installOrUninstallBusy || dataTransferBusy,
+    closeWebviewOnTrayBackgroundInputDisabled:
+      state.launchInProgress ||
+      installOrUninstallBusy ||
+      dataTransferBusy ||
+      !closeToTrayEnabled,
     migrationExportButtonDisabled:
       !hasSettings ||
       dataTransferBusy ||

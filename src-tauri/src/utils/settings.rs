@@ -47,6 +47,7 @@ pub struct LauncherSettings {
     pub selected_release_tag: String,
     pub profile_path: String,
     pub close_to_tray_on_close: bool,
+    pub close_webview_on_tray_background: bool,
     pub ui_locale: String,
     pub onboarding_completed: bool,
 }
@@ -59,6 +60,7 @@ struct LauncherSettingsOnDisk {
     selected_release_tag: Option<String>,
     profile_path: Option<String>,
     close_to_tray_on_close: Option<bool>,
+    close_webview_on_tray_background: Option<bool>,
     ui_locale: Option<String>,
     onboarding_completed: Option<bool>,
 }
@@ -71,6 +73,7 @@ pub struct LauncherSettingsInput {
     pub selected_release_tag: Option<String>,
     pub profile_path: Option<String>,
     pub close_to_tray_on_close: Option<bool>,
+    pub close_webview_on_tray_background: Option<bool>,
     pub ui_locale: Option<String>,
     pub onboarding_completed: Option<bool>,
 }
@@ -106,6 +109,7 @@ fn make_default_settings<R: Runtime>(app: &AppHandle<R>) -> Result<LauncherSetti
         selected_release_tag: String::new(),
         profile_path: profile_path.to_string_lossy().to_string(),
         close_to_tray_on_close: true,
+        close_webview_on_tray_background: true,
         ui_locale: "ja".to_string(),
         onboarding_completed: false,
     })
@@ -154,6 +158,8 @@ pub fn load_or_init_settings<R: Runtime>(app: &AppHandle<R>) -> Result<LauncherS
     default_settings.game_platform = on_disk.game_platform.unwrap_or_default();
     default_settings.selected_release_tag = on_disk.selected_release_tag.unwrap_or_default();
     default_settings.close_to_tray_on_close = on_disk.close_to_tray_on_close.unwrap_or(true);
+    default_settings.close_webview_on_tray_background =
+        on_disk.close_webview_on_tray_background.unwrap_or(true);
     default_settings.ui_locale =
         normalize_ui_locale(on_disk.ui_locale.as_deref().unwrap_or("ja")).to_string();
     if let Some(profile_path) = on_disk.profile_path {
@@ -190,6 +196,9 @@ pub fn apply_settings_input<R: Runtime>(
     }
     if let Some(close_to_tray_on_close) = input.close_to_tray_on_close {
         settings.close_to_tray_on_close = close_to_tray_on_close;
+    }
+    if let Some(close_webview_on_tray_background) = input.close_webview_on_tray_background {
+        settings.close_webview_on_tray_background = close_webview_on_tray_background;
     }
     if let Some(ui_locale) = input.ui_locale {
         settings.ui_locale = ui_locale;
