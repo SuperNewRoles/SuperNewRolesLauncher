@@ -17,6 +17,8 @@ interface AnnounceCenterProps {
   locale: LocaleCode;
   t: Translator;
   onArticlesUpdated?: (items: AnnounceArticleMinimal[]) => void;
+  openArticleId?: string | null;
+  onOpenArticleHandled?: (articleId: string) => void;
 }
 
 function formatDateTime(value: string, locale: LocaleCode): string {
@@ -64,7 +66,13 @@ function resolveLatestVisibleCreatedAt(items: AnnounceArticleMinimal[]): number 
   return latestCreatedAt;
 }
 
-export function AnnounceCenter({ locale, t, onArticlesUpdated }: AnnounceCenterProps) {
+export function AnnounceCenter({
+  locale,
+  t,
+  onArticlesUpdated,
+  openArticleId,
+  onOpenArticleHandled,
+}: AnnounceCenterProps) {
   const [readCreatedAt, setReadCreatedAt] = useState<number | null>(() =>
     getAnnounceReadCreatedAt(),
   );
@@ -78,6 +86,9 @@ export function AnnounceCenter({ locale, t, onArticlesUpdated }: AnnounceCenterP
   const [statusMessage, setStatusMessage] = useState<string>("");
   const readCreatedAtRef = useRef<number | null>(readCreatedAt);
   const selectedArticleIdRef = useRef<string | null>(null);
+  const openArticleReloadRequestedRef = useRef<string | null>(null);
+  const handledOpenArticleIdRef = useRef<string | null>(null);
+  const latestDetailRequestIdRef = useRef(0);
   const initialAutoReadPendingRef = useRef(true);
   const articleCacheRef = useRef<Map<string, AnnounceArticle>>(new Map());
   const isMountedRef = useRef(false);
@@ -118,11 +129,23 @@ export function AnnounceCenter({ locale, t, onArticlesUpdated }: AnnounceCenterP
 
   const loadDetail = useCallback(
     async (articleId: string, force = false): Promise<void> => {
+      const requestId = latestDetailRequestIdRef.current + 1;
+      latestDetailRequestIdRef.current = requestId;
+
       if (!force) {
         const cached = articleCacheRef.current.get(articleId);
         if (cached) {
-          setSelectedArticle(cached);
-          setDetailError(null);
+          if (latestDetailRequestIdRef.current === requestId) {
+            setLoadingDetail(false);
+          }
+          if (
+            isMountedRef.current &&
+            latestDetailRequestIdRef.current === requestId &&
+            selectedArticleIdRef.current === articleId
+          ) {
+            setSelectedArticle(cached);
+            setDetailError(null);
+          }
           return;
         }
       }
@@ -132,18 +155,20 @@ export function AnnounceCenter({ locale, t, onArticlesUpdated }: AnnounceCenterP
 
       try {
         const detail = await announceGetArticle(articleId, locale);
-        if (!isMountedRef.current) {
+        if (!isMountedRef.current || latestDetailRequestIdRef.current !== requestId) {
           return;
         }
         articleCacheRef.current.set(articleId, detail);
-        setSelectedArticle(detail);
+        if (selectedArticleIdRef.current === articleId) {
+          setSelectedArticle(detail);
+        }
       } catch (error) {
-        if (!isMountedRef.current) {
+        if (!isMountedRef.current || latestDetailRequestIdRef.current !== requestId) {
           return;
         }
         setDetailError(t("announce.detailLoadFailed", { error: String(error) }));
       } finally {
-        if (isMountedRef.current) {
+        if (isMountedRef.current && latestDetailRequestIdRef.current === requestId) {
           setLoadingDetail(false);
         }
       }
@@ -235,6 +260,45 @@ export function AnnounceCenter({ locale, t, onArticlesUpdated }: AnnounceCenterP
       window.clearInterval(timer);
     };
   }, [refreshArticles]);
+
+  useEffect(() => {
+    if (!openArticleId) {
+      openArticleReloadRequestedRef.current = null;
+      handledOpenArticleIdRef.current = null;
+      return;
+    }
+    if (handledOpenArticleIdRef.current === openArticleId) {
+      return;
+    }
+
+    const target = items.find((item) => item.id === openArticleId);
+    if (!target) {
+      if (openArticleReloadRequestedRef.current !== openArticleId) {
+        openArticleReloadRequestedRef.current = openArticleId;
+        void refreshArticles(true);
+        return;
+      }
+
+      // Notification target may not appear in the first page list;
+      // fallback to direct detail fetch so the deep-link still opens.
+      openArticleReloadRequestedRef.current = null;
+      handledOpenArticleIdRef.current = openArticleId;
+      setSelectedArticleId(openArticleId);
+      selectedArticleIdRef.current = openArticleId;
+      setStatusMessage("");
+      void loadDetail(openArticleId, true);
+      onOpenArticleHandled?.(openArticleId);
+      return;
+    }
+
+    openArticleReloadRequestedRef.current = null;
+    handledOpenArticleIdRef.current = openArticleId;
+    setSelectedArticleId(openArticleId);
+    selectedArticleIdRef.current = openArticleId;
+    setStatusMessage("");
+    void loadDetail(openArticleId, true);
+    onOpenArticleHandled?.(openArticleId);
+  }, [items, loadDetail, onOpenArticleHandled, openArticleId, refreshArticles]);
 
   const handleSelectArticle = useCallback(
     (item: AnnounceArticleMinimal): void => {

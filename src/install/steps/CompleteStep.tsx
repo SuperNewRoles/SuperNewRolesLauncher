@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import type { MessageKey } from "../../i18n";
 
+// bootstrap.tsx の locale-switch 入場アニメーション機構を再利用して
+// リロード後のメイン画面にもフェードイン演出を適用する
+const RELOAD_ENTRANCE_ANIMATION_FLAG = "ui.localeSwitchReloadAnimation";
+
+const LEAVE_ANIMATION_MS = 280;
+
 interface CompleteStepProps {
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
   onNext: () => void;
@@ -81,6 +87,7 @@ export default function CompleteStep({
   importSkipReason,
 }: CompleteStepProps) {
   const [showContent, setShowContent] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowContent(true), 320);
@@ -88,12 +95,22 @@ export default function CompleteStep({
   }, []);
 
   const handleNext = () => {
-    onNext();
-    window.location.reload();
+    if (leaving) return;
+    setLeaving(true);
+    window.setTimeout(() => {
+      try {
+        // リロード後のメインレイアウトにフェードイン演出を適用するフラグ
+        sessionStorage.setItem(RELOAD_ENTRANCE_ANIMATION_FLAG, "1");
+      } catch {
+        // storage failure は無視
+      }
+      onNext();
+      window.location.reload();
+    }, LEAVE_ANIMATION_MS);
   };
 
   return (
-    <div className="install-step install-step-complete">
+    <div className={`install-step install-step-complete${leaving ? " leaving" : ""}`}>
       <SuccessIcon />
       <div className={`complete-text-area ${showContent ? "visible" : ""}`}>
         <h2 className="complete-title">{t("installFlow.complete")}</h2>
@@ -107,8 +124,8 @@ export default function CompleteStep({
           </p>
         )}
       </div>
-      <div className={`complete-actions ${showContent ? "visible" : ""}`}>
-        <button type="button" className="btn-primary" onClick={handleNext}>
+      <div className={`complete-actions ${showContent && !leaving ? "visible" : ""}`}>
+        <button type="button" className="btn-primary" onClick={handleNext} disabled={leaving}>
           {t("installFlow.next")}
         </button>
       </div>

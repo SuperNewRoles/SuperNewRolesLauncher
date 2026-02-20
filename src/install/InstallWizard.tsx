@@ -39,6 +39,7 @@ import {
 } from "../i18n";
 import type { MessageKey } from "../i18n";
 import StepTransition from "./StepTransition";
+import { runImportOperationWithRetryPrompt } from "./importErrorDialogPolicy";
 import CompleteStep from "./steps/CompleteStep";
 import ConfirmStep from "./steps/ConfirmStep";
 import DetectingStep from "./steps/DetectingStep";
@@ -87,6 +88,7 @@ export default function InstallWizard() {
     useState<MigrationPasswordValidationState>("idle");
   const [importSkippedAfterFailure, setImportSkippedAfterFailure] = useState(false);
   const [importSkipReason, setImportSkipReason] = useState<string | null>(null);
+  const [installInProgress, setInstallInProgress] = useState(false);
 
   const [detectedPlatforms, setDetectedPlatforms] = useState<DetectedPlatform[]>([]);
   const [releases, setReleases] = useState<SnrReleaseSummary[]>([]);
@@ -97,6 +99,7 @@ export default function InstallWizard() {
   const [epicUserDisplay, setEpicUserDisplay] = useState<string | null>(null);
   const releasesRequestIdRef = useRef(0);
   const migrationPasswordValidationRequestIdRef = useRef(0);
+  const installInProgressRef = useRef(false);
   const installProgressEventName = modConfig.events.installProgress;
   const migrationExtension = modConfig.migration.extension;
   const migrationLegacyExtension = "snrdata";
@@ -367,176 +370,148 @@ export default function InstallWizard() {
   ]);
 
   const onConfirmInstall = useCallback(async () => {
-    if (!platform || !amongUsPath || !releaseTag) {
+    if (installInProgressRef.current) {
       return;
     }
+    installInProgressRef.current = true;
+    setInstallInProgress(true);
 
-    if (importEnabled && importSourceAmongUsPath.trim().length === 0) {
-      setImportPreviewError(t("installFlow.importNotConfigured"));
-      setStep("import");
-      return;
-    }
-    if (MIGRATION_ENABLED && migrationImportEnabled && migrationArchivePath.trim().length === 0) {
-      setMigrationArchiveError(t("installFlow.importArchiveNotConfigured"));
-      setStep("import");
-      return;
-    }
-    if (MIGRATION_ENABLED && migrationImportEnabled && migrationPassword.trim().length === 0) {
-      setMigrationArchiveError(t("installFlow.importArchivePasswordRequired"));
-      setStep("import");
-      return;
-    }
-    if (MIGRATION_ENABLED && migrationImportEnabled) {
-      const validated = await validateMigrationPassword();
-      if (!validated) {
+    try {
+      if (!platform || !amongUsPath || !releaseTag) {
+        return;
+      }
+
+      if (importEnabled && importSourceAmongUsPath.trim().length === 0) {
+        setImportPreviewError(t("installFlow.importNotConfigured"));
         setStep("import");
         return;
       }
-    }
-
-    const markImportSkipped = (reason: string) => {
-      setImportSkippedAfterFailure(true);
-      setImportSkipReason((current) => (current ? `${current} / ${reason}` : reason));
-    };
-
-    const runSaveDataImportFlow = async (): Promise<boolean> => {
-      setProgress(99);
-      setProgressMessage(t("installFlow.importingSaveData"));
-      while (true) {
-        try {
-          await modSaveDataImport(importSourceAmongUsPath);
-          return true;
-        } catch (importError) {
-          const message = String(importError);
-          const shouldRetry = window.confirm(
-            t("installFlow.importRetrySkipPrompt", { error: message }),
-          );
-          if (shouldRetry) {
-            continue;
-          }
-          markImportSkipped(message);
-          return false;
-        }
+      if (MIGRATION_ENABLED && migrationImportEnabled && migrationArchivePath.trim().length === 0) {
+        setMigrationArchiveError(t("installFlow.importArchiveNotConfigured"));
+        setStep("import");
+        return;
       }
-    };
-
-    const runMigrationImportFlow = async (): Promise<boolean> => {
-      setProgress(99);
-      setProgressMessage(t("installFlow.importingMigrationData"));
-      while (true) {
-        try {
-          await migrationImport({
-            archivePath: migrationArchivePath.trim(),
-            password: migrationPassword.trim(),
-          });
-          return true;
-        } catch (importError) {
-          const message = String(importError);
-          const shouldRetry = window.confirm(
-            t("installFlow.importRetrySkipPromptMigration", { error: message }),
-          );
-          if (shouldRetry) {
-            continue;
-          }
-          markImportSkipped(message);
-          return false;
-        }
-      }
-    };
-
-    const runSaveDataPresetMergeFlow = async (): Promise<boolean> => {
-      setProgress(99);
-      setProgressMessage(t("installFlow.importingSaveDataPresetMerge"));
-      while (true) {
-        try {
-          await modSaveDataMergePresets(importSourceAmongUsPath);
-          return true;
-        } catch (mergeError) {
-          const message = String(mergeError);
-          const shouldRetry = window.confirm(
-            t("installFlow.importRetrySkipPromptSaveDataPresetMerge", { error: message }),
-          );
-          if (shouldRetry) {
-            continue;
-          }
-          markImportSkipped(message);
-          return false;
-        }
-      }
-    };
-
-    const runPreservedSaveDataPresetMergeFlow = async (): Promise<boolean> => {
-      setProgress(99);
-      setProgressMessage(t("installFlow.importingPreservedSaveDataPresetMerge"));
-      while (true) {
-        try {
-          await modPreservedSaveDataMergePresets();
-          return true;
-        } catch (mergeError) {
-          const message = String(mergeError);
-          const shouldRetry = window.confirm(
-            t("installFlow.importRetrySkipPromptPreservedSaveDataPresetMerge", { error: message }),
-          );
-          if (shouldRetry) {
-            continue;
-          }
-          markImportSkipped(message);
-          return false;
-        }
-      }
-    };
-
-    setImportSkippedAfterFailure(false);
-    setImportSkipReason(null);
-    setStep("progress");
-    setProgress(0);
-    setProgressMessage(t("install.starting"));
-    setError(null);
-
-    try {
-      await settingsUpdate({
-        amongUsPath,
-        gamePlatform: platform,
-        selectedReleaseTag: releaseTag,
-      });
-      await modInstall({
-        tag: releaseTag,
-        platform,
-        restorePreservedSaveData: preservedSaveDataAvailable && restoreSaveData,
-      });
-
-      let saveDataImported = false;
-      let migrationImported = false;
-
-      if (importEnabled) {
-        saveDataImported = await runSaveDataImportFlow();
+      if (MIGRATION_ENABLED && migrationImportEnabled && migrationPassword.trim().length === 0) {
+        setMigrationArchiveError(t("installFlow.importArchivePasswordRequired"));
+        setStep("import");
+        return;
       }
       if (MIGRATION_ENABLED && migrationImportEnabled) {
-        migrationImported = await runMigrationImportFlow();
-      }
-      if (
-        PRESETS_ENABLED &&
-        MIGRATION_ENABLED &&
-        importEnabled &&
-        migrationImportEnabled &&
-        saveDataImported &&
-        migrationImported
-      ) {
-        await runSaveDataPresetMergeFlow();
-      }
-      if (
-        PRESETS_ENABLED &&
-        preservedSaveDataAvailable &&
-        restoreSaveData &&
-        (saveDataImported || migrationImported)
-      ) {
-        await runPreservedSaveDataPresetMergeFlow();
+        const validated = await validateMigrationPassword();
+        if (!validated) {
+          setStep("import");
+          return;
+        }
       }
 
-      setStep("complete");
-    } catch (e) {
-      setError(String(e));
-      setStep("confirm");
+      const markImportSkipped = (reason: string) => {
+        setImportSkippedAfterFailure(true);
+        setImportSkipReason((current) => (current ? `${current} / ${reason}` : reason));
+      };
+
+      const runSaveDataImportFlow = async (): Promise<boolean> => {
+        setProgress(99);
+        setProgressMessage(t("installFlow.importingSaveData"));
+        return runImportOperationWithRetryPrompt({
+          operation: () => modSaveDataImport(importSourceAmongUsPath),
+          promptKey: "installFlow.importRetrySkipPrompt",
+          t,
+          markImportSkipped,
+        });
+      };
+
+      const runMigrationImportFlow = async (): Promise<boolean> => {
+        setProgress(99);
+        setProgressMessage(t("installFlow.importingMigrationData"));
+        return runImportOperationWithRetryPrompt({
+          operation: () =>
+            migrationImport({
+              archivePath: migrationArchivePath.trim(),
+              password: migrationPassword.trim(),
+            }),
+          promptKey: "installFlow.importRetrySkipPromptMigration",
+          t,
+          markImportSkipped,
+        });
+      };
+
+      const runSaveDataPresetMergeFlow = async (): Promise<boolean> => {
+        setProgress(99);
+        setProgressMessage(t("installFlow.importingSaveDataPresetMerge"));
+        return runImportOperationWithRetryPrompt({
+          operation: () => modSaveDataMergePresets(importSourceAmongUsPath),
+          promptKey: "installFlow.importRetrySkipPromptSaveDataPresetMerge",
+          t,
+          markImportSkipped,
+        });
+      };
+
+      const runPreservedSaveDataPresetMergeFlow = async (): Promise<boolean> => {
+        setProgress(99);
+        setProgressMessage(t("installFlow.importingPreservedSaveDataPresetMerge"));
+        return runImportOperationWithRetryPrompt({
+          operation: () => modPreservedSaveDataMergePresets(),
+          promptKey: "installFlow.importRetrySkipPromptPreservedSaveDataPresetMerge",
+          t,
+          markImportSkipped,
+        });
+      };
+
+      setImportSkippedAfterFailure(false);
+      setImportSkipReason(null);
+      setStep("progress");
+      setProgress(0);
+      setProgressMessage(t("install.starting"));
+      setError(null);
+
+      try {
+        await settingsUpdate({
+          amongUsPath,
+          gamePlatform: platform,
+          selectedReleaseTag: releaseTag,
+        });
+        await modInstall({
+          tag: releaseTag,
+          platform,
+          restorePreservedSaveData: preservedSaveDataAvailable && restoreSaveData,
+        });
+
+        let saveDataImported = false;
+        let migrationImported = false;
+
+        if (importEnabled) {
+          saveDataImported = await runSaveDataImportFlow();
+        }
+        if (MIGRATION_ENABLED && migrationImportEnabled) {
+          migrationImported = await runMigrationImportFlow();
+        }
+        if (
+          PRESETS_ENABLED &&
+          MIGRATION_ENABLED &&
+          importEnabled &&
+          migrationImportEnabled &&
+          saveDataImported &&
+          migrationImported
+        ) {
+          await runSaveDataPresetMergeFlow();
+        }
+        if (
+          PRESETS_ENABLED &&
+          preservedSaveDataAvailable &&
+          restoreSaveData &&
+          (saveDataImported || migrationImported)
+        ) {
+          await runPreservedSaveDataPresetMergeFlow();
+        }
+
+        setStep("complete");
+      } catch (e) {
+        setError(String(e));
+        setStep("confirm");
+      }
+    } finally {
+      installInProgressRef.current = false;
+      setInstallInProgress(false);
     }
   }, [
     platform,
@@ -760,6 +735,7 @@ export default function InstallWizard() {
           showRestoreSaveDataOption={preservedSaveDataAvailable}
           restoreSaveData={restoreSaveData}
           onRestoreChange={setRestoreSaveData}
+          installing={installInProgress}
           onInstall={onConfirmInstall}
           onBack={onBack}
           error={error}

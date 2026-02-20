@@ -60,6 +60,23 @@ pub struct ReportMessage {
     pub mark: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportNotificationThread {
+    pub thread_id: String,
+    pub thread_name: String,
+    pub latest_message: String,
+    pub latest_message_id: String,
+    pub latest_message_created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportNotificationState {
+    pub notification: bool,
+    pub threads: Vec<ReportNotificationThread>,
+}
+
 #[derive(Debug, Clone)]
 pub struct PrepareAccountSummary {
     pub token_source: String,
@@ -133,6 +150,30 @@ struct GetMessagesItem {
 #[derive(Debug, Deserialize)]
 struct NotificationResponse {
     notification: Option<bool>,
+    threads: Option<Vec<NotificationThreadItem>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct NotificationThreadItem {
+    thread_id: Option<String>,
+    #[serde(alias = "title")]
+    thread_name: Option<String>,
+    #[serde(alias = "message")]
+    latest_message: Option<String>,
+    #[serde(
+        alias = "message_id",
+        alias = "messageId",
+        alias = "latest_message_id",
+        alias = "latestMessageId"
+    )]
+    latest_message_id: Option<String>,
+    #[serde(
+        alias = "created_at",
+        alias = "createdAt",
+        alias = "latest_message_created_at",
+        alias = "latestMessageCreatedAt"
+    )]
+    latest_message_created_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -887,7 +928,9 @@ pub async fn send_report<R: Runtime>(
     Ok(())
 }
 
-pub async fn get_notification_flag<R: Runtime>(app: &AppHandle<R>) -> Result<bool, String> {
+pub async fn get_notifications<R: Runtime>(
+    app: &AppHandle<R>,
+) -> Result<ReportNotificationState, String> {
     let client = reporting_client()?;
     let (token, _, _) = resolve_valid_token(app, &client, true).await?;
 
@@ -911,7 +954,27 @@ pub async fn get_notification_flag<R: Runtime>(app: &AppHandle<R>) -> Result<boo
         .await
         .map_err(|e| format!("Failed to parse notification response: {e}"))?;
 
-    Ok(payload.notification.unwrap_or(false))
+    let threads = payload
+        .threads
+        .unwrap_or_default()
+        .into_iter()
+        .map(|item| ReportNotificationThread {
+            thread_id: item.thread_id.unwrap_or_default(),
+            thread_name: item.thread_name.unwrap_or_default(),
+            latest_message: item.latest_message.unwrap_or_default(),
+            latest_message_id: item.latest_message_id.unwrap_or_default(),
+            latest_message_created_at: item.latest_message_created_at.unwrap_or_default(),
+        })
+        .collect::<Vec<_>>();
+
+    Ok(ReportNotificationState {
+        notification: payload.notification.unwrap_or(false),
+        threads,
+    })
+}
+
+pub async fn get_notification_flag<R: Runtime>(app: &AppHandle<R>) -> Result<bool, String> {
+    Ok(get_notifications(app).await?.notification)
 }
 
 pub fn get_log_source_info<R: Runtime>(app: &AppHandle<R>) -> Result<LogSourceInfo, String> {

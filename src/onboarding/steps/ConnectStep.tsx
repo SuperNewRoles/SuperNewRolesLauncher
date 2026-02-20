@@ -87,63 +87,96 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
   };
 
   return (
-    <OnboardingLayout
-      t={t}
-      image={<div className="placeholder-icon">🔗</div>}
-      onNext={onNext}
-      onBack={onBack}
-      nextDisabled={nextDisabled}
-    >
-      <div style={{ display: "flex", flexDirection: "column", gap: "16px", alignItems: "center" }}>
-        <div>{t("onboarding.connect.body")}</div>
-        <div className="connect-buttons-section">
-          {showConnectLinks && (
-            <div className="connect-buttons-row connect-buttons-row-links">
-              <button type="button" className="connect-btn btn-discord" onClick={handleDiscord}>
-                <span className="icon" aria-hidden="true">
-                  <SocialIconGraphic icon={SOCIAL_ICON_SPECS.discord} />
-                </span>
-                <span className="label">Discord</span>
-              </button>
-              <button type="button" className="connect-btn btn-twitter" onClick={handleTwitter}>
-                <span className="icon" aria-hidden="true">
-                  <SocialIconGraphic icon={SOCIAL_ICON_SPECS.x} />
-                </span>
-                <span className="label">X (Twitter)</span>
-              </button>
-              <button type="button" className="connect-btn btn-fanbox" onClick={handleFanbox}>
-                <span className="icon" aria-hidden="true">
-                  <SocialIconGraphic icon={SOCIAL_ICON_SPECS.fanbox} />
-                </span>
-                <span className="label">pixiv FANBOX</span>
-              </button>
-            </div>
-          )}
-          <div className="connect-buttons-row connect-buttons-row-actions">
+    <OnboardingLayout t={t} onNext={onNext} onBack={onBack} nextDisabled={nextDisabled}>
+      <div className="connect-section">
+        <p className="connect-description">{t("onboarding.connect.body")}</p>
+
+        {showConnectLinks && (
+          <div className="connect-card-list">
             <button
               type="button"
-              className={`connect-btn btn-shortcut ${shortcutStatus === "created" ? "success" : ""}`}
-              onClick={handleShortcut}
-              disabled={shortcutStatus === "creating" || shortcutStatus === "created"}
+              className="connect-card"
+              data-brand="discord"
+              onClick={handleDiscord}
             >
-              <span className="icon">
-                {shortcutStatus === "created" ? "✅" : shortcutStatus === "creating" ? "⏳" : "🖥️"}
+              <span className="connect-card-icon" aria-hidden="true">
+                <SocialIconGraphic icon={SOCIAL_ICON_SPECS.discord} />
               </span>
-              <span className="label">
+              <span className="connect-card-info">
+                <span className="connect-card-name">Discord</span>
+                <span className="connect-card-sub">{t("onboarding.connect.discordSub")}</span>
+              </span>
+              <span className="connect-card-arrow" aria-hidden="true">
+                ›
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className="connect-card"
+              data-brand="twitter"
+              onClick={handleTwitter}
+            >
+              <span className="connect-card-icon" aria-hidden="true">
+                <SocialIconGraphic icon={SOCIAL_ICON_SPECS.x} />
+              </span>
+              <span className="connect-card-info">
+                <span className="connect-card-name">X (Twitter)</span>
+                <span className="connect-card-sub">{t("onboarding.connect.twitterSub")}</span>
+              </span>
+              <span className="connect-card-arrow" aria-hidden="true">
+                ›
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className="connect-card"
+              data-brand="fanbox"
+              onClick={handleFanbox}
+            >
+              <span className="connect-card-icon" aria-hidden="true">
+                <SocialIconGraphic icon={SOCIAL_ICON_SPECS.fanbox} />
+              </span>
+              <span className="connect-card-info">
+                <span className="connect-card-name">pixiv FANBOX</span>
+                <span className="connect-card-sub">{t("onboarding.connect.fanboxSub")}</span>
+              </span>
+              <span className="connect-card-arrow" aria-hidden="true">
+                ›
+              </span>
+            </button>
+          </div>
+        )}
+
+        <div className="connect-card-list connect-card-list-actions">
+          <button
+            type="button"
+            className={`connect-card ${shortcutStatus === "created" ? "connect-card-done" : ""}`}
+            data-brand="shortcut"
+            onClick={handleShortcut}
+            disabled={shortcutStatus === "creating" || shortcutStatus === "created"}
+          >
+            <span className="connect-card-icon" aria-hidden="true">
+              {shortcutStatus === "created" ? "✅" : shortcutStatus === "creating" ? "⏳" : "🖥️"}
+            </span>
+            <span className="connect-card-info">
+              <span className="connect-card-name">
                 {shortcutStatus === "creating"
                   ? t("onboarding.connect.shortcutCreating")
                   : shortcutStatus === "created"
                     ? t("onboarding.connect.shortcutCreated")
                     : t("onboarding.connect.shortcut")}
               </span>
-            </button>
-          </div>
+              <span className="connect-card-sub">{t("onboarding.connect.shortcutSub")}</span>
+            </span>
+          </button>
         </div>
-        {shortcutStatus === "created" && (
-          <div className="status-line success">{t("onboarding.connect.shortcutCreated")}</div>
-        )}
+
         {shortcutStatus === "error" && shortcutErrorMessage && (
-          <div className="status-line error">{shortcutErrorMessage}</div>
+          <div className="status-line error" style={{ marginTop: 4 }}>
+            {shortcutErrorMessage}
+          </div>
         )}
       </div>
     </OnboardingLayout>

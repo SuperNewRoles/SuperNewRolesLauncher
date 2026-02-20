@@ -1,5 +1,5 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { PresetSummary } from "../../app/types";
 import type { MessageKey } from "../../i18n";
 
@@ -29,6 +29,40 @@ interface ImportStepProps {
   onBack: () => void;
 }
 
+const IMPORT_CONTENT_ANIMATION_MS = 180;
+
+function useAnimatedVisibility(visible: boolean) {
+  const [shouldRender, setShouldRender] = useState(visible);
+  const [isClosing, setIsClosing] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setShouldRender(true);
+      setIsClosing(false);
+      return;
+    }
+
+    if (!shouldRender) {
+      return;
+    }
+
+    setIsClosing(true);
+    const timeoutId = window.setTimeout(() => {
+      setShouldRender(false);
+      setIsClosing(false);
+    }, IMPORT_CONTENT_ANIMATION_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [visible, shouldRender]);
+
+  return {
+    shouldRender,
+    animationClass: visible && !isClosing ? "is-entering" : "is-leaving",
+  } as const;
+}
+
 export default function ImportStep({
   t,
   importEnabled,
@@ -56,6 +90,8 @@ export default function ImportStep({
 }: ImportStepProps) {
   const [previewing, setPreviewing] = useState(false);
   const [pickingArchive, setPickingArchive] = useState(false);
+  const importContent = useAnimatedVisibility(importEnabled);
+  const archiveContent = useAnimatedVisibility(migrationEnabled && migrationImportEnabled);
   const hasFolderPreview = sourceSaveDataPath.trim().length > 0;
   const hasArchivePath = migrationArchivePath.trim().length > 0;
 
@@ -172,8 +208,8 @@ export default function ImportStep({
             {t("installFlow.importEnable")}
           </label>
 
-          {importEnabled && (
-            <div className="import-step-content">
+          {importContent.shouldRender && (
+            <div className={`import-step-content ${importContent.animationClass}`}>
               <button
                 type="button"
                 className="btn-manual-select"
@@ -238,8 +274,8 @@ export default function ImportStep({
               {t("installFlow.importArchiveEnable")}
             </label>
 
-            {migrationImportEnabled && (
-              <div className="import-step-content">
+            {archiveContent.shouldRender && (
+              <div className={`import-step-content ${archiveContent.animationClass}`}>
                 <div className="import-archive-fields">
                   <button
                     type="button"

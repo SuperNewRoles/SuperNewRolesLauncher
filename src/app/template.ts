@@ -160,6 +160,7 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
             <aside class="settings-sidebar">
               <div class="settings-category-list" role="tablist" aria-label="${t("settings.tab")}">
                 <button id="settings-category-general" type="button" class="settings-category-btn is-active" data-settings-category="general" role="tab" aria-selected="true" aria-controls="settings-panel-general">${t("settings.category.general")}</button>
+                <button id="settings-category-notifications" type="button" class="settings-category-btn" data-settings-category="notifications" role="tab" aria-selected="false" aria-controls="settings-panel-notifications">${t("settings.category.notifications")}</button>
                 <button id="settings-category-epic" type="button" class="settings-category-btn" data-settings-category="epic" role="tab" aria-selected="false" aria-controls="settings-panel-epic"${epicHiddenAttr}>${t("epic.title")}</button>
                 <button id="settings-category-migration" type="button" class="settings-category-btn" data-settings-category="migration" role="tab" aria-selected="false" aria-controls="settings-panel-migration"${migrationHiddenAttr}>${t("settings.category.migration")}</button>
                 <button id="settings-category-credit" type="button" class="settings-category-btn" data-settings-category="credit" role="tab" aria-selected="false" aria-controls="settings-panel-credit">${t("credit.title")}</button>
@@ -178,9 +179,19 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                     <button id="reselect-among-us-button" type="button" class="settings-general-primary-action">${t("settings.general.reselectAmongUs")}</button>
                     <div class="settings-general-divider" aria-hidden="true"></div>
                     <label class="settings-switch-row" for="close-to-tray-on-close">
-                      <span>${t("launcher.closeToTrayOnClose")}</span>
+                      <span class="settings-switch-text">${t("launcher.closeToTrayOnClose")}</span>
                       <span class="settings-switch-control">
                         <input id="close-to-tray-on-close" type="checkbox" />
+                        <span class="settings-switch-slider" aria-hidden="true"></span>
+                      </span>
+                    </label>
+                    <label
+                      class="settings-switch-row settings-switch-row-child"
+                      for="close-webview-on-tray-background"
+                    >
+                      <span class="settings-switch-text">${t("launcher.closeWebviewOnTrayBackground")}</span>
+                      <span class="settings-switch-control">
+                        <input id="close-webview-on-tray-background" type="checkbox" />
                         <span class="settings-switch-slider" aria-hidden="true"></span>
                       </span>
                     </label>
@@ -290,6 +301,27 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                   </section>
                 </section>
               </div>
+
+              <section id="settings-panel-notifications" class="settings-category-panel" data-settings-panel="notifications" role="tabpanel" aria-labelledby="settings-category-notifications" hidden>
+                <section class="card settings-general-card">
+                  <strong>${t("settings.notifications.title")}</strong>
+                  <label class="settings-switch-row" for="settings-report-notifications-enabled">
+                    <span class="settings-switch-text">${t("launcher.reportNotificationsEnabled")}</span>
+                    <span class="settings-switch-control">
+                      <input id="settings-report-notifications-enabled" type="checkbox" />
+                      <span class="settings-switch-slider" aria-hidden="true"></span>
+                    </span>
+                  </label>
+                  <label class="settings-switch-row" for="settings-announce-notifications-enabled">
+                    <span class="settings-switch-text">${t("launcher.announceNotificationsEnabled")}</span>
+                    <span class="settings-switch-control">
+                      <input id="settings-announce-notifications-enabled" type="checkbox" />
+                      <span class="settings-switch-slider" aria-hidden="true"></span>
+                    </span>
+                  </label>
+                  <span id="settings-notifications-status" class="status-line" aria-live="polite"></span>
+                </section>
+              </section>
 
               <section id="settings-panel-epic" class="settings-category-panel" data-settings-panel="epic" role="tabpanel" aria-labelledby="settings-category-epic" hidden${epicHiddenAttr}>
                 <section class="settings-epic-install-wrap">

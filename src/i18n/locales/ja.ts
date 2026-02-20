@@ -32,6 +32,9 @@ const ja = {
   "launcher.openAmongUsFolder": "AmongUsフォルダを開く",
   "launcher.openProfileFolder": "プロファイルフォルダを開く",
   "launcher.closeToTrayOnClose": "閉じる時にバックグラウンド常駐する",
+  "launcher.closeWebviewOnTrayBackground": "バックグラウンド常駐中はメモリを節約する",
+  "launcher.reportNotificationsEnabled": "報告通知を受け取る",
+  "launcher.announceNotificationsEnabled": "アナウンス通知を受け取る",
   "launcher.installSnr": "{modShort}をインストール",
   "launcher.restoreSavedDataOnInstall": "アンインストール時に保持したセーブデータを復元する",
   "launcher.uninstallMod": "Modをアンインストール",
@@ -44,11 +47,13 @@ const ja = {
   "settings.tab": "設定",
   "preset.tab": "プリセット",
   "settings.category.general": "一般",
+  "settings.category.notifications": "通知",
   "settings.category.migration": "データお引越し",
   "settings.category.appVersion": "アプリバージョン",
   "settings.appVersion.description": "現在のランチャーバージョンと更新状況を確認できます。",
   "settings.appVersion.badge": "Launcher",
   "settings.general.title": "一般設定",
+  "settings.notifications.title": "通知設定",
   "settings.general.reselectAmongUs": "AmongUsのフォルダを選択しなおす",
   "settings.general.shortcutTitle": "ショートカット",
   "settings.general.shortcutDescription": "デスクトップにMod起動用のショートカットを作成します。",
@@ -268,6 +273,10 @@ const ja = {
 
   "settings.amongUsPathSaved": "Among Usパスを保存しました。",
   "settings.closeToTrayOnCloseSaved": "閉じる時の常駐設定を保存しました: {state}",
+  "settings.closeWebviewOnTrayBackgroundSaved":
+    "バックグラウンド常駐中のメモリ節約設定を保存しました: {state}",
+  "settings.reportNotificationsEnabledSaved": "報告通知の設定を保存しました: {state}",
+  "settings.announceNotificationsEnabledSaved": "アナウンス通知の設定を保存しました: {state}",
   "settings.platformChanged": "プラットフォームを {platform} に変更しました。",
   "settings.tagSelected": "選択タグ: {tag}",
 
@@ -451,13 +460,13 @@ const ja = {
   "installFlow.importingSaveDataPresetMerge": "既存SaveDataのプリセットを統合中...",
   "installFlow.importingPreservedSaveDataPresetMerge": "保持セーブデータのプリセットを統合中...",
   "installFlow.importRetrySkipPrompt":
-    "SaveDataの取り込みに失敗しました。\\n\\n{error}\\n\\nOK: 再試行 / キャンセル: スキップ",
+    "SaveDataの取り込みに失敗しました。\n\n{error}\n\nOK: 再試行 / キャンセル: スキップ",
   "installFlow.importRetrySkipPromptMigration":
-    "お引越しアーカイブの取り込みに失敗しました。\\n\\n{error}\\n\\nOK: 再試行 / キャンセル: スキップ",
+    "お引越しアーカイブの取り込みに失敗しました。\n\n{error}\n\nOK: 再試行 / キャンセル: スキップ",
   "installFlow.importRetrySkipPromptSaveDataPresetMerge":
-    "既存SaveDataプリセットの統合に失敗しました。\\n\\n{error}\\n\\nOK: 再試行 / キャンセル: スキップ",
+    "既存SaveDataプリセットの統合に失敗しました。\n\n{error}\n\nOK: 再試行 / キャンセル: スキップ",
   "installFlow.importRetrySkipPromptPreservedSaveDataPresetMerge":
-    "保持セーブデータプリセットの統合に失敗しました。\\n\\n{error}\\n\\nOK: 再試行 / キャンセル: スキップ",
+    "保持セーブデータプリセットの統合に失敗しました。\n\n{error}\n\nOK: 再試行 / キャンセル: スキップ",
   "installFlow.importSkippedNotice":
     "データ取り込みはスキップされました。必要なら後で再実行してください。理由: {reason}",
 
@@ -489,6 +498,10 @@ const ja = {
   "onboarding.connect.shortcut": "デスクトップショートカット作成",
   "onboarding.connect.shortcutCreating": "ショートカットを作成中...",
   "onboarding.connect.shortcutCreated": "ショートカットを作成しました！",
+  "onboarding.connect.discordSub": "コミュニティに参加して最新情報をチェック",
+  "onboarding.connect.twitterSub": "アップデートやお知らせをフォロー",
+  "onboarding.connect.fanboxSub": "開発を支援 & 限定コンテンツ",
+  "onboarding.connect.shortcutSub": "デスクトップからすぐ起動",
   "onboarding.finish.title": "準備完了！",
   "onboarding.finish.body": "さあ、{modName}の世界へ飛び込みましょう！",
   "onboarding.replay": "チュートリアルを再生",

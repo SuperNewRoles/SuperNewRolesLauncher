@@ -3,11 +3,6 @@ import { listen } from "@tauri-apps/api/event";
 import { downloadDir, join } from "@tauri-apps/api/path";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import {
-  isPermissionGranted,
-  requestPermission,
-  sendNotification,
-} from "@tauri-apps/plugin-notification";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { check } from "@tauri-apps/plugin-updater";
 import React from "react";
@@ -65,6 +60,7 @@ import {
   migrationImport,
   modPreservedSaveDataStatus,
   modUninstall,
+  notificationsTakeOpenTarget,
   presetsExport,
   presetsImportArchive,
   presetsInspectArchive,
@@ -93,6 +89,7 @@ import type {
   InstallResult,
   LauncherSettings,
   LauncherSettingsInput,
+  NotificationOpenTarget,
   PreservedSaveDataStatus,
   PresetExportResult,
   PresetImportResult,
@@ -124,11 +121,19 @@ const MODDED_FIRST_SETUP_POLL_INTERVAL_MS = 500;
 const LAUNCH_ERROR_DISPLAY_MS = 20_000;
 const SETTINGS_OVERLAY_TRANSITION_MS = 220;
 const LOCALE_SWITCH_RELOAD_ANIMATION_FLAG_KEY = "ui.localeSwitchReloadAnimation";
+const LAST_MAIN_TAB_STORAGE_KEY = "ui.lastMainTab";
+const BACKGROUND_NOTIFICATION_OPEN_EVENT = "background-notification-open";
 const ONBOARDING_SPOTLIGHT_CLASS = "onboarding-spotlight-target";
 const ONBOARDING_SPOTLIGHT_FOCUS_CLASS = "onboarding-spotlight-target-focus";
 const ONBOARDING_EXIT_ANIMATION_MS = 340;
 type MainTabId = "home" | "report" | "announce" | "preset" | "settings";
-type SettingsCategoryId = "general" | "epic" | "migration" | "credit" | "app-version";
+type SettingsCategoryId =
+  | "general"
+  | "notifications"
+  | "epic"
+  | "migration"
+  | "credit"
+  | "app-version";
 type MigrationMode = "export" | "import";
 type MigrationOverlayStep = "select" | "password" | "processing" | "result";
 type PresetOverlayMode = "import" | "export";
@@ -222,6 +227,7 @@ function isMainTabId(value: string | undefined): value is MainTabId {
 function isSettingsCategoryId(value: string | undefined): value is SettingsCategoryId {
   return (
     value === "general" ||
+    value === "notifications" ||
     value === "epic" ||
     value === "migration" ||
     value === "credit" ||
@@ -256,6 +262,26 @@ function consumeLocaleSwitchReloadAnimation(): boolean {
   } catch {
     return false;
   }
+}
+
+function saveLastMainTab(tabId: MainTabId): void {
+  try {
+    localStorage.setItem(LAST_MAIN_TAB_STORAGE_KEY, tabId);
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function loadLastMainTab(): MainTabId {
+  try {
+    const value = localStorage.getItem(LAST_MAIN_TAB_STORAGE_KEY) ?? "home";
+    if (isMainTabId(value) && isMainTabEnabled(value)) {
+      return value;
+    }
+  } catch {
+    // ignore storage failures
+  }
+  return "home";
 }
 
 function setLocaleSwitchAnimationScrollLock(active: boolean): void {
@@ -334,7 +360,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     openAmongUsFolderButton,
     openProfileFolderButton,
     closeToTrayOnCloseInput,
+    closeWebviewOnTrayBackgroundInput,
     settingsGeneralStatus,
+    reportNotificationsEnabledInput,
+    announceNotificationsEnabledInput,
+    settingsNotificationsStatus,
     settingsShortcutStatus,
     uninstallButton,
     settingsSupportDiscordLinkButton,
@@ -415,11 +445,26 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     themeToggleLight,
     themeToggleDark,
   } = collectAppDom();
+  const closeToTrayOnCloseRow =
+    closeToTrayOnCloseInput.closest<HTMLElement>(".settings-switch-row");
+  const closeWebviewOnTrayBackgroundRow =
+    closeWebviewOnTrayBackgroundInput.closest<HTMLElement>(".settings-switch-row");
+  const reportNotificationsEnabledRow =
+    reportNotificationsEnabledInput.closest<HTMLElement>(".settings-switch-row");
+  const announceNotificationsEnabledRow =
+    announceNotificationsEnabledInput.closest<HTMLElement>(".settings-switch-row");
   const migrationExtension = modConfig.migration.extension;
   const migrationLegacyExtension = "snrdata";
   const presetExtension = modConfig.presets.extension;
   const presetLegacyExtension = "snrpresets";
   const installProgressEventName = modConfig.events.installProgress;
+
+  function syncSwitchRowDisabledState(
+    input: HTMLInputElement,
+    rowElement: HTMLElement | null,
+  ): void {
+    rowElement?.classList.toggle("is-disabled", input.disabled);
+  }
 
   function updateThemeButtons(theme: ThemePreference) {
     themeToggleSystem.classList.toggle("active", theme === "system");
@@ -456,6 +501,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
 
     activeTab = tabId;
+    saveLastMainTab(tabId);
 
     const reportPanel = document.querySelector<HTMLDivElement>("#tab-report");
     const announcePanel = document.querySelector<HTMLDivElement>("#tab-announce");
@@ -722,7 +768,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let onboardingReturnTab: MainTabId | null = null;
   let reportCenterRoot: Root | null = null;
   let announceCenterRoot: Root | null = null;
-  let activeTab: MainTabId = "home";
+  let pendingReportOpenThreadId: string | null = null;
+  let pendingAnnounceOpenArticleId: string | null = null;
+  let activeTab: MainTabId = loadLastMainTab();
   let reportHomeNotificationLastFetchedAt = 0;
   let reportHomeNotificationFetching = false;
   let reportHomeNotificationPollTimer: number | null = null;
@@ -912,7 +960,18 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       reportCenterRoot = createRoot(container);
     }
 
-    reportCenterRoot.render(<ReportCenter t={t} />);
+    reportCenterRoot.render(
+      <ReportCenter
+        t={t}
+        openThreadId={pendingReportOpenThreadId}
+        onOpenThreadHandled={(threadId) => {
+          if (pendingReportOpenThreadId === threadId) {
+            pendingReportOpenThreadId = null;
+            mountReportCenter();
+          }
+        }}
+      />,
+    );
   }
 
   function mountAnnounceCenter() {
@@ -932,6 +991,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         locale={currentLocale}
         t={t}
         onArticlesUpdated={handleAnnounceArticlesUpdated}
+        openArticleId={pendingAnnounceOpenArticleId}
+        onOpenArticleHandled={(articleId) => {
+          if (pendingAnnounceOpenArticleId === articleId) {
+            pendingAnnounceOpenArticleId = null;
+            mountAnnounceCenter();
+          }
+        }}
       />,
     );
   }
@@ -948,6 +1014,25 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       announceCenterRoot.unmount();
       announceCenterRoot = null;
     }
+  }
+
+  function applyBackgroundNotificationOpenTarget(target: NotificationOpenTarget): void {
+    if (target.kind === "report") {
+      if (!REPORTING_ENABLED) {
+        return;
+      }
+      pendingAnnounceOpenArticleId = null;
+      pendingReportOpenThreadId = target.threadId;
+      switchTab("report");
+      return;
+    }
+
+    if (!ANNOUNCE_ENABLED) {
+      return;
+    }
+    pendingReportOpenThreadId = null;
+    pendingAnnounceOpenArticleId = target.articleId;
+    switchTab("announce");
   }
 
   function setReportCenterNotificationBadge(hasUnread: boolean): void {
@@ -1282,6 +1367,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     setStatusLine(settingsGeneralStatus, message, tone);
   }
 
+  function setNotificationsStatusLine(
+    message: string,
+    tone: "info" | "error" | "success" | "warn" = "info",
+  ): void {
+    setStatusLine(settingsNotificationsStatus, message, tone);
+  }
+
   function setShortcutStatusLine(
     message: string,
     tone: "info" | "error" | "success" | "warn" = "info",
@@ -1456,6 +1548,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     openAmongUsFolderButton.disabled = control.openAmongUsFolderButtonDisabled;
     openProfileFolderButton.disabled = control.openProfileFolderButtonDisabled;
     closeToTrayOnCloseInput.disabled = control.closeToTrayOnCloseInputDisabled;
+    closeWebviewOnTrayBackgroundInput.disabled = control.closeWebviewOnTrayBackgroundInputDisabled;
+    reportNotificationsEnabledInput.disabled = control.reportNotificationsEnabledInputDisabled;
+    announceNotificationsEnabledInput.disabled = control.announceNotificationsEnabledInputDisabled;
+    syncSwitchRowDisabledState(closeToTrayOnCloseInput, closeToTrayOnCloseRow);
+    syncSwitchRowDisabledState(closeWebviewOnTrayBackgroundInput, closeWebviewOnTrayBackgroundRow);
+    syncSwitchRowDisabledState(reportNotificationsEnabledInput, reportNotificationsEnabledRow);
+    syncSwitchRowDisabledState(announceNotificationsEnabledInput, announceNotificationsEnabledRow);
     const migrationProcessing = migrationExporting || migrationImporting;
     migrationExportButton.disabled = !MIGRATION_ENABLED || control.migrationExportButtonDisabled;
     migrationImportButton.disabled = !MIGRATION_ENABLED || control.migrationImportButtonDisabled;
@@ -1575,6 +1674,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       return;
     }
     closeToTrayOnCloseInput.checked = settings.closeToTrayOnClose;
+    closeWebviewOnTrayBackgroundInput.checked = settings.closeWebviewOnTrayBackground;
+    reportNotificationsEnabledInput.checked = settings.reportNotificationsEnabled;
+    announceNotificationsEnabledInput.checked = settings.announceNotificationsEnabled;
   }
 
   async function reloadSettings(): Promise<LauncherSettings> {
@@ -2137,6 +2239,42 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     await saveSettings({ closeToTrayOnClose: enabled });
     setGeneralStatusLine(
       t("settings.closeToTrayOnCloseSaved", {
+        state: enabled ? t("common.on") : t("common.off"),
+      }),
+      "success",
+    );
+    updateButtons();
+  });
+
+  closeWebviewOnTrayBackgroundInput.addEventListener("change", async () => {
+    const enabled = closeWebviewOnTrayBackgroundInput.checked;
+    await saveSettings({ closeWebviewOnTrayBackground: enabled });
+    setGeneralStatusLine(
+      t("settings.closeWebviewOnTrayBackgroundSaved", {
+        state: enabled ? t("common.on") : t("common.off"),
+      }),
+      "success",
+    );
+    updateButtons();
+  });
+
+  reportNotificationsEnabledInput.addEventListener("change", async () => {
+    const enabled = reportNotificationsEnabledInput.checked;
+    await saveSettings({ reportNotificationsEnabled: enabled });
+    setNotificationsStatusLine(
+      t("settings.reportNotificationsEnabledSaved", {
+        state: enabled ? t("common.on") : t("common.off"),
+      }),
+      "success",
+    );
+    updateButtons();
+  });
+
+  announceNotificationsEnabledInput.addEventListener("change", async () => {
+    const enabled = announceNotificationsEnabledInput.checked;
+    await saveSettings({ announceNotificationsEnabled: enabled });
+    setNotificationsStatusLine(
+      t("settings.announceNotificationsEnabledSaved", {
         state: enabled ? t("common.on") : t("common.off"),
       }),
       "success",
@@ -3234,6 +3372,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   renderLocalPresetList();
   renderArchivePresetList();
   renderPresetOverlayContent();
+  if (activeTab !== "home") {
+    switchTab(activeTab);
+  }
 
   type VersionDisplayState = "loading" | "ready" | "error";
   type UpdateStatusState =
@@ -3339,6 +3480,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
   })();
 
+  void listen<NotificationOpenTarget>(BACKGROUND_NOTIFICATION_OPEN_EVENT, (event) => {
+    applyBackgroundNotificationOpenTarget(event.payload);
+    void notificationsTakeOpenTarget().catch(() => undefined);
+  });
+
   void listen<InstallProgressPayload>(installProgressEventName, (event) => {
     const payload = event.payload;
 
@@ -3407,6 +3553,15 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   void (async () => {
     const loadedSettings = await reloadSettings();
+    try {
+      const pendingOpenTarget = await notificationsTakeOpenTarget();
+      if (pendingOpenTarget) {
+        applyBackgroundNotificationOpenTarget(pendingOpenTarget);
+      }
+    } catch {
+      // ignore pending open target retrieval errors
+    }
+
     if (hasBlockedEpicPlatform(loadedSettings)) {
       setLaunchStatusWithLock(t("launch.errorEpicFeatureDisabled"), LAUNCH_ERROR_DISPLAY_MS);
     }

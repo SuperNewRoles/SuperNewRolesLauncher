@@ -34,6 +34,9 @@ const en: Record<keyof typeof ja, string> = {
   "launcher.openAmongUsFolder": "Open Among Us folder",
   "launcher.openProfileFolder": "Open profile folder",
   "launcher.closeToTrayOnClose": "Keep running in background when closing window",
+  "launcher.closeWebviewOnTrayBackground": "Save memory while running in background",
+  "launcher.reportNotificationsEnabled": "Enable report notifications",
+  "launcher.announceNotificationsEnabled": "Enable announcement notifications",
   "launcher.installSnr": "Install {modShort}",
   "launcher.restoreSavedDataOnInstall": "Restore preserved save data",
   "launcher.uninstallMod": "Uninstall Mod",
@@ -46,11 +49,13 @@ const en: Record<keyof typeof ja, string> = {
   "settings.tab": "Settings",
   "preset.tab": "Presets",
   "settings.category.general": "General",
+  "settings.category.notifications": "Notifications",
   "settings.category.migration": "Data Migration",
   "settings.category.appVersion": "App Version",
   "settings.appVersion.description": "Check the current launcher version and update status.",
   "settings.appVersion.badge": "Launcher",
   "settings.general.title": "General Settings",
+  "settings.notifications.title": "Notification Settings",
   "settings.general.reselectAmongUs": "Reselect Among Us",
   "settings.general.shortcutTitle": "Shortcut",
   "settings.general.shortcutDescription":
@@ -273,6 +278,10 @@ const en: Record<keyof typeof ja, string> = {
 
   "settings.amongUsPathSaved": "Among Us path saved.",
   "settings.closeToTrayOnCloseSaved": "Close behavior saved: run in background = {state}",
+  "settings.closeWebviewOnTrayBackgroundSaved":
+    "Saved memory usage settings for background processes = {state}",
+  "settings.reportNotificationsEnabledSaved": "Saved report notification setting: {state}",
+  "settings.announceNotificationsEnabledSaved": "Saved announcement notification setting: {state}",
   "settings.platformChanged": "Platform changed to {platform}.",
   "settings.tagSelected": "Selected tag: {tag}",
 
@@ -458,13 +467,13 @@ const en: Record<keyof typeof ja, string> = {
   "installFlow.importingSaveDataPresetMerge": "Merging presets from existing SaveData...",
   "installFlow.importingPreservedSaveDataPresetMerge": "Merging presets from preserved SaveData...",
   "installFlow.importRetrySkipPrompt":
-    "Failed to import SaveData.\\n\\n{error}\\n\\nOK: Retry / Cancel: Skip",
+    "Failed to import SaveData.\n\n{error}\n\nOK: Retry / Cancel: Skip",
   "installFlow.importRetrySkipPromptMigration":
-    "Failed to import migration archive.\\n\\n{error}\\n\\nOK: Retry / Cancel: Skip",
+    "Failed to import migration archive.\n\n{error}\n\nOK: Retry / Cancel: Skip",
   "installFlow.importRetrySkipPromptSaveDataPresetMerge":
-    "Failed to merge presets from existing SaveData.\\n\\n{error}\\n\\nOK: Retry / Cancel: Skip",
+    "Failed to merge presets from existing SaveData.\n\n{error}\n\nOK: Retry / Cancel: Skip",
   "installFlow.importRetrySkipPromptPreservedSaveDataPresetMerge":
-    "Failed to merge presets from preserved SaveData.\\n\\n{error}\\n\\nOK: Retry / Cancel: Skip",
+    "Failed to merge presets from preserved SaveData.\n\n{error}\n\nOK: Retry / Cancel: Skip",
   "installFlow.importSkippedNotice":
     "Data import was skipped. You can retry later if needed. Reason: {reason}",
 
@@ -496,6 +505,10 @@ const en: Record<keyof typeof ja, string> = {
   "onboarding.connect.shortcut": "Create Desktop Shortcut",
   "onboarding.connect.shortcutCreating": "Creating shortcut...",
   "onboarding.connect.shortcutCreated": "Shortcut created!",
+  "onboarding.connect.discordSub": "Join the community for news & support",
+  "onboarding.connect.twitterSub": "Follow for updates & announcements",
+  "onboarding.connect.fanboxSub": "Support development & exclusive content",
+  "onboarding.connect.shortcutSub": "Quick launch from your desktop",
   "onboarding.finish.title": "All Set!",
   "onboarding.finish.body": "Let's dive into the world of SuperNewRoles!",
   "onboarding.replay": "Replay Tutorial",

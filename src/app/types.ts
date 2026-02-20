@@ -12,6 +12,9 @@ export interface LauncherSettings {
   selectedReleaseTag: string;
   profilePath: string;
   closeToTrayOnClose: boolean;
+  closeWebviewOnTrayBackground: boolean;
+  reportNotificationsEnabled: boolean;
+  announceNotificationsEnabled: boolean;
   uiLocale: string;
   onboardingCompleted: boolean;
 }
@@ -22,9 +25,16 @@ export interface LauncherSettingsInput {
   selectedReleaseTag?: string;
   profilePath?: string;
   closeToTrayOnClose?: boolean;
+  closeWebviewOnTrayBackground?: boolean;
+  reportNotificationsEnabled?: boolean;
+  announceNotificationsEnabled?: boolean;
   uiLocale?: string;
   onboardingCompleted?: boolean;
 }
+
+export type NotificationOpenTarget =
+  | { kind: "report"; threadId: string }
+  | { kind: "announce"; articleId: string };
 
 export interface SnrReleaseSummary {
   tag: string;
