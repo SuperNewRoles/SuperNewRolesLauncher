@@ -10,7 +10,7 @@ use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
     mpsc, Arc, Mutex,
 };
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager, PhysicalPosition, Position, RunEvent, WebviewUrl, WebviewWindowBuilder,
@@ -22,6 +22,10 @@ const TRAY_MENU_WINDOW_LABEL: &str = "tray-menu";
 const TRAY_MENU_WINDOW_WIDTH: f64 = 176.0;
 const TRAY_MENU_WINDOW_HEIGHT: f64 = 132.0;
 const TRAY_MENU_WINDOW_MARGIN: i32 = 6;
+const TRAY_MENU_CURSOR_POLL_MS: u64 = 16;
+const TRAY_MENU_CURSOR_LEAVE_CLOSE_DELAY_MS: u64 = 300;
+const TRAY_MENU_INDICATOR_SAFE_HALF_WIDTH: f64 = 130.0;
+const TRAY_MENU_INDICATOR_SAFE_HALF_HEIGHT: f64 = 72.0;
 // Keep the hidden webview alive for 30 minutes so short tray sessions do not
 // repeatedly pay window teardown/startup costs, while still eventually freeing memory.
 const TRAY_WEBVIEW_KEEPALIVE_MS: u64 = 30 * 60 * 1000;
@@ -169,6 +173,7 @@ fn show_tray_menu_window<R: tauri::Runtime>(app: &AppHandle<R>, position: Physic
     let _ = window.set_position(Position::Physical(PhysicalPosition::new(x, y)));
     let _ = window.show();
     let _ = window.set_focus();
+    start_tray_menu_cursor_leave_watcher(app.clone(), position);
 }
 
 fn is_tray_menu_visible<R: tauri::Runtime>(app: &AppHandle<R>) -> bool {
@@ -176,6 +181,80 @@ fn is_tray_menu_visible<R: tauri::Runtime>(app: &AppHandle<R>) -> bool {
         return false;
     };
     matches!(window.is_visible(), Ok(true))
+}
+
+fn is_cursor_inside_window<R: tauri::Runtime>(
+    cursor_pos: &PhysicalPosition<f64>,
+    window: &tauri::WebviewWindow<R>,
+) -> bool {
+    let Ok(window_pos) = window.outer_position() else {
+        return false;
+    };
+    let Ok(window_size) = window.outer_size() else {
+        return false;
+    };
+
+    let left = f64::from(window_pos.x);
+    let top = f64::from(window_pos.y);
+    let right = left + f64::from(window_size.width);
+    let bottom = top + f64::from(window_size.height);
+    cursor_pos.x >= left && cursor_pos.x < right && cursor_pos.y >= top && cursor_pos.y < bottom
+}
+
+fn is_cursor_inside_indicator_safe_zone(
+    cursor_pos: &PhysicalPosition<f64>,
+    indicator_anchor: &PhysicalPosition<f64>,
+) -> bool {
+    let left = indicator_anchor.x - TRAY_MENU_INDICATOR_SAFE_HALF_WIDTH;
+    let right = indicator_anchor.x + TRAY_MENU_INDICATOR_SAFE_HALF_WIDTH;
+    let top = indicator_anchor.y - TRAY_MENU_INDICATOR_SAFE_HALF_HEIGHT;
+    let bottom = indicator_anchor.y + TRAY_MENU_INDICATOR_SAFE_HALF_HEIGHT;
+    cursor_pos.x >= left && cursor_pos.x <= right && cursor_pos.y >= top && cursor_pos.y <= bottom
+}
+
+fn start_tray_menu_cursor_leave_watcher<R: tauri::Runtime + 'static>(
+    app: AppHandle<R>,
+    indicator_anchor: PhysicalPosition<f64>,
+) {
+    std::thread::spawn(move || {
+        let mut outside_since: Option<Instant> = None;
+        loop {
+            std::thread::sleep(Duration::from_millis(TRAY_MENU_CURSOR_POLL_MS));
+
+            let Some(window) = app.get_webview_window(TRAY_MENU_WINDOW_LABEL) else {
+                break;
+            };
+            if !matches!(window.is_visible(), Ok(true)) {
+                break;
+            }
+
+            let Ok(cursor_pos) = app.cursor_position() else {
+                continue;
+            };
+
+            let is_inside_menu = is_cursor_inside_window(&cursor_pos, &window);
+            let is_inside_indicator =
+                is_cursor_inside_indicator_safe_zone(&cursor_pos, &indicator_anchor);
+            if is_inside_menu || is_inside_indicator {
+                outside_since = None;
+                continue;
+            }
+
+            match outside_since {
+                Some(started_at)
+                    if started_at.elapsed()
+                        >= Duration::from_millis(TRAY_MENU_CURSOR_LEAVE_CLOSE_DELAY_MS) =>
+                {
+                    let _ = window.hide();
+                    break;
+                }
+                Some(_) => {}
+                None => {
+                    outside_since = Some(Instant::now());
+                }
+            }
+        }
+    });
 }
 
 fn args_contain_autolaunch_modded<I, S>(args: I) -> bool
@@ -349,9 +428,6 @@ pub fn run() {
             if window.label() == TRAY_MENU_WINDOW_LABEL {
                 match event {
                     tauri::WindowEvent::CloseRequested { .. } => {
-                        hide_tray_menu_window(window.app_handle());
-                    }
-                    tauri::WindowEvent::Focused(false) => {
                         hide_tray_menu_window(window.app_handle());
                     }
                     _ => {}

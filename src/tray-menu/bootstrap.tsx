@@ -1,7 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { initTheme } from "../app/theme";
+import { applyTheme, getStoredTheme, initTheme } from "../app/theme";
 import snrLogo from "../assets/snr_logo.png";
 import {
   settingsGet,
@@ -67,6 +67,24 @@ function TrayMenuApp() {
   }, []);
 
   useEffect(() => {
+    const syncTheme = () => {
+      applyTheme(getStoredTheme());
+    };
+    const handleStorage = () => {
+      syncTheme();
+    };
+
+    // hidden webview を再表示したときにも最新テーマを確実に反映する。
+    syncTheme();
+    window.addEventListener("focus", syncTheme);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("focus", syncTheme);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
+
+  useEffect(() => {
     const hideSelf = () => {
       void getCurrentWindow().hide().catch(() => undefined);
     };
@@ -106,9 +124,6 @@ function TrayMenuApp() {
   return (
     <div
       className="tray-menu-shell"
-      onMouseLeave={() => {
-        void getCurrentWindow().hide().catch(() => undefined);
-      }}
       onMouseDown={(event) => {
         if (event.target !== event.currentTarget) {
           return;
