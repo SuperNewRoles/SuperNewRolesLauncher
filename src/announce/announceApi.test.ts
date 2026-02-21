@@ -3,9 +3,11 @@ import { ANNOUNCE_API_BASE_URL } from "../app/constants";
 import { announceGetArticle, announceListArticles } from "./announceApi";
 
 describe("announceApi", () => {
+  // 実際のネットワークアクセスを避けるため、fetch を都度差し替える。
   const fetchMock = vi.fn<typeof fetch>();
 
   beforeEach(() => {
+    // 各テストを独立させるため、fetch モックの呼び出し履歴を初期化する。
     fetchMock.mockReset();
     vi.stubGlobal("fetch", fetchMock);
   });
@@ -15,6 +17,7 @@ describe("announceApi", () => {
   });
 
   it("uses constant base URL and appends list query params", async () => {
+    // 一覧 API の基本レスポンスを用意して URL 組み立てを検証する。
     fetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -29,6 +32,7 @@ describe("announceApi", () => {
 
     await announceListArticles("ja");
 
+    // リクエスト URL からクエリの付与内容を直接確認する。
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [requestUrl] = fetchMock.mock.calls[0] as [RequestInfo | URL];
     const url = new URL(String(requestUrl));
@@ -44,6 +48,7 @@ describe("announceApi", () => {
   });
 
   it("builds detail URL with fallback and lang", async () => {
+    // 詳細 API 呼び出し時も言語・fallback の付与が維持されることを確認する。
     fetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -73,6 +78,7 @@ describe("announceApi", () => {
   });
 
   it("throws when HTTP status is not ok", async () => {
+    // API エラーの message と status が例外に含まれることを保証する。
     fetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({

@@ -1,3 +1,4 @@
+// Epic OAuthログイン用の専用WebViewウィンドウを管理する。
 use crate::utils::epic_api::EpicApi;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -36,6 +37,7 @@ impl EpicLoginWindow {
         on_error: impl FnOnce(String) + Send + 'static,
         on_cancel: impl FnOnce() + Send + 'static,
     ) -> Result<(), String> {
+        // 多重コールバックを防ぐため、認証完了フラグを最初に用意する。
         let handled = Arc::new(AtomicBool::new(false));
 
         let auth_url: url::Url = EpicApi::get_auth_url()
@@ -76,12 +78,14 @@ impl EpicLoginWindow {
                         return true;
                     }
 
+                    // 同一コールバックが複数回発火しても、最初の1回だけを採用する。
                     if handled_for_navigation.swap(true, Ordering::SeqCst) {
                         return false;
                     }
 
                     let app = app_for_navigation.clone();
                     if let Some(code) = Self::extract_code_param(url) {
+                        // 認証コード交換は spawn された非同期タスク内で実施し、完了後にそのタスク内で必ずウィンドウを閉じる。
                         let on_success = on_success.clone();
                         let on_error = on_error.clone();
                         tauri::async_runtime::spawn(async move {
@@ -115,12 +119,14 @@ impl EpicLoginWindow {
     }
 
     fn extract_code_param(url: &url::Url) -> Option<String> {
+        // コールバックURLの query から code パラメータだけを抽出する。
         url.query_pairs()
             .find(|(key, _)| key == "code")
             .map(|(_, value)| value.into_owned())
     }
 
     async fn do_login(code: &str) -> Result<(), String> {
+        // 認証コード入力の表記ゆれを吸収してからAPIに渡す。
         let normalized = code.trim().replace('"', "");
         let session = EpicApi::new()?.login_with_auth_code(&normalized).await?;
         crate::utils::epic_api::save_session(&session)
@@ -134,6 +140,7 @@ impl EpicLoginWindow {
     ) {
         match result {
             Ok(()) => {
+                // UIイベント発火後に外部コールバックを一度だけ実行する。
                 let _ = app.emit("epic-login-success", ());
                 if let Some(success_callback) = on_success.lock().ok().and_then(|mut cb| cb.take())
                 {
@@ -141,6 +148,7 @@ impl EpicLoginWindow {
                 }
             }
             Err(error) => {
+                // 失敗理由をイベントとコールバックの双方へ渡す。
                 let _ = app.emit("epic-login-error", error.clone());
                 if let Some(error_callback) = on_error.lock().ok().and_then(|mut cb| cb.take()) {
                     error_callback(error);
@@ -150,6 +158,7 @@ impl EpicLoginWindow {
     }
 
     fn close_window(app: &tauri::AppHandle) {
+        // 既に閉じられている場合でも安全に無視できる。
         if let Some(window) = app.get_webview_window(EPIC_LOGIN_WINDOW) {
             let _ = window.close();
         }

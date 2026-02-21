@@ -1,3 +1,4 @@
+// KeyringへJSONを分割保存するための共通ストレージ。
 use base64::Engine;
 use keyring::{Entry, Error};
 use serde::{de::DeserializeOwned, Serialize};
@@ -25,6 +26,7 @@ where
     }
 
     fn entry(&self, suffix: &str) -> Result<Entry, String> {
+        // 1データを複数チャンクで持つため、添字つきキーを生成する。
         Entry::new(self.service, &format!("{}_{}", self.base_key, suffix))
             .map_err(|e| format!("Failed to open keyring chunk entry: {e}"))
     }
@@ -68,6 +70,7 @@ where
     }
 
     pub fn save(&self, value: &T) -> Result<(), String> {
+        // 旧データ混在を防ぐため、保存前に既存エントリを一度クリアする。
         self.clear()?;
 
         let json =
@@ -91,11 +94,13 @@ where
     }
 
     pub fn load(&self) -> Option<T> {
+        // 新方式(分割保存)を優先し、互換のため旧方式もフォールバックで読む。
         self.try_load_chunked().or_else(|| self.try_load_legacy())
     }
 
     pub fn clear(&self) -> Result<(), String> {
         if let Ok(legacy) = self.legacy_entry() {
+            // 旧方式キーは残っていてもエラーにしない(best-effort削除)。
             let _ = Self::delete_if_exists(&legacy);
         }
 
@@ -114,6 +119,7 @@ where
         }
 
         for index in 0..count {
+            // 途中欠落チャンクがあっても残存分だけを順に削除する。
             if let Ok(chunk_entry) = self.entry(&index.to_string()) {
                 let _ = Self::delete_if_exists(&chunk_entry);
             }

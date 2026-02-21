@@ -43,6 +43,7 @@ export default function PlatformStep({
   error,
 }: PlatformStepProps) {
   const [localError, setLocalError] = useState<string | null>(null);
+  // 検出候補を正規化してから、選択可能なプラットフォームだけを表示する。
   const candidates = filterSelectablePlatformCandidates(
     normalizePlatformCandidates(detectedPlatforms),
     epicEnabled,
@@ -51,6 +52,7 @@ export default function PlatformStep({
   const handleManualSelect = async () => {
     let selectedPath: string | string[] | null;
     try {
+      // 自動検出に失敗した場合でも手動でゲームフォルダを選べるようにする。
       selectedPath = await open({
         directory: true,
         multiple: false,
@@ -66,6 +68,7 @@ export default function PlatformStep({
     }
 
     try {
+      // 手動選択パスから実プラットフォームを再判定して親へ渡す。
       const detectedPlatform = await finderDetectPlatform(selectedPath);
       setLocalError(null);
       onManualSelect(selectedPath, detectedPlatform);
@@ -102,6 +105,7 @@ export default function PlatformStep({
         📁 {t("installFlow.manualSelect")}
       </button>
       {(error || localError) && (
+        // 手動選択エラーを優先表示し、直近操作の失敗理由を分かりやすくする。
         <p className="step-error" style={{ textAlign: "center" }}>
           {localError || error}
         </p>

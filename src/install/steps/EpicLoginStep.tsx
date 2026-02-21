@@ -21,6 +21,7 @@ export default function EpicLoginStep({
 }: EpicLoginStepProps) {
   const handleLogin = async () => {
     try {
+      // 認証フロー起動後に状態を再取得し、同一画面で結果を反映する。
       await onEpicLogin();
       await onRefreshStatus();
     } catch {
@@ -53,6 +54,7 @@ export default function EpicLoginStep({
         <p className="epic-hint">{t("installFlow.epicLoginRequired")}</p>
 
         <div className="epic-login-card">
+          {/* ログイン状態に応じて「完了導線」か「認証開始導線」を切り替える。 */}
           {epicLoggedIn ? (
             <div className="epic-logged-in">
               <div className="epic-status-icon">✓</div>

@@ -20,6 +20,7 @@ export const SUPPORTED_LOCALES = Object.freeze(Object.keys(LOCALES) as LocaleCod
 
 type TranslateParams = Record<string, string | number>;
 const DEFAULT_TRANSLATE_PARAMS: TranslateParams = {
+  // 頻出パラメータはデフォルト値として常に展開可能にする。
   modName: modConfig.mod.displayName,
   modShort: modConfig.mod.shortName,
   launcherName: modConfig.branding.launcherName,
@@ -28,10 +29,12 @@ const DEFAULT_TRANSLATE_PARAMS: TranslateParams = {
 };
 
 function isLocaleCode(value: string): value is LocaleCode {
+  // Object のキー存在判定で対応ロケールのみ許可する。
   return value in LOCALES;
 }
 
 export function normalizeLocale(value: string | null | undefined): LocaleCode | null {
+  // 大文字小文字や余分な空白を吸収して判定する。
   const normalized = value?.trim().toLowerCase();
   if (!normalized) {
     return null;
@@ -47,6 +50,7 @@ export function normalizeLocale(value: string | null | undefined): LocaleCode | 
 
 function loadSavedLocale(): LocaleCode | null {
   try {
+    // 保存値は normalize を通して壊れた値を除外する。
     return normalizeLocale(localStorage.getItem(LOCALE_STORAGE_KEY));
   } catch {
     return null;
@@ -55,6 +59,7 @@ function loadSavedLocale(): LocaleCode | null {
 
 export function saveLocale(locale: LocaleCode): void {
   try {
+    // 保存失敗時は無視し、画面側で現在値を保持して継続する。
     localStorage.setItem(LOCALE_STORAGE_KEY, locale);
   } catch {
     // ignore storage failures
@@ -62,6 +67,7 @@ export function saveLocale(locale: LocaleCode): void {
 }
 
 export function resolveInitialLocale(): LocaleCode {
+  // 優先順: 保存値 > ブラウザ言語 > デフォルト。
   return loadSavedLocale() ?? normalizeLocale(navigator.language) ?? (DEFAULT_LOCALE as LocaleCode);
 }
 
@@ -70,9 +76,11 @@ export function createTranslator(locale: LocaleCode) {
   const dictionary = LOCALES[locale] ?? fallback;
 
   return (key: MessageKey, params?: TranslateParams): string => {
+    // 未翻訳キーは英語辞書、さらに無ければキー文字列をそのまま返す。
     const template = dictionary[key] ?? fallback[key] ?? key;
     const resolvedParams = {
       ...DEFAULT_TRANSLATE_PARAMS,
+      // 呼び出し側引数を後勝ちでマージし、既定値を必要に応じて上書きできるようにする。
       ...(params ?? {}),
     };
 

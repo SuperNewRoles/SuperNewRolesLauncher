@@ -1,5 +1,6 @@
 //! SNR配布物の取得・展開・退避復元を扱うサービス層。
 //! commands層から呼び出される実処理をここに集約する。
+// インストール工程ごとの失敗時ロールバックもこの層で担保する。
 
 use crate::utils::{download, migration, mod_profile, presets, settings, zip};
 use regex::Regex;
@@ -27,6 +28,7 @@ const PATCHER_SYNC_REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
 const PATCHER_SYNC_MAX_DURATION: Duration = Duration::from_secs(45);
 
 fn among_us_exe_name() -> &'static str {
+    // 実行ファイル名の定義はmodプロファイルへ一本化する。
     mod_profile::get().paths.among_us_exe.as_str()
 }
 
@@ -51,6 +53,7 @@ fn patcher_manifest_url() -> &'static str {
 }
 
 fn patcher_base_url() -> String {
+    // 連結時の二重スラッシュを避けるため、末尾スラッシュを正規化する。
     let mut base = mod_profile::get()
         .distribution
         .patchers
@@ -77,6 +80,7 @@ fn asset_regex_for_platform(platform: &settings::GamePlatform) -> Result<Regex, 
 }
 
 fn scale_progress(stage_percent: f64, start: f64, end: f64) -> f64 {
+    // 各ステージの0-100を全体進捗帯へ線形マッピングする。
     let ratio = stage_percent.clamp(0.0, 100.0) / 100.0;
     start + (end - start) * ratio
 }
@@ -1118,6 +1122,7 @@ pub async fn install_snr_release<R: Runtime>(
         return Err("Release tag is required".to_string());
     }
 
+    // 既存UI互換のため、未指定時は保持セーブデータを復元しない挙動を維持する。
     let restore_preserved_save_data = restore_preserved_save_data.unwrap_or(false);
 
     let result =

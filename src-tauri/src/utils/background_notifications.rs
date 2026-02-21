@@ -1,3 +1,4 @@
+// バックグラウンドで通知状態を監視し、必要時のみOS通知を出す。
 use std::collections::HashSet;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
@@ -53,6 +54,7 @@ struct ReportPollingState {
 
 impl ReportPollingState {
     fn disable(&mut self) {
+        // 無効化時は次回有効化で基準再構築できるよう状態を初期化する。
         self.enabled_last_tick = false;
         self.baseline_ready = false;
         self.known_message_keys.clear();
@@ -62,6 +64,7 @@ impl ReportPollingState {
         if self.enabled_last_tick {
             return;
         }
+        // 有効化直後は初回差分通知を避けるため、ベースライン未確定に戻す。
         self.enabled_last_tick = true;
         self.baseline_ready = false;
         self.known_message_keys.clear();
@@ -97,6 +100,7 @@ struct AnnouncePollingState {
 
 impl AnnouncePollingState {
     fn disable(&mut self) {
+        // 無効化時は既知IDを破棄し、再有効化時に基準を作り直す。
         self.enabled_last_tick = false;
         self.baseline_ready = false;
         self.known_article_ids.clear();
@@ -106,6 +110,7 @@ impl AnnouncePollingState {
         if self.enabled_last_tick {
             return;
         }
+        // 有効化直後は差分通知を出さないよう、初回取得をベースライン扱いにする。
         self.enabled_last_tick = true;
         self.baseline_ready = false;
         self.known_article_ids.clear();
@@ -126,6 +131,7 @@ impl BackgroundNotificationWorker {
         enabled: bool,
         suppress_notifications: bool,
     ) {
+        // 機能フラグまたは設定で無効なら、保持状態をクリアして終了する。
         if !mod_profile::feature_enabled(mod_profile::Feature::Reporting) {
             self.report.disable();
             return;
@@ -351,6 +357,7 @@ pub fn start_worker<R: Runtime + 'static>(app: AppHandle<R>) {
         let mut next_announce_poll = Instant::now();
 
         loop {
+            // 通知ワーカー単体の panic で常駐機能全体が止まらないように保護する。
             let tick_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let now = Instant::now();
                 let should_poll_report = now >= next_report_poll;
@@ -417,6 +424,7 @@ fn set_pending_open_target(target: NotificationOpenTarget) {
 }
 
 fn normalize_locale(value: &str) -> &'static str {
+    // 通知APIが想定する言語コードに丸め込む。
     if value.trim().eq_ignore_ascii_case("en") {
         "en"
     } else {

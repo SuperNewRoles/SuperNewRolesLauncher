@@ -11,6 +11,7 @@ use crate::utils::mod_profile;
 const SETTINGS_FILE_NAME: &str = "settings.json";
 
 fn required_profile_files() -> &'static [String] {
+    // プロファイル必須ファイル定義はmod設定から取得する。
     &mod_profile::get().paths.profile_required_files
 }
 
@@ -85,6 +86,7 @@ pub struct LauncherSettingsInput {
 }
 
 fn normalize_ui_locale(value: &str) -> &'static str {
+    // 想定外の値は既定の日本語ロケールへ寄せる。
     match value.trim().to_ascii_lowercase().as_str() {
         "en" => "en",
         _ => "ja",
@@ -124,6 +126,7 @@ fn make_default_settings<R: Runtime>(app: &AppHandle<R>) -> Result<LauncherSetti
 }
 
 fn normalize_settings(mut settings: LauncherSettings) -> LauncherSettings {
+    // 文字列項目を保存前にトリムし、表記ゆれを抑える。
     settings.among_us_path = settings.among_us_path.trim().to_string();
     settings.selected_release_tag = settings.selected_release_tag.trim().to_string();
     settings.profile_path = settings.profile_path.trim().to_string();
@@ -150,6 +153,7 @@ pub fn save_settings<R: Runtime>(
 pub fn load_settings_or_default<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<LauncherSettings, String> {
+    // 設定ファイルがない初回起動では、既定値をそのまま返す。
     let path = settings_path(app)?;
     let mut default_settings = make_default_settings(app)?;
 
@@ -238,6 +242,7 @@ pub fn apply_settings_input<R: Runtime>(
         settings.onboarding_completed = onboarding_completed;
     }
 
+    // 空文字で上書きされた場合でも、最低限の保存先は維持する。
     if settings.profile_path.trim().is_empty() {
         settings.profile_path = default_profile_path(app)?.to_string_lossy().to_string();
     }
@@ -259,6 +264,7 @@ pub fn is_profile_ready(profile_path: &Path) -> bool {
 pub fn verify_profile_required_files(profile_path: &Path) -> Result<(), String> {
     for relative_path in required_profile_files() {
         let file_path = profile_path.join(relative_path);
+        // どのファイルが欠けているかを明示し、設定ミス調査を容易にする。
         if !file_path.is_file() {
             return Err(format!(
                 "Missing required file in profile: {}",

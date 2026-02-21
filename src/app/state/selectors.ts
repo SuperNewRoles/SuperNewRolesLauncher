@@ -60,6 +60,7 @@ export interface ControlState {
  * 引数のみで結果が決まるため、副作用なしで安全に検証できる。
  */
 export function computeControlState(state: AppStateSnapshot): ControlState {
+  // 以降で何度も使う前提条件を最初に計算しておく。
   const hasSettings = state.settings !== null;
   const hasGamePath = Boolean(state.settings?.amongUsPath.trim());
   const hasProfilePath = Boolean(state.settings?.profilePath.trim());
@@ -70,6 +71,7 @@ export function computeControlState(state: AppStateSnapshot): ControlState {
   const dataTransferBusy = migrationBusy || presetBusy;
   const shortcutBusy = state.creatingShortcut;
   const installOrUninstallBusy = state.installInProgress || state.uninstallInProgress;
+  // 起動可否は複数操作の排他条件を束ねた共通フラグとして扱う。
   const launchAvailable =
     hasSettings &&
     hasGamePath &&
@@ -81,6 +83,7 @@ export function computeControlState(state: AppStateSnapshot): ControlState {
   const closeToTrayEnabled = state.settings?.closeToTrayOnClose ?? false;
 
   const hasImportableArchivePreset = state.archivePresets.some((preset) => preset.hasDataFile);
+  // プリセット操作は起動系・インストール系と排他にする。
   const presetControlsDisabled =
     dataTransferBusy ||
     installOrUninstallBusy ||

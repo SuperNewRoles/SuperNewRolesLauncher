@@ -40,6 +40,7 @@ export default function ConfirmStep({
   onBack,
   error,
 }: ConfirmStepProps) {
+  // アイコンを文脈に合わせて等倍で埋め込む共通設定。
   const iconProps = {
     width: "1em",
     height: "1em",
@@ -48,6 +49,7 @@ export default function ConfirmStep({
 
   const platformContent =
     platform === "steam" ? (
+      // プラットフォーム名とブランドアイコンを横並びで表示する。
       <span
         style={{ display: "inline-flex", alignItems: "center", gap: "0.15em", lineHeight: "1" }}
       >
@@ -87,6 +89,7 @@ export default function ConfirmStep({
           </dd>
           <dt>{t("installFlow.importTitle")}</dt>
           <dd>
+            {/* 取込状態の組み合わせを1行で要約表示する。 */}
             {!importEnabled && !migrationImportEnabled
               ? t("installFlow.importSummaryDisabled")
               : importEnabled && migrationImportEnabled

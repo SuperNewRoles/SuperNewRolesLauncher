@@ -1,3 +1,4 @@
+// HTTPダウンロード処理と進捗通知の共通ユーティリティ。
 use futures_util::StreamExt;
 use reqwest::Client;
 use std::fs::{self, File};
@@ -13,6 +14,7 @@ const DOWNLOAD_PROGRESS_MIN_BYTES_DELTA: u64 = 512 * 1024;
 const DOWNLOAD_PROGRESS_MIN_PERCENT_DELTA: f64 = 1.0;
 
 pub fn github_client() -> Result<Client, String> {
+    // すべての配布取得で同一タイムアウト設定を使う。
     Client::builder()
         .user_agent(USER_AGENT)
         .connect_timeout(CONNECT_TIMEOUT)
@@ -30,6 +32,8 @@ pub async fn download_file<F>(
 where
     F: FnMut(u64, Option<u64>),
 {
+    // まず0%相当を通知して、UI側で初期描画できるようにする。
+    // 総サイズ未確定でも downloaded=0 を先に渡して進捗バーの状態を固定する。
     let response = client
         .get(url)
         .send()
@@ -74,6 +78,7 @@ where
         let is_final = total_size.map(|total| downloaded >= total).unwrap_or(false);
 
         if progressed_percent || progressed_bytes || interval_elapsed || is_final {
+            // 小刻みすぎる更新を抑えつつ、最終到達は必ず通知する。
             on_progress(downloaded, total_size);
             last_emitted_downloaded = downloaded;
             last_emitted_percent = current_percent;
@@ -82,6 +87,7 @@ where
     }
 
     if downloaded != last_emitted_downloaded {
+        // 最後の小さな差分がしきい値未満でも、完了値だけは必ず反映する。
         on_progress(downloaded, total_size);
     }
 

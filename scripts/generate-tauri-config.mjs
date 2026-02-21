@@ -11,16 +11,19 @@ const baseTauriConfigPath = path.join(workspaceRoot, "src-tauri", "tauri.conf.js
 const outputTauriConfigPath = path.join(workspaceRoot, "src-tauri", "tauri.generated.conf.json");
 
 async function loadJson(filePath) {
+  // 設定ファイルは UTF-8 固定で読み込む。
   const raw = await readFile(filePath, "utf8");
   return JSON.parse(raw);
 }
 
 function buildGeneratedConfig(baseConfig, modConfig) {
+  // 元設定を破壊しないようにクローンしてから上書きする。
   const generated = structuredClone(baseConfig);
   generated.productName = modConfig.branding.launcherName;
   generated.identifier = modConfig.branding.identifier;
 
   if (generated.app?.windows && Array.isArray(generated.app.windows)) {
+    // すべてのウィンドウタイトルをブランド設定へ寄せて表記ゆれを防ぐ。
     generated.app.windows = generated.app.windows.map((windowConfig) => ({
       ...windowConfig,
       title: modConfig.branding.windowTitle,
@@ -42,6 +45,7 @@ function buildGeneratedConfig(baseConfig, modConfig) {
 }
 
 async function main() {
+  // 依存しない2ファイルは並列に読み込んで待ち時間を減らす。
   const [modConfig, baseTauriConfig] = await Promise.all([
     loadJson(modConfigPath),
     loadJson(baseTauriConfigPath),
@@ -49,6 +53,7 @@ async function main() {
 
   const generated = buildGeneratedConfig(baseTauriConfig, modConfig);
   const output = `${JSON.stringify(generated, null, 2)}\n`;
+  // 生成物の末尾改行を揃えて差分を安定させる。
   await writeFile(outputTauriConfigPath, output, "utf8");
   console.log(`Generated ${path.relative(workspaceRoot, outputTauriConfigPath)}`);
 }

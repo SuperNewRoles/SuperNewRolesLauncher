@@ -4,6 +4,7 @@ import { createTranslator, normalizeLocale } from "./index";
 
 describe("i18n", () => {
   it("normalizeLocale は ja-JP / EN を正規化できる", () => {
+    // 言語タグ形式と大文字入力の両方を許容する。
     expect(normalizeLocale("ja-JP")).toBe("ja");
     expect(normalizeLocale("EN")).toBe("en");
   });
@@ -19,6 +20,7 @@ describe("i18n", () => {
   });
 
   it("createTranslator は未知キーでも文字列を返す", () => {
+    // 文言欠落時でも UI が空にならないよう、キー文字列フォールバックを期待する。
     const t = createTranslator("en");
     expect(t("not.exists.key" as never)).toBe("not.exists.key");
   });

@@ -32,17 +32,20 @@ interface ImportStepProps {
 const IMPORT_CONTENT_ANIMATION_MS = 180;
 
 function useAnimatedVisibility(visible: boolean) {
+  // 表示/非表示を即時アンマウントせず、退場アニメーション完了まで保持する。
   const [shouldRender, setShouldRender] = useState(visible);
   const [isClosing, setIsClosing] = useState(false);
 
   useEffect(() => {
     if (visible) {
+      // 再表示時は即座に表示状態へ戻し、退場フラグを解除する。
       setShouldRender(true);
       setIsClosing(false);
       return;
     }
 
     if (!shouldRender) {
+      // 既に非表示ならタイマー設定は不要。
       return;
     }
 
@@ -88,6 +91,7 @@ export default function ImportStep({
   onNext,
   onBack,
 }: ImportStepProps) {
+  // ダイアログ操作中フラグでボタン連打による重複処理を防ぐ。
   const [previewing, setPreviewing] = useState(false);
   const [pickingArchive, setPickingArchive] = useState(false);
   const importContent = useAnimatedVisibility(importEnabled);
@@ -95,6 +99,7 @@ export default function ImportStep({
   const hasFolderPreview = sourceSaveDataPath.trim().length > 0;
   const hasArchivePath = migrationArchivePath.trim().length > 0;
 
+  // 次へ進む条件を事前計算し、入力不足や検証中の遷移を防ぐ。
   const canProceed =
     (!importEnabled || (hasFolderPreview && !previewError && !previewing)) &&
     (!migrationEnabled ||
@@ -108,6 +113,7 @@ export default function ImportStep({
   const handleSelectSource = async () => {
     let selectedPath: string | string[] | null;
     try {
+      // Among Us フォルダ選択用のディレクトリピッカーを開く。
       selectedPath = await open({
         directory: true,
         multiple: false,
@@ -118,11 +124,13 @@ export default function ImportStep({
     }
 
     if (!selectedPath || Array.isArray(selectedPath)) {
+      // キャンセル時は何も変更しない。
       return;
     }
 
     setPreviewing(true);
     try {
+      // 選択後は即プレビューを取得して内容を確認できるようにする。
       await onSelectSource(selectedPath);
     } finally {
       setPreviewing(false);
@@ -132,6 +140,7 @@ export default function ImportStep({
   const handleSelectArchive = async () => {
     let selectedPath: string | string[] | null;
     try {
+      // 拡張子フィルターで移行アーカイブのみ選択可能にする。
       selectedPath = await open({
         directory: false,
         multiple: false,
@@ -148,11 +157,13 @@ export default function ImportStep({
     }
 
     if (!selectedPath || Array.isArray(selectedPath)) {
+      // アーカイブ未選択のまま戻ったケースを許容する。
       return;
     }
 
     setPickingArchive(true);
     try {
+      // 親コンポーネントへ選択パスを反映して検証を開始する。
       onSelectArchive(selectedPath);
     } finally {
       setPickingArchive(false);
@@ -160,6 +171,7 @@ export default function ImportStep({
   };
 
   const previewStatus = previewing
+    // プレビュー状態に応じて案内文を切り替える。
     ? t("installFlow.importPreviewLoading")
     : previewError
       ? t("installFlow.importPreviewError", { error: previewError })
@@ -173,6 +185,7 @@ export default function ImportStep({
         : t("installFlow.importNotConfigured");
 
   const archiveStatus = migrationArchiveError
+    // アーカイブ側はエラー・検証中・検証済みを優先表示する。
     ? migrationArchiveError
     : migrationPasswordValidationState === "checking"
       ? t("installFlow.importArchivePasswordChecking")
@@ -264,6 +277,7 @@ export default function ImportStep({
         </div>
 
         {migrationEnabled && (
+          // 移行機能フラグ有効時のみアーカイブ取込UIを表示する。
           <div className="import-option-block">
             <label className="confirm-checkbox import-toggle">
               <input
@@ -275,6 +289,7 @@ export default function ImportStep({
             </label>
 
             {archiveContent.shouldRender && (
+              // パスワード検証結果はアーカイブ入力ブロック内に集約表示する。
               <div className={`import-step-content ${archiveContent.animationClass}`}>
                 <div className="import-archive-fields">
                   <button
@@ -297,6 +312,7 @@ export default function ImportStep({
                       value={migrationPassword}
                       placeholder={t("migration.overlay.passwordPlaceholder")}
                       autoComplete="new-password"
+                      // 入力変化は即時反映し、検証はblur時に親で実行する。
                       onChange={(event) => onMigrationPasswordChange(event.target.value)}
                       onBlur={() => onMigrationPasswordBlur()}
                     />

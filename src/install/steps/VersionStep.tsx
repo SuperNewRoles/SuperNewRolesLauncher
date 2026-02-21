@@ -16,6 +16,7 @@ interface VersionStepProps {
 }
 
 function formatDate(value: string): string {
+  // リリース日が欠損または不正な場合は原文/プレースホルダーで表示する。
   if (!value) return "-";
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
@@ -33,6 +34,7 @@ export default function VersionStep({
   platform,
 }: VersionStepProps) {
   const latest = releases[0];
+  // 状態ごとに表示分岐しやすいようブール値を先に計算する。
   const hasReleaseOptions = releases.length > 0;
   const showLoadingState = releasesLoading && !hasReleaseOptions;
   const showErrorState = !releasesLoading && Boolean(releasesError) && !hasReleaseOptions;
@@ -45,6 +47,7 @@ export default function VersionStep({
         ? t("installFlow.platformEpic")
         : "";
 
+  // 現在選択中のプラットフォームに応じてヘッダーアイコンを切り替える。
   const platformIcon =
     platform === "steam" ? (
       <span className="version-platform-icon steam">{STEAM_SVG}</span>
@@ -62,6 +65,7 @@ export default function VersionStep({
         <h2 className="step-title">{t("installFlow.versionTitle")}</h2>
       </div>
       {showLoadingState || showErrorState || showEmptyState ? (
+        // 取得中・エラー・空データは共通パネルで排他的に描画する。
         <div className="version-status-panel">
           {showLoadingState && (
             <>

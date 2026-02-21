@@ -20,6 +20,7 @@ const INVALID_AMONG_US_FOLDER_ERROR_PREFIX =
   "The selected folder is not an Among Us installation directory:";
 
 export function normalizeInvokeErrorMessage(error: unknown): string {
+  // Tauri の invoke ラッパーで付与される接頭辞を除去して判定しやすくする。
   const message = String(error ?? "").trim();
   return message.replace(/^Error invoking '[^']+':\s*/u, "").trim();
 }
@@ -29,6 +30,7 @@ export function localizeLaunchErrorMessage(
   amongUsExe: string,
   t: Translator,
 ): string {
+  // まずは呼び出しラッパー由来のノイズを取り除く。
   const message = normalizeInvokeErrorMessage(error);
   const invalidAmongUsExeTargetErrorPrefix = `Launch target is not ${amongUsExe}:`;
 
@@ -37,6 +39,7 @@ export function localizeLaunchErrorMessage(
   }
 
   if (message.startsWith(EPIC_AUTH_CHECK_FAILED_ERROR_PREFIX)) {
+    // 詳細メッセージがある場合は翻訳文字列へ埋め込んで表示する。
     const detail = message.slice(EPIC_AUTH_CHECK_FAILED_ERROR_PREFIX.length).trim();
     if (detail.length > 0) {
       return t("launch.errorEpicAuthCheckFailedWithDetail", { error: detail });
@@ -45,6 +48,7 @@ export function localizeLaunchErrorMessage(
   }
 
   if (message.startsWith(EPIC_AUTH_INIT_FAILED_ERROR_PREFIX)) {
+    // 初期化失敗も詳細があればユーザー向け表示に反映する。
     const detail = message.slice(EPIC_AUTH_INIT_FAILED_ERROR_PREFIX.length).trim();
     if (detail.length > 0) {
       return t("launch.errorEpicAuthInitFailedWithDetail", { error: detail });
@@ -67,5 +71,6 @@ export function localizeLaunchErrorMessage(
     return t("installFlow.invalidAmongUsFolder");
   }
 
+  // 未知のエラーは情報欠落を避けるため、生文字列のまま返す。
   return message;
 }

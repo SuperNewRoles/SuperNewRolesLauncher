@@ -1,3 +1,5 @@
+// utils層のモジュール公開一覧。
+// 他層から直接参照する共通ユーティリティのみをここで re-export する。
 pub mod background_notifications;
 pub mod download;
 pub mod epic_api;

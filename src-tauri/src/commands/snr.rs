@@ -11,12 +11,14 @@ pub use snr_service::{
 };
 
 fn ensure_presets_enabled() -> Result<(), String> {
+    // プリセット関連APIのみ、機能フラグで明示的にガードする。
     mod_profile::ensure_feature_enabled(mod_profile::Feature::Presets)
 }
 
 /// 利用可能なSNRリリース一覧を取得する。
 #[tauri::command]
 pub async fn snr_releases_list() -> Result<Vec<SnrReleaseSummary>, String> {
+    // 後方互換のため、実体は汎用APIへ委譲して返却を統一する。
     mod_releases_list().await
 }
 
@@ -40,6 +42,7 @@ pub fn snr_savedata_import<R: Runtime>(
     app: AppHandle<R>,
     source_among_us_path: String,
 ) -> Result<SaveDataImportResult, String> {
+    // 旧snr命名の互換APIとして残しつつ、実装本体は汎用mod APIへ委譲する。
     mod_savedata_import(app, source_among_us_path)
 }
 

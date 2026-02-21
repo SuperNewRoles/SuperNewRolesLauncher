@@ -1,3 +1,4 @@
+// Epic OAuthセッションの取得・更新・永続化を扱うユーティリティ。
 use base64::Engine;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -42,6 +43,7 @@ pub struct EpicApi {
 
 impl EpicApi {
     pub fn new() -> Result<Self, String> {
+        // Epic API通信用クライアントは専用User-Agentで初期化する。
         Client::builder()
             .user_agent(USER_AGENT)
             .gzip(true)
@@ -51,10 +53,12 @@ impl EpicApi {
     }
 
     fn basic_auth() -> String {
+        // Client ID/Secret をBasic認証ヘッダ用に結合する。
         B64.encode(format!("{LAUNCHER_CLIENT_ID}:{LAUNCHER_CLIENT_SECRET}"))
     }
 
     pub fn get_auth_url() -> String {
+        // ログイン後に認可コードを受け取るためのリダイレクトURLを埋め込む。
         let redirect = format!(
             "https://www.epicgames.com/id/api/redirect?clientId={LAUNCHER_CLIENT_ID}&responseType=code"
         );
@@ -65,6 +69,7 @@ impl EpicApi {
     }
 
     pub async fn login_with_auth_code(&self, code: &str) -> Result<EpicSession, String> {
+        // 認可コード交換はOAuthトークンAPIへ統一委譲する。
         self.oauth_request(&[
             ("grant_type", "authorization_code"),
             ("code", code),
@@ -74,6 +79,7 @@ impl EpicApi {
     }
 
     pub async fn refresh_session(&self, refresh_token: &str) -> Result<EpicSession, String> {
+        // リフレッシュフローも同じレスポンス型で扱う。
         self.oauth_request(&[
             ("grant_type", "refresh_token"),
             ("refresh_token", refresh_token),
@@ -83,6 +89,7 @@ impl EpicApi {
     }
 
     pub async fn get_game_token(&self, session: &EpicSession) -> Result<String, String> {
+        // ゲーム起動用の短命コードをアクセストークンから発行する。
         let response = self
             .client
             .get(format!("https://{OAUTH_HOST}/account/api/oauth/exchange"))
@@ -92,6 +99,7 @@ impl EpicApi {
             .map_err(|e| format!("Failed to request Epic game token: {e}"))?;
 
         if !response.status().is_success() {
+            // Epic側エラー本文を添えて調査しやすくする。
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
             return Err(format!("Failed to get Epic game token ({status}): {body}"));
@@ -105,6 +113,7 @@ impl EpicApi {
     }
 
     async fn oauth_request(&self, params: &[(&str, &str)]) -> Result<EpicSession, String> {
+        // すべてのOAuth呼び出しはこの共通関数を通して認証ヘッダを統一する。
         let response = self
             .client
             .post(format!("https://{OAUTH_HOST}/account/api/oauth/token"))
@@ -133,6 +142,7 @@ fn storage() -> &'static KeyringStorage<EpicSession> {
 
 fn storage_service_name() -> &'static str {
     STORAGE_SERVICE_NAME.get_or_init(|| {
+        // キーリングのサービス名は識別子から安定して導出する。
         let identifier = mod_profile::get().branding.identifier.trim();
         let value = if identifier.is_empty() {
             "launcher-epic-session".to_string()
@@ -145,6 +155,7 @@ fn storage_service_name() -> &'static str {
 
 fn fallback_session_dir_name() -> &'static str {
     FALLBACK_SESSION_DIR_NAME.get_or_init(|| {
+        // ユーザーが判別しやすいよう、フォルダ名はランチャー名ベースにする。
         let launcher_name = mod_profile::get().branding.launcher_name.trim();
         let value = if launcher_name.is_empty() {
             "Launcher".to_string()
@@ -162,6 +173,7 @@ fn session_cache() -> &'static Mutex<Option<EpicSession>> {
 fn fallback_session_path() -> Option<PathBuf> {
     #[cfg(windows)]
     {
+        // WindowsはAPPDATA配下へ保存する。
         std::env::var_os("APPDATA").map(|app_data| {
             PathBuf::from(app_data)
                 .join(fallback_session_dir_name())
@@ -190,6 +202,7 @@ fn save_session_fallback_file(session: &EpicSession) -> Result<(), String> {
     };
 
     if let Some(parent) = path.parent() {
+        // 書き込み前に親ディレクトリがなければ作成する。
         fs::create_dir_all(parent)
             .map_err(|e| format!("Failed to create fallback session directory: {e}"))?;
     }
@@ -210,6 +223,7 @@ fn clear_session_fallback_file() -> Result<(), String> {
     let Some(path) = fallback_session_path() else {
         return Ok(());
     };
+    // 既に削除済みのケースは正常系として扱う。
     if !path.exists() {
         return Ok(());
     }
@@ -217,6 +231,7 @@ fn clear_session_fallback_file() -> Result<(), String> {
 }
 
 pub fn save_session(session: &EpicSession) -> Result<(), String> {
+    // キーリング保存失敗時もファイル保存が成功すれば継続利用できるようにする。
     let keyring_result = storage().save(session);
     let file_result = save_session_fallback_file(session);
 
@@ -240,12 +255,14 @@ pub fn save_session(session: &EpicSession) -> Result<(), String> {
 pub fn load_session() -> Option<EpicSession> {
     if let Ok(guard) = session_cache().lock() {
         if let Some(session) = guard.clone() {
+            // まずメモリキャッシュを返し、不要なI/Oを避ける。
             return Some(session);
         }
     }
 
     let loaded = storage().load();
     if let Some(session) = loaded {
+        // キーリング由来のセッションはフォールバックファイルにも複製しておく。
         let _ = save_session_fallback_file(&session);
         if let Ok(mut guard) = session_cache().lock() {
             *guard = Some(session.clone());
@@ -255,6 +272,8 @@ pub fn load_session() -> Option<EpicSession> {
 
     let fallback_loaded = load_session_fallback_file();
     if let Some(session) = fallback_loaded {
+        // ファイルから復旧できた場合はキーリングにも再同期する。
+        // 次回以降は優先ストレージから読めるよう、失敗しても処理自体は継続する。
         let _ = storage().save(&session);
         if let Ok(mut guard) = session_cache().lock() {
             *guard = Some(session.clone());
@@ -267,6 +286,7 @@ pub fn load_session() -> Option<EpicSession> {
 
 pub fn clear_session() -> Result<(), String> {
     if let Ok(mut guard) = session_cache().lock() {
+        // 削除要求時は最初にメモリ上の認証状態を無効化する。
         *guard = None;
     }
     let keyring_result = storage().clear();

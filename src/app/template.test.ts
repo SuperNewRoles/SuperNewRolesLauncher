@@ -5,6 +5,7 @@ import { renderAppTemplate } from "./template";
 
 describe("renderAppTemplate (settings general)", () => {
   const t = createTranslator("ja");
+  // 複数テストで同じ HTML を使い回し、検証対象をマークアップ有無に絞る。
   const html = renderAppTemplate("ja", t);
 
   it("includes new general setting elements", () => {
@@ -38,6 +39,7 @@ describe("renderAppTemplate (settings general)", () => {
     expect(settingsTab).not.toBeNull();
     expect(mainContent).not.toBeNull();
 
+    // オーバーレイがタブ内部に入ると z-index とフォーカス制御が崩れるため位置を固定で検証する。
     for (const id of [
       "settings-among-us-overlay",
       "settings-uninstall-confirm-overlay",

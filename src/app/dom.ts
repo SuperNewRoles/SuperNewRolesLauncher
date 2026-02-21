@@ -99,6 +99,7 @@ export interface AppDom {
 }
 
 function mustElement<T extends Element>(selector: string): T {
+  // 必須要素はここで取得失敗を即例外化し、テンプレート破壊を早期検知する。
   const element = document.querySelector<T>(selector);
   if (!element) {
     throw new Error(`Missing element: ${selector}`);
@@ -110,11 +111,14 @@ function optionalElement<K extends keyof HTMLElementTagNameMap>(
   selector: string,
   fallbackTagName: K,
 ): HTMLElementTagNameMap[K] {
+  // 機能フラグで非表示になり得る要素は optional として扱う。
   const element = document.querySelector<HTMLElementTagNameMap[K]>(selector);
   if (element) {
     return element;
   }
+  // 呼び出し側の null チェックを減らすため、ダミー要素を返す。
   const fallback = document.createElement(fallbackTagName);
+  // hidden にしておくことで、誤って DOM に追加されても描画へ影響しない。
   fallback.hidden = true;
   return fallback;
 }
@@ -124,6 +128,7 @@ function optionalElement<K extends keyof HTMLElementTagNameMap>(
  * ここで失敗する場合はテンプレート破壊を即座に検知できる。
  */
 export function collectAppDom(): AppDom {
+  // テンプレートの id と 1:1 で対応する要素参照をここで確定させる。
   return {
     appVersion: mustElement<HTMLSpanElement>("#app-version"),
     settingsAppVersion: mustElement<HTMLSpanElement>("#settings-app-version"),

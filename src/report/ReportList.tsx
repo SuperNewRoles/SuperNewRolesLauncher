@@ -22,6 +22,7 @@ export function ReportList({
   isReady,
   isLoading,
 }: ReportListProps) {
+  // 左ペインは「新規作成」「読み込み状態」「スレッド一覧」を切り替えて表示する。
   return (
     <div className="report-list-container">
       <div className="report-list-header">
@@ -51,6 +52,7 @@ export function ReportList({
               <button
                 key={thread.threadId}
                 type="button"
+                // 選択中・未読の状態をクラスで反映する。
                 className={`report-thread-item-vertical ${
                   selectedThread?.threadId === thread.threadId ? "active" : ""
                 } ${thread.unread ? "unread" : ""}`}

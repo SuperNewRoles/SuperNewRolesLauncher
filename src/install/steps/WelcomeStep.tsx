@@ -24,6 +24,7 @@ export default function WelcomeStep({
   theme,
   onThemeChange,
 }: WelcomeStepProps) {
+  // 初期画面ではテーマ・言語設定と開始導線を一箇所にまとめる。
   return (
     <div className="install-step install-step-welcome">
       <div className="welcome-content">
@@ -104,6 +105,7 @@ export default function WelcomeStep({
             <select
               className="locale-select"
               value={locale}
+              // LocaleCode 型に寄せて parent 側の保存処理へ渡す。
               onChange={(e) => onLocaleChange((e.target.value as LocaleCode) ?? locale)}
             >
               {localeOptions.map((opt) => (

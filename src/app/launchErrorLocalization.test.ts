@@ -7,6 +7,7 @@ import {
 } from "./launchErrorLocalization";
 
 const t = (key: LaunchErrorMessageKey, params?: Record<string, string | number>): string => {
+  // テストでは翻訳文そのものではなく、キーと引数のマッピング結果を検証する。
   if (params?.error) {
     return `${key}:${params.error}`;
   }
@@ -15,6 +16,7 @@ const t = (key: LaunchErrorMessageKey, params?: Record<string, string | number>)
 
 describe("launch error localization", () => {
   it("normalizes invoke wrapper from error message", () => {
+    // Tauri invoke の共通プレフィックスが除去されることを確認する。
     const raw = "Error invoking 'launch_modded': Epic launch requires Epic authentication";
     expect(normalizeInvokeErrorMessage(raw)).toBe("Epic launch requires Epic authentication");
   });
@@ -34,6 +36,7 @@ describe("launch error localization", () => {
   });
 
   it("localizes Epic feature disabled error", () => {
+    // mod.config 由来の固定文言はそのまま翻訳キーへ写像される想定。
     const raw = "Error invoking 'launch_vanilla': Epic launch is disabled by mod.config.json.";
     expect(localizeLaunchErrorMessage(raw, "Among Us.exe", t)).toBe(
       "launch.errorEpicFeatureDisabled",

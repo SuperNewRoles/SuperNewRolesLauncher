@@ -1,4 +1,6 @@
+// 日本語辞書は翻訳キーの基準定義としても利用される。
 const ja = {
+  // キー追加時は en.ts の型エラーを確認し、翻訳漏れを防ぐ。
   "language.label": "言語",
   "language.option.ja": "日本語",
   "language.option.en": "English",

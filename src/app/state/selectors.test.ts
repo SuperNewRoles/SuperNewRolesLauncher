@@ -4,6 +4,7 @@ import { computeControlState } from "./selectors";
 import type { AppStateSnapshot } from "./store";
 
 function createBaseSnapshot(): AppStateSnapshot {
+  // 各テストはこの最小状態から必要項目だけ上書きする。
   return {
     settings: null,
     releases: [],
@@ -53,6 +54,7 @@ describe("computeControlState", () => {
 
   it("常駐設定がOFFのとき WebView解放スイッチは無効になる", () => {
     const state = createBaseSnapshot();
+    // ここでは launch/install 状態を触らず、常駐フラグだけで判定されることを確認する。
     state.settings = {
       amongUsPath: "C:/AmongUs",
       gamePlatform: "steam",
@@ -87,6 +89,7 @@ describe("computeControlState", () => {
 
     state.profileIsReady = true;
 
+    // 起動条件がそろったときに主要ボタンが有効化されることを確認する。
     const result = computeControlState(state);
     expect(result.launchVanillaButtonDisabled).toBe(false);
     expect(result.launchModdedButtonDisabled).toBe(false);

@@ -1,3 +1,4 @@
+// Among Usのインストール先探索とプラットフォーム判定を担当する。
 use std::path::{Path, PathBuf};
 
 #[cfg(target_os = "windows")]
@@ -10,6 +11,7 @@ fn among_us_exe_name() -> &'static str {
 }
 
 fn epic_folder_path() -> PathBuf {
+    // Epic版判定に使う既知ディレクトリまでの相対パスを組み立てる。
     let mut path = mod_profile::to_relative_path(&mod_profile::get().paths.among_us_data_dir);
     path.push("StreamingAssets");
     path.push("aa");
@@ -18,6 +20,7 @@ fn epic_folder_path() -> PathBuf {
 }
 
 fn verify_among_us_directory(path: &Path) -> bool {
+    // ディレクトリ存在と実行ファイル存在の両方を満たす場合のみ有効とする。
     path.is_dir() && path.join(among_us_exe_name()).is_file()
 }
 
@@ -96,6 +99,7 @@ pub fn get_among_us_paths() -> Vec<PathBuf> {
             paths.push(path);
         }
 
+        // 共通候補を追加しつつ、重複は除外して順序を維持する。
         for path in detect_common_paths() {
             if !paths.contains(&path) {
                 paths.push(path);
@@ -112,10 +116,12 @@ pub fn get_among_us_paths() -> Vec<PathBuf> {
 pub fn detect_platform(path: &str) -> Result<String, String> {
     let path = PathBuf::from(path);
 
+    // 先に構成妥当性を確認し、誤検出を防ぐ。
     if !verify_among_us_directory(&path) {
         return Err("Invalid Among Us installation directory".to_string());
     }
 
+    // Epic固有ディレクトリの有無だけで判定し、未一致はSteamとして扱う。
     if is_epic_installation(&path) {
         Ok("epic".to_string())
     } else {

@@ -111,6 +111,7 @@ import type {
  * フロントエンドの実行本体。
  * 画面描画・イベント結線・Tauri通信をこのモジュールで統合管理する。
  */
+// タイミング系の値は UI 体感に直結するため、この近辺にまとめて管理する。
 const REPORT_HOME_NOTIFICATION_FETCH_GAP_MS = 30_000;
 const REPORT_HOME_NOTIFICATION_POLL_INTERVAL_MS = 180_000;
 const ANNOUNCE_BADGE_FETCH_GAP_MS = 30_000;
@@ -142,6 +143,7 @@ type PresetFeedbackMode = "none" | "confirmImport" | "result";
 const DEFAULT_SETTINGS_CATEGORY: SettingsCategoryId = "general";
 
 function isMainTabEnabled(tabId: MainTabId): boolean {
+  // 機能フラグで非表示になるタブはここで一元判定する。
   if (tabId === "report") {
     return REPORTING_ENABLED;
   }
@@ -155,6 +157,7 @@ function isMainTabEnabled(tabId: MainTabId): boolean {
 }
 
 function isSettingsCategoryEnabled(category: SettingsCategoryId): boolean {
+  // 設定カテゴリも機能フラグと連動して開閉する。
   if (category === "epic") {
     return EPIC_LOGIN_ENABLED;
   }
@@ -267,6 +270,7 @@ function consumeLocaleSwitchReloadAnimation(): boolean {
 
 function consumeInstallFlowHomeAfterReload(): boolean {
   try {
+    // インストール完了後にホームへ遷移するワンショットフラグを消費する。
     const value = sessionStorage.getItem(INSTALL_FLOW_HOME_AFTER_RELOAD_FLAG_KEY);
     if (value !== "1") {
       return false;
@@ -316,6 +320,7 @@ function restartLayoutAnimation(layout: HTMLElement, className: string): Promise
 }
 
 export async function runLauncher(container?: HTMLElement | null): Promise<void> {
+  // エントリ側から渡されたコンテナを優先し、未指定時は #app を探索する。
   const app = container ?? document.querySelector<HTMLDivElement>("#app");
   if (!app) {
     throw new Error("#app not found");
@@ -477,10 +482,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     input: HTMLInputElement,
     rowElement: HTMLElement | null,
   ): void {
+    // disabled 状態を行コンテナへ反映し、視覚的にも操作不可を示す。
     rowElement?.classList.toggle("is-disabled", input.disabled);
   }
 
   function updateThemeButtons(theme: ThemePreference) {
+    // 選択中テーマをボタンの active / aria-pressed に同期する。
     themeToggleSystem.classList.toggle("active", theme === "system");
     themeToggleLight.classList.toggle("active", theme === "light");
     themeToggleDark.classList.toggle("active", theme === "dark");

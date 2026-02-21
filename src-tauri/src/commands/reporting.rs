@@ -1,3 +1,4 @@
+// 通報API連携をフロントへ公開するコマンド群。
 use tauri::{AppHandle, Runtime};
 
 use crate::utils::{mod_profile, reporting_api};
@@ -16,6 +17,7 @@ pub struct ReportingSendResult {
 }
 
 fn ensure_reporting_enabled() -> Result<(), String> {
+    // 機能無効時は共通チェックで早期リターンする。
     mod_profile::ensure_feature_enabled(mod_profile::Feature::Reporting)
 }
 
@@ -25,6 +27,7 @@ pub async fn reporting_prepare<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<ReportingPrepareResult, String> {
     ensure_reporting_enabled()?;
+    // アカウント準備結果をUIで扱いやすい形へ詰め替える。
     let summary = reporting_api::prepare_account(&app).await?;
     Ok(ReportingPrepareResult {
         ready: true,
@@ -60,6 +63,7 @@ pub async fn reporting_message_send<R: Runtime>(
     content: String,
 ) -> Result<ReportingSendResult, String> {
     ensure_reporting_enabled()?;
+    // command層では入力を改変せず、API層の検証と送信結果をそのまま利用する。
     reporting_api::send_message(&app, &thread_id, &content).await?;
     Ok(ReportingSendResult { success: true })
 }

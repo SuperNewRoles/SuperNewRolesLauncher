@@ -34,10 +34,12 @@ import type {
 
 // 設定関連API
 export function settingsGet(): Promise<LauncherSettings> {
+  // 現在保存されているランチャー設定を取得する。
   return invoke<LauncherSettings>("settings_get");
 }
 
 export function settingsUpdate(settings: LauncherSettingsInput): Promise<LauncherSettings> {
+  // 部分更新 payload をそのまま渡し、差分更新の責務はバックエンド側に委ねる。
   return invoke<LauncherSettings>("settings_update", { settings });
 }
 
@@ -51,6 +53,7 @@ export function settingsOpenFolder(path: string): Promise<void> {
 
 // パス検出関連API
 export function finderDetectAmongUs(): Promise<string> {
+  // 既知のインストール先候補から Among Us を自動検出する。
   return invoke<string>("finder_detect_among_us");
 }
 
@@ -69,6 +72,7 @@ export function finderDetectPlatforms(): Promise<DetectedPlatform[]> {
 
 // Modインストール関連API（汎用）
 export function modReleasesList(): Promise<SnrReleaseSummary[]> {
+  // 配布元から利用可能なリリース一覧を取得する。
   return invoke<SnrReleaseSummary[]>("mod_releases_list");
 }
 
@@ -108,6 +112,7 @@ export function modPreservedSaveDataMergePresets(): Promise<SaveDataPresetMergeR
 
 // 互換API（deprecated）
 export function snrReleasesList(): Promise<SnrReleaseSummary[]> {
+  // 旧 API 名の呼び出しを新 API 実装へ委譲する。
   return modReleasesList();
 }
 
@@ -151,6 +156,7 @@ export function migrationExport(input: {
   encryptionEnabled?: boolean;
   password?: string;
 }): Promise<MigrationExportResult> {
+  // 既存データをアーカイブ化して外部保存できる形式で出力する。
   return invoke<MigrationExportResult>("migration_export", input);
 }
 
@@ -170,6 +176,7 @@ export function migrationValidateArchivePassword(input: {
 
 // プリセット関連API
 export function presetsListLocal(): Promise<PresetSummary[]> {
+  // ローカル SaveData からプリセット一覧を読み出す。
   return invoke<PresetSummary[]>("presets_list_local");
 }
 
@@ -193,6 +200,7 @@ export function presetsImportArchive(input: {
 
 // Reporting関連API
 export function reportingPrepare(): Promise<ReportingPrepareResult> {
+  // 報告機能の利用可否とトークン状態を初期化する。
   return invoke<ReportingPrepareResult>("reporting_prepare");
 }
 
@@ -233,6 +241,7 @@ export function launchModded(input: {
   profilePath: string;
   platform: GamePlatform;
 }): Promise<void> {
+  // Mod 適用済みプロファイルでゲームを起動する。
   return invoke<void>("launch_modded", input);
 }
 
@@ -261,6 +270,7 @@ export function launchGameRunningGet(): Promise<boolean> {
 
 // Epic認証関連API
 export function epicLoginWebview(): Promise<void> {
+  // WebView ベースの Epic ログインフローを開始する。
   return invoke<void>("epic_login_webview");
 }
 

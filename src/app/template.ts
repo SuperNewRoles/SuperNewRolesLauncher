@@ -24,6 +24,7 @@ export type Translator = (key: MessageKey, params?: Record<string, string | numb
 
 function renderLocaleOptions(locale: LocaleCode, t: Translator): string {
   return SUPPORTED_LOCALES.map((value) => {
+    // 現在ロケールに一致する option のみ selected を付与する。
     const selected = value === locale ? " selected" : "";
     return `<option value="${value}"${selected}>${t(LOCALE_OPTION_LABEL_KEYS[value])}</option>`;
   }).join("");
@@ -34,12 +35,14 @@ function renderLocaleOptions(locale: LocaleCode, t: Translator): string {
  * インストール/オンボーディングのデザインをベースに、下部タブ付きのメインレイアウト。
  */
 export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
+  // 機能フラグに応じてタブと設定カテゴリの表示可否を切り替える。
   const reportHiddenAttr = REPORTING_ENABLED ? "" : " hidden";
   const announceHiddenAttr = ANNOUNCE_ENABLED ? "" : " hidden";
   const presetHiddenAttr = PRESETS_ENABLED ? "" : " hidden";
   const migrationHiddenAttr = MIGRATION_ENABLED ? "" : " hidden";
   const epicHiddenAttr = EPIC_LOGIN_ENABLED ? "" : " hidden";
   const connectLinksHiddenAttr = CONNECT_LINKS_ENABLED ? "" : " hidden";
+  // 文字列テンプレートを使うことで初期描画時の依存を減らし、描画順を制御しやすくする。
   return `
   <main class="main-layout">
     <header class="main-header">

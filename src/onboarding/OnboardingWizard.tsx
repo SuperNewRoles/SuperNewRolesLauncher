@@ -19,6 +19,7 @@ interface OnboardingWizardProps {
 }
 
 const isFullscreenOnboardingStep = (candidate: OnboardingStep): boolean =>
+  // 導入と完了系ステップは全面表示、説明中心ステップはスポットライト表示に分ける。
   candidate === "welcome" || candidate === "connect" || candidate === "complete";
 
 export default function OnboardingWizard({
@@ -29,6 +30,7 @@ export default function OnboardingWizard({
   migrationEnabled = true,
 }: OnboardingWizardProps) {
   const steps = useMemo<OnboardingStep[]>(() => {
+    // 機能フラグに応じて実行ステップ列を動的に構築する。
     const sequence: OnboardingStep[] = ["welcome", "launch"];
     if (reportingEnabled) {
       sequence.push("reporting");
@@ -46,17 +48,21 @@ export default function OnboardingWizard({
   // Note: ideally we should lift locale state up if we want dynamic language switching,
   // but for now reusing resolveInitialLocale is fine as it respects saved setting.
   const t = createTranslator(resolveInitialLocale());
+  // steps 範囲外アクセス時の保険として welcome を既定値にする。
   const step = steps[stepIndex] ?? "welcome";
 
   useEffect(() => {
+    // 外部がステップ同期できるよう、変更時コールバックを通知する。
     onStepChange?.(step);
   }, [onStepChange, step]);
 
   useEffect(() => {
+    // ステップ配列が短くなった時に index の範囲外参照を防ぐ。
     setStepIndex((index) => Math.min(index, steps.length - 1));
   }, [steps]);
 
   const handleNext = useCallback(() => {
+    // 最終ステップ到達時は onComplete を返し、以降は進めない。
     if (stepIndex >= steps.length - 1) {
       onComplete("complete");
       return;
@@ -65,14 +71,17 @@ export default function OnboardingWizard({
   }, [onComplete, stepIndex, steps.length]);
 
   const handleBack = useCallback(() => {
+    // 先頭未満へは戻らない。
     setStepIndex((index) => Math.max(0, index - 1));
   }, []);
 
   const handleSkip = useCallback(() => {
+    // スキップ時は明示的に理由を返す。
     onComplete("skip");
   }, [onComplete]);
 
   const renderStep = (s: OnboardingStep, _isExiting: boolean, _direction: "forward" | "back") => {
+    // 各ステップへ共通ナビゲーション props を配布する。
     const commonProps = {
       t,
       onNext: handleNext,
@@ -101,6 +110,7 @@ export default function OnboardingWizard({
   };
 
   const getStepTitle = (s: OnboardingStep) => {
+    // ヘッダー表示タイトルをステップごとに切り替える。
     switch (s) {
       case "welcome":
         return t("onboarding.welcome.title");
@@ -122,6 +132,7 @@ export default function OnboardingWizard({
   const isFullscreenStep = isFullscreenOnboardingStep(step);
   const shouldAnimateStepTransition = useCallback(
     (from: OnboardingStep, to: OnboardingStep) =>
+      // 表示モード切り替えを跨ぐ場合はアニメーションを無効化してちらつきを防ぐ。
       isFullscreenOnboardingStep(from) === isFullscreenOnboardingStep(to),
     [],
   );

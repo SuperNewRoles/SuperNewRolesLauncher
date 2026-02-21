@@ -5,6 +5,7 @@ import { SOCIAL_ICON_SPECS } from "./socialBrandIcons";
 
 describe("social brand icons", () => {
   it("contains all supported brand icon specs", () => {
+    // config 側で参照する全ブランド分がそろっていることを担保する。
     expect(Object.keys(SOCIAL_ICON_SPECS).sort()).toEqual([
       "discord",
       "fanbox",
@@ -15,6 +16,7 @@ describe("social brand icons", () => {
   });
 
   it("uses a bold F svg icon for FANBOX", () => {
+    // 目視差分が大きい断片を検証して、誤置換を早期に検出する。
     const fanboxIcon = SOCIAL_ICON_SPECS.fanbox;
     expect(fanboxIcon.kind).toBe("svg-path");
     if (fanboxIcon.kind === "svg-path") {

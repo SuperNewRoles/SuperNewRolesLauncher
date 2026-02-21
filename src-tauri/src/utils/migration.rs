@@ -1,3 +1,4 @@
+// 設定移行アーカイブの作成・検証・復元を扱うユーティリティ。
 use argon2::{Algorithm, Argon2, Params, Version};
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{KeyInit, XChaCha20Poly1305, XNonce};
@@ -57,6 +58,7 @@ struct PlannedImportFile {
 }
 
 fn migration_extension() -> &'static str {
+    // 拡張子はmod設定に追従させ、ビルドごとの差し替えに対応する。
     mod_profile::get().migration.extension.as_str()
 }
 
@@ -73,6 +75,7 @@ fn locallow_allowed_prefix() -> String {
 }
 
 fn compile_profile_patterns() -> Result<Vec<Regex>, String> {
+    // 設定ファイルの文字列パターンを正規表現へ事前コンパイルする。
     mod_profile::get()
         .migration
         .profile_include_patterns
@@ -88,6 +91,7 @@ fn normalize_path_for_archive(path: &Path) -> String {
 }
 
 fn collect_files_recursive(current: &Path, out: &mut Vec<PathBuf>) -> Result<(), String> {
+    // 再帰的にファイルのみ収集し、ディレクトリ自体は出力しない。
     for entry in fs::read_dir(current).map_err(|e| {
         format!(
             "Failed to read directory '{}' while collecting migration data: {e}",
@@ -388,6 +392,7 @@ fn extract_zip_bytes_from_archive_bytes(
 ) -> Result<(Vec<u8>, bool), String> {
     let extension = migration_extension();
     let configured_magic = archive_magic_bytes();
+    // 互換性のため、新旧どちらのマジックヘッダでも受理する。
     let active_magic = if archive_bytes.starts_with(configured_magic) {
         configured_magic
     } else if archive_bytes.starts_with(LEGACY_ARCHIVE_MAGIC) {
@@ -487,6 +492,7 @@ fn resolve_entry_target(
     let prefix = prefix.to_string_lossy();
     let relative_normalized = normalize_path_for_archive(relative);
 
+    // エントリ先頭プレフィックスで復元先を切り替える。
     if prefix == PROFILE_ARCHIVE_PREFIX {
         if !profile_patterns
             .iter()
@@ -916,6 +922,7 @@ pub fn import_migration_data<R: Runtime>(
             Ok(summary)
         }
         Err(import_error) => {
+            // 部分適用のまま残さないため、失敗時は必ずバックアップから巻き戻す。
             let rollback_result = rollback_after_failed_import(
                 &profile_root,
                 &profile_patterns,

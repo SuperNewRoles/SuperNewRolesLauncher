@@ -1,3 +1,4 @@
+// プリセットデータの列挙・書き出し・取り込みを扱うユーティリティ。
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::{self, Read};
@@ -15,6 +16,7 @@ const PRESET_FILE_PREFIX: &str = "PresetOptions_";
 const PRESET_FILE_SUFFIX: &str = ".data";
 
 fn preset_archive_extension() -> &'static str {
+    // 拡張子はmod設定から取得し、派生ランチャーでも同じ実装を流用できるようにする。
     mod_profile::get().presets.extension.as_str()
 }
 
@@ -108,6 +110,7 @@ fn preset_file_path(save_data_dir: &Path, preset_id: i32) -> PathBuf {
 }
 
 fn parse_preset_id_from_local_file_name(file_name: &str) -> Option<i32> {
+    // 命名規則に一致しないファイルはプリセット候補として扱わない。
     if !file_name.starts_with(PRESET_FILE_PREFIX) || !file_name.ends_with(PRESET_FILE_SUFFIX) {
         return None;
     }
@@ -120,6 +123,7 @@ fn parse_preset_id_from_archive_path(path: &str) -> Option<i32> {
     let normalized = path.replace('\\', "/");
     let lower = normalized.to_ascii_lowercase();
 
+    // 現行/旧形式どちらのアーカイブ配置にも対応する。
     let prefix = preset_archive_prefix_candidates()
         .into_iter()
         .find(|candidate| lower.starts_with(candidate))?;
@@ -140,6 +144,7 @@ fn parse_preset_id_from_archive_path(path: &str) -> Option<i32> {
 }
 
 fn read_i32_le(bytes: &[u8], cursor: &mut usize, field: &str) -> Result<i32, String> {
+    // バイナリ境界を超える読み出しを防ぎ、破損データで安全に失敗させる。
     if *cursor + 4 > bytes.len() {
         return Err(format!(
             "Unexpected end of Options.data while reading {field}."
@@ -923,6 +928,7 @@ pub fn import_presets_from_archive<R: Runtime>(
             return Err(format!("Invalid source preset id: {source_id}"));
         }
 
+        // 同じsource_idが重複選択された場合は1回だけ取り込む。
         if !seen_source_ids.insert(source_id) {
             continue;
         }

@@ -99,6 +99,7 @@ export interface StatusState {
  * ローカルストレージ由来の初期値は呼び出し側から渡して副作用を閉じ込める。
  */
 export function createAppStore(initialNotificationEnabled: boolean): AppStore {
+  // UI 初期化前は設定未取得のため null から開始する。
   const settings = signal<LauncherSettings | null>(null);
   const releases = signal<SnrReleaseSummary[]>([]);
   const profileIsReady = signal(false);
@@ -130,6 +131,7 @@ export function createAppStore(initialNotificationEnabled: boolean): AppStore {
   const reportMessageLoadTicket = signal(0);
   const reportingPollTimer = signal<number | null>(null);
   const reportingUnreadBaselineCaptured = signal(false);
+  // Set を都度差し替える運用前提で signal 化し、差分検知を安定させる。
   const knownUnreadThreadIds = signal<Set<string>>(new Set<string>());
   const preservedSaveDataAvailable = signal(false);
   const preservedSaveDataFiles = signal(0);
@@ -172,6 +174,7 @@ export function createAppStore(initialNotificationEnabled: boolean): AppStore {
     preservedSaveDataFiles,
     reportingNotificationEnabled,
     snapshot: () => ({
+      // signals の現在値をプレーンオブジェクトへ写して selector に渡す。
       settings: settings.value,
       releases: releases.value,
       profileIsReady: profileIsReady.value,
