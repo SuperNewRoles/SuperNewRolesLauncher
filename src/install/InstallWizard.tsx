@@ -528,17 +528,6 @@ export default function InstallWizard() {
     validateMigrationPassword,
   ]);
 
-  const onComplete = useCallback(() => {
-    setStep("welcome");
-    setPlatform(null);
-    setAmongUsPath("");
-    setReleaseTag("");
-    setRestoreSaveData(true);
-    setProgress(0);
-    setProgressMessage("");
-    resetImportState();
-  }, [resetImportState]);
-
   const onBack = useCallback(() => {
     if (step === "platform") {
       setStep("welcome");
@@ -747,7 +736,6 @@ export default function InstallWizard() {
       return (
         <CompleteStep
           t={t}
-          onNext={onComplete}
           importSkippedAfterFailure={importSkippedAfterFailure}
           importSkipReason={importSkipReason}
         />

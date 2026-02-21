@@ -9,7 +9,6 @@ const LEAVE_ANIMATION_MS = 280;
 
 interface CompleteStepProps {
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
-  onNext: () => void;
   importSkippedAfterFailure: boolean;
   importSkipReason: string | null;
 }
@@ -82,7 +81,6 @@ function SuccessIcon() {
 
 export default function CompleteStep({
   t,
-  onNext,
   importSkippedAfterFailure,
   importSkipReason,
 }: CompleteStepProps) {
@@ -104,7 +102,6 @@ export default function CompleteStep({
       } catch {
         // storage failure は無視
       }
-      onNext();
       window.location.reload();
     }, LEAVE_ANIMATION_MS);
   };
