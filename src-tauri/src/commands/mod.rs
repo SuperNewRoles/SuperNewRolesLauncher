@@ -10,3 +10,4 @@ pub mod presets;
 pub mod reporting;
 pub mod settings;
 pub mod snr;
+pub mod tray;

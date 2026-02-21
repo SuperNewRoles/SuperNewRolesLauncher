@@ -12,18 +12,16 @@ use std::sync::{
 };
 use std::time::Duration;
 use tauri::{
-    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, RunEvent, WebviewWindowBuilder,
+    AppHandle, Manager, PhysicalPosition, Position, RunEvent, WebviewUrl, WebviewWindowBuilder,
 };
 use utils::mod_profile;
 
 const TRAY_ID: &str = "main-tray";
-const TRAY_MENU_INFO_TITLE_ID: &str = "tray_info_title";
-const TRAY_MENU_INFO_HINT_ID: &str = "tray_info_hint";
-const TRAY_MENU_SHOW_ID: &str = "tray_show";
-const TRAY_MENU_LAUNCH_ID: &str = "tray_launch";
-const TRAY_MENU_EXIT_ID: &str = "tray_exit";
+const TRAY_MENU_WINDOW_LABEL: &str = "tray-menu";
+const TRAY_MENU_WINDOW_WIDTH: f64 = 176.0;
+const TRAY_MENU_WINDOW_HEIGHT: f64 = 132.0;
+const TRAY_MENU_WINDOW_MARGIN: i32 = 6;
 // Keep the hidden webview alive for 30 minutes so short tray sessions do not
 // repeatedly pay window teardown/startup costs, while still eventually freeing memory.
 const TRAY_WEBVIEW_KEEPALIVE_MS: u64 = 30 * 60 * 1000;
@@ -101,22 +99,83 @@ impl TrayWebviewDestroyState {
     }
 }
 
-fn tray_menu_labels(locale: &str) -> (String, String, String, String) {
-    let short_name = mod_profile::get().mod_info.short_name.clone();
-    match locale {
-        "en" => (
-            "Background mode is active".to_string(),
-            format!("Launch {short_name} AmongUs"),
-            "Show".to_string(),
-            "Exit".to_string(),
-        ),
-        _ => (
-            "バックグラウンド常駐中".to_string(),
-            format!("{short_name} AmongUsを起動"),
-            "表示".to_string(),
-            "終了".to_string(),
-        ),
+fn resolve_ui_locale<R: tauri::Runtime>(app: &AppHandle<R>) -> String {
+    crate::utils::settings::load_or_init_settings(app)
+        .map(|settings| settings.ui_locale)
+        .unwrap_or_else(|_| "ja".to_string())
+}
+
+pub(crate) fn hide_tray_menu_window<R: tauri::Runtime>(app: &AppHandle<R>) {
+    if let Some(window) = app.get_webview_window(TRAY_MENU_WINDOW_LABEL) {
+        let _ = window.hide();
     }
+}
+
+fn ensure_tray_menu_window<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+) -> Option<tauri::WebviewWindow<R>> {
+    if let Some(window) = app.get_webview_window(TRAY_MENU_WINDOW_LABEL) {
+        return Some(window);
+    }
+
+    let locale = resolve_ui_locale(app);
+    let version = app.package_info().version.to_string();
+    let short_name = mod_profile::get().mod_info.short_name.clone();
+    let url = format!(
+        "index.html?tray-menu=1&locale={}&version={}&shortName={}",
+        urlencoding::encode(&locale),
+        urlencoding::encode(&version),
+        urlencoding::encode(&short_name)
+    );
+    let window =
+        WebviewWindowBuilder::new(app, TRAY_MENU_WINDOW_LABEL, WebviewUrl::App(url.into()))
+            .title("tray-menu")
+            .inner_size(TRAY_MENU_WINDOW_WIDTH, TRAY_MENU_WINDOW_HEIGHT)
+            .resizable(false)
+            .maximizable(false)
+            .minimizable(false)
+            .closable(false)
+            .decorations(false)
+            .transparent(true)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .shadow(false)
+            .focusable(true)
+            .visible(false)
+            .build()
+            .ok()?;
+
+    Some(window)
+}
+
+fn show_tray_menu_window<R: tauri::Runtime>(app: &AppHandle<R>, position: PhysicalPosition<f64>) {
+    let Some(window) = ensure_tray_menu_window(app) else {
+        return;
+    };
+
+    let mut x = (position.x.round() as i32) - (TRAY_MENU_WINDOW_WIDTH as i32) / 2;
+    let mut y =
+        (position.y.round() as i32) - (TRAY_MENU_WINDOW_HEIGHT as i32) - TRAY_MENU_WINDOW_MARGIN;
+
+    if let Ok(Some(monitor)) = window.current_monitor() {
+        let monitor_pos = monitor.position();
+        let monitor_size = monitor.size();
+        let max_x = monitor_pos.x + monitor_size.width as i32 - TRAY_MENU_WINDOW_WIDTH as i32;
+        let max_y = monitor_pos.y + monitor_size.height as i32 - TRAY_MENU_WINDOW_HEIGHT as i32;
+        x = x.clamp(monitor_pos.x, max_x.max(monitor_pos.x));
+        y = y.clamp(monitor_pos.y, max_y.max(monitor_pos.y));
+    }
+
+    let _ = window.set_position(Position::Physical(PhysicalPosition::new(x, y)));
+    let _ = window.show();
+    let _ = window.set_focus();
+}
+
+fn is_tray_menu_visible<R: tauri::Runtime>(app: &AppHandle<R>) -> bool {
+    let Some(window) = app.get_webview_window(TRAY_MENU_WINDOW_LABEL) else {
+        return false;
+    };
+    matches!(window.is_visible(), Ok(true))
 }
 
 fn args_contain_autolaunch_modded<I, S>(args: I) -> bool
@@ -189,6 +248,7 @@ fn show_main_window<R: tauri::Runtime>(
     app: &AppHandle<R>,
     tray_webview_destroy_state: &Arc<TrayWebviewDestroyState>,
 ) {
+    hide_tray_menu_window(app);
     tray_webview_destroy_state.cancel_pending();
     show_main_window_now(app);
 }
@@ -197,74 +257,45 @@ fn setup_tray<R: tauri::Runtime>(
     app: &AppHandle<R>,
     tray_webview_destroy_state: Arc<TrayWebviewDestroyState>,
 ) -> tauri::Result<()> {
-    // ロケールに応じたメニュー文言を構成し、トレイを初期化する。
+    // トレイアイコンを初期化する。
     let mod_profile = mod_profile::get();
-    let locale = crate::utils::settings::load_or_init_settings(app)
-        .map(|settings| settings.ui_locale)
-        .unwrap_or_else(|_| "ja".to_string());
-    let (hint_label, launch_label, show_label, exit_label) = tray_menu_labels(&locale);
-    let title_label = format!(
-        "{}  v{}",
-        mod_profile.branding.launcher_name,
-        app.package_info().version
-    );
-
-    let title_item = MenuItem::with_id(
-        app,
-        TRAY_MENU_INFO_TITLE_ID,
-        title_label,
-        false,
-        None::<&str>,
-    )?;
-    let hint_item =
-        MenuItem::with_id(app, TRAY_MENU_INFO_HINT_ID, hint_label, false, None::<&str>)?;
-    let top_separator = PredefinedMenuItem::separator(app)?;
-    let show_item = MenuItem::with_id(app, TRAY_MENU_SHOW_ID, show_label, true, None::<&str>)?;
-    let launch_item =
-        MenuItem::with_id(app, TRAY_MENU_LAUNCH_ID, launch_label, true, None::<&str>)?;
-    let bottom_separator = PredefinedMenuItem::separator(app)?;
-    let exit_item = MenuItem::with_id(app, TRAY_MENU_EXIT_ID, exit_label, true, None::<&str>)?;
-    let tray_menu = Menu::with_items(
-        app,
-        &[
-            &title_item,
-            &hint_item,
-            &top_separator,
-            &launch_item,
-            &show_item,
-            &bottom_separator,
-            &exit_item,
-        ],
-    )?;
 
     let tray_webview_destroy_state_for_tray = tray_webview_destroy_state.clone();
     let mut tray_builder = TrayIconBuilder::with_id(TRAY_ID)
-        .menu(&tray_menu)
-        .show_menu_on_left_click(false)
         .tooltip(mod_profile.branding.tray_tooltip.clone())
         .on_tray_icon_event(move |tray, event| {
-            if matches!(
-                event,
+            match event {
                 TrayIconEvent::Click {
                     button: MouseButton::Left,
                     button_state: MouseButtonState::Down,
                     ..
+                } => {
+                    hide_tray_menu_window(tray.app_handle());
+                    tray_webview_destroy_state_for_tray.cancel_pending();
+                    let _ = get_or_create_main_window(tray.app_handle());
                 }
-            ) {
-                tray_webview_destroy_state_for_tray.cancel_pending();
-                let _ = get_or_create_main_window(tray.app_handle());
-                return;
-            }
-
-            if matches!(
-                event,
                 TrayIconEvent::Click {
                     button: MouseButton::Left,
                     button_state: MouseButtonState::Up,
                     ..
+                } => {
+                    hide_tray_menu_window(tray.app_handle());
+                    show_main_window(tray.app_handle(), &tray_webview_destroy_state_for_tray);
                 }
-            ) {
-                show_main_window(tray.app_handle(), &tray_webview_destroy_state_for_tray);
+                TrayIconEvent::Click {
+                    button: MouseButton::Right,
+                    button_state: MouseButtonState::Up,
+                    position,
+                    ..
+                } => {
+                    tray_webview_destroy_state_for_tray.cancel_pending();
+                    if is_tray_menu_visible(tray.app_handle()) {
+                        hide_tray_menu_window(tray.app_handle());
+                    } else {
+                        show_tray_menu_window(tray.app_handle(), position);
+                    }
+                }
+                _ => {}
             }
         });
 
@@ -273,6 +304,9 @@ fn setup_tray<R: tauri::Runtime>(
     }
 
     tray_builder.build(app)?;
+    // 初回右クリック時の体感遅延を減らすため、メニューWebViewを先行生成しておく。
+    let _ = ensure_tray_menu_window(app);
+    hide_tray_menu_window(app);
 
     Ok(())
 }
@@ -283,12 +317,10 @@ pub fn run() {
     let auto_launch_modded = should_auto_launch_modded();
     let bypass_close_to_tray = Arc::new(AtomicBool::new(false));
     let bypass_close_to_tray_for_single_instance = bypass_close_to_tray.clone();
-    let bypass_close_to_tray_for_menu = bypass_close_to_tray.clone();
     let bypass_close_to_tray_for_window = bypass_close_to_tray.clone();
     let bypass_close_to_tray_for_exit = bypass_close_to_tray.clone();
     let tray_webview_destroy_state = Arc::new(TrayWebviewDestroyState::new());
     let tray_webview_destroy_state_for_single_instance = tray_webview_destroy_state.clone();
-    let tray_webview_destroy_state_for_menu = tray_webview_destroy_state.clone();
     let tray_webview_destroy_state_for_window = tray_webview_destroy_state.clone();
     let tray_webview_destroy_state_for_setup = tray_webview_destroy_state.clone();
     let tray_webview_destroy_state_for_autolaunch = tray_webview_destroy_state.clone();
@@ -313,40 +345,20 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .on_menu_event(move |app, event| {
-            if event.id() == TRAY_MENU_SHOW_ID {
-                show_main_window(app, &tray_webview_destroy_state_for_menu);
-                return;
-            }
-
-            if event.id() == TRAY_MENU_LAUNCH_ID {
-                let app_handle = app.clone();
-                let _bypass_close_to_tray_for_menu = bypass_close_to_tray_for_menu.clone();
-                let tray_webview_destroy_state_for_launch =
-                    tray_webview_destroy_state_for_menu.clone();
-                // 起動処理は時間がかかるため、メニューイベント処理本体は即座に返す。
-                tauri::async_runtime::spawn(async move {
-                    match commands::launch::launch_modded_from_saved_settings(app_handle.clone())
-                        .await
-                    {
-                        Ok(()) => {
-                            // nothing to do
-                        }
-                        Err(error) => {
-                            commands::launch::set_autolaunch_error(error);
-                            show_main_window(&app_handle, &tray_webview_destroy_state_for_launch);
-                        }
-                    }
-                });
-                return;
-            }
-
-            if event.id() == TRAY_MENU_EXIT_ID {
-                bypass_close_to_tray_for_menu.store(true, Ordering::SeqCst);
-                app.exit(0);
-            }
-        })
         .on_window_event(move |window, event| {
+            if window.label() == TRAY_MENU_WINDOW_LABEL {
+                match event {
+                    tauri::WindowEvent::CloseRequested { .. } => {
+                        hide_tray_menu_window(window.app_handle());
+                    }
+                    tauri::WindowEvent::Focused(false) => {
+                        hide_tray_menu_window(window.app_handle());
+                    }
+                    _ => {}
+                }
+                return;
+            }
+
             if window.label() != "main" {
                 return;
             }
@@ -447,6 +459,9 @@ pub fn run() {
             commands::launch::launch_modded_first_setup_pending,
             commands::launch::launch_autolaunch_error_take,
             commands::launch::launch_game_running_get,
+            commands::tray::tray_launch_modded,
+            commands::tray::tray_show_main_window,
+            commands::tray::tray_exit_app,
             commands::epic_commands::epic_auth_url_get,
             commands::epic_commands::epic_login_code,
             commands::epic_commands::epic_login_webview,

@@ -268,6 +268,19 @@ export function launchGameRunningGet(): Promise<boolean> {
   return invoke<boolean>("launch_game_running_get");
 }
 
+// トレイメニュー関連API
+export function trayLaunchModded(): Promise<void> {
+  return invoke<void>("tray_launch_modded");
+}
+
+export function trayShowMainWindow(): Promise<void> {
+  return invoke<void>("tray_show_main_window");
+}
+
+export function trayExitApp(): Promise<void> {
+  return invoke<void>("tray_exit_app");
+}
+
 // Epic認証関連API
 export function epicLoginWebview(): Promise<void> {
   // WebView ベースの Epic ログインフローを開始する。
