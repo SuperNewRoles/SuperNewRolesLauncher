@@ -223,85 +223,6 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                 </div>
               </section>
 
-              <div id="settings-among-us-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
-                <div id="settings-among-us-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
-                <section class="settings-fullscreen-overlay-panel settings-among-us-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="settings-among-us-overlay-title">
-                  <button id="settings-among-us-overlay-close" type="button" class="settings-fullscreen-overlay-close settings-among-us-overlay-close" aria-label="${t("settings.general.reselectOverlayClose")}">×</button>
-                  <div class="settings-among-us-overlay-content install-step install-step-platform">
-                    <h2 id="settings-among-us-overlay-title" class="step-title">${t("settings.general.reselectOverlayTitle")}</h2>
-                    <p class="muted settings-among-us-overlay-description">${t("settings.general.reselectOverlayDescription")}</p>
-                    <div id="settings-among-us-overlay-error" class="status-line settings-among-us-overlay-error" hidden></div>
-                    <div id="settings-among-us-candidate-list" class="settings-among-us-candidate-list platform-grid"></div>
-                    <button id="settings-among-us-manual-select" type="button" class="btn-manual-select settings-among-us-manual-select-centered">📁 ${t("settings.general.reselectOverlayManualSelect")}</button>
-                    <p id="settings-among-us-candidate-empty" class="muted settings-among-us-candidate-empty" hidden>${t("settings.general.reselectOverlayEmpty")}</p>
-                    <footer class="settings-among-us-overlay-actions">
-                      <button id="settings-among-us-overlay-cancel" type="button" class="ghost settings-among-us-overlay-cancel">${t("settings.general.reselectOverlayClose")}</button>
-                    </footer>
-                  </div>
-                </section>
-              </div>
-
-              <div id="settings-uninstall-confirm-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
-                <div id="settings-uninstall-confirm-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
-                <section class="settings-fullscreen-overlay-panel settings-uninstall-confirm-panel" role="dialog" aria-modal="true" aria-labelledby="settings-uninstall-confirm-title">
-                  <header class="settings-fullscreen-overlay-header">
-                    <h2 id="settings-uninstall-confirm-title">${t("settings.general.uninstallConfirmTitle")}</h2>
-                    <button id="settings-uninstall-confirm-close" type="button" class="settings-fullscreen-overlay-close" aria-label="${t("settings.general.reselectOverlayClose")}">×</button>
-                  </header>
-                  <p>${t("settings.general.uninstallConfirmMessage")}</p>
-                  <p class="settings-uninstall-confirm-note">${t("settings.general.uninstallConfirmPreserveFixed")}</p>
-                  <footer class="settings-fullscreen-overlay-actions">
-                    <button id="settings-uninstall-confirm-cancel" type="button" class="ghost">${t("common.cancel")}</button>
-                    <button id="settings-uninstall-confirm-accept" type="button" class="settings-danger-button">${t("settings.general.uninstallConfirmAccept")}</button>
-                  </footer>
-                </section>
-              </div>
-
-              <div id="settings-migration-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
-                <div id="settings-migration-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
-                <section class="settings-fullscreen-overlay-panel settings-migration-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="settings-migration-overlay-title">
-                  <header class="settings-fullscreen-overlay-header settings-migration-overlay-header">
-                    <h2 id="settings-migration-overlay-title">${t("migration.title")}</h2>
-                    <button id="settings-migration-overlay-close" type="button" class="settings-fullscreen-overlay-close" aria-label="${t("migration.overlay.close")}">×</button>
-                  </header>
-
-                  <section id="settings-migration-step-select" class="settings-migration-step">
-                    <p id="settings-migration-selected-path" class="settings-migration-selected-path">${t("migration.overlay.pathNotSelected")}</p>
-                    <footer class="settings-fullscreen-overlay-actions settings-migration-step-actions">
-                      <button id="settings-migration-overlay-cancel" type="button" class="ghost">${t("common.cancel")}</button>
-                      <button id="settings-migration-pick-path" type="button">${t("migration.overlay.pickPath")}</button>
-                      <button id="settings-migration-step-select-next" type="button">${t("common.next")}</button>
-                    </footer>
-                  </section>
-
-                  <section id="settings-migration-step-password" class="settings-migration-step" hidden>
-                    <label class="stack" for="settings-migration-password-input">
-                      <span>${t("migration.overlay.passwordLabel")}</span>
-                      <input id="settings-migration-password-input" type="password" placeholder="${t("migration.overlay.passwordPlaceholder")}" autocomplete="new-password" />
-                    </label>
-                    <div id="settings-migration-password-error" class="status-line" hidden></div>
-                    <footer class="settings-fullscreen-overlay-actions settings-migration-step-actions">
-                      <button id="settings-migration-step-password-cancel" type="button" class="ghost">${t("common.cancel")}</button>
-                      <button id="settings-migration-step-password-next" type="button">${t("common.next")}</button>
-                    </footer>
-                  </section>
-
-                  <section id="settings-migration-step-processing" class="settings-migration-step" hidden>
-                    <div class="settings-migration-processing-indicator" aria-hidden="true"></div>
-                    <p id="settings-migration-processing-message" class="settings-migration-processing-message">${t("migration.overlay.processing")}</p>
-                  </section>
-
-                  <section id="settings-migration-step-result" class="settings-migration-step" hidden>
-                    <h3 id="settings-migration-result-title" class="settings-migration-result-title"></h3>
-                    <p id="settings-migration-result-message" class="settings-migration-result-message"></p>
-                    <footer class="settings-fullscreen-overlay-actions settings-migration-step-actions">
-                      <button id="settings-migration-result-retry" type="button" class="ghost">${t("migration.overlay.retry")}</button>
-                      <button id="settings-migration-result-close" type="button">${t("migration.overlay.close")}</button>
-                    </footer>
-                  </section>
-                </section>
-              </div>
-
               <section id="settings-panel-notifications" class="settings-category-panel" data-settings-panel="notifications" role="tabpanel" aria-labelledby="settings-category-notifications" hidden>
                 <section class="card settings-general-card">
                   <strong>${t("settings.notifications.title")}</strong>
@@ -441,6 +362,85 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
         </div>
 
       </section>
+
+      <div id="settings-among-us-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
+        <div id="settings-among-us-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
+        <section class="settings-fullscreen-overlay-panel settings-among-us-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="settings-among-us-overlay-title">
+          <button id="settings-among-us-overlay-close" type="button" class="settings-fullscreen-overlay-close settings-among-us-overlay-close" aria-label="${t("settings.general.reselectOverlayClose")}">×</button>
+          <div class="settings-among-us-overlay-content install-step install-step-platform">
+            <h2 id="settings-among-us-overlay-title" class="step-title">${t("settings.general.reselectOverlayTitle")}</h2>
+            <p class="muted settings-among-us-overlay-description">${t("settings.general.reselectOverlayDescription")}</p>
+            <div id="settings-among-us-overlay-error" class="status-line settings-among-us-overlay-error" hidden></div>
+            <div id="settings-among-us-candidate-list" class="settings-among-us-candidate-list platform-grid"></div>
+            <button id="settings-among-us-manual-select" type="button" class="btn-manual-select settings-among-us-manual-select-centered">📁 ${t("settings.general.reselectOverlayManualSelect")}</button>
+            <p id="settings-among-us-candidate-empty" class="muted settings-among-us-candidate-empty" hidden>${t("settings.general.reselectOverlayEmpty")}</p>
+            <footer class="settings-among-us-overlay-actions">
+              <button id="settings-among-us-overlay-cancel" type="button" class="ghost settings-among-us-overlay-cancel">${t("settings.general.reselectOverlayClose")}</button>
+            </footer>
+          </div>
+        </section>
+      </div>
+
+      <div id="settings-uninstall-confirm-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
+        <div id="settings-uninstall-confirm-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
+        <section class="settings-fullscreen-overlay-panel settings-uninstall-confirm-panel" role="dialog" aria-modal="true" aria-labelledby="settings-uninstall-confirm-title">
+          <header class="settings-fullscreen-overlay-header">
+            <h2 id="settings-uninstall-confirm-title">${t("settings.general.uninstallConfirmTitle")}</h2>
+            <button id="settings-uninstall-confirm-close" type="button" class="settings-fullscreen-overlay-close" aria-label="${t("settings.general.reselectOverlayClose")}">×</button>
+          </header>
+          <p>${t("settings.general.uninstallConfirmMessage")}</p>
+          <p class="settings-uninstall-confirm-note">${t("settings.general.uninstallConfirmPreserveFixed")}</p>
+          <footer class="settings-fullscreen-overlay-actions">
+            <button id="settings-uninstall-confirm-cancel" type="button" class="ghost">${t("common.cancel")}</button>
+            <button id="settings-uninstall-confirm-accept" type="button" class="settings-danger-button">${t("settings.general.uninstallConfirmAccept")}</button>
+          </footer>
+        </section>
+      </div>
+
+      <div id="settings-migration-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
+        <div id="settings-migration-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
+        <section class="settings-fullscreen-overlay-panel settings-migration-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="settings-migration-overlay-title">
+          <header class="settings-fullscreen-overlay-header settings-migration-overlay-header">
+            <h2 id="settings-migration-overlay-title">${t("migration.title")}</h2>
+            <button id="settings-migration-overlay-close" type="button" class="settings-fullscreen-overlay-close" aria-label="${t("migration.overlay.close")}">×</button>
+          </header>
+
+          <section id="settings-migration-step-select" class="settings-migration-step">
+            <p id="settings-migration-selected-path" class="settings-migration-selected-path">${t("migration.overlay.pathNotSelected")}</p>
+            <footer class="settings-fullscreen-overlay-actions settings-migration-step-actions">
+              <button id="settings-migration-overlay-cancel" type="button" class="ghost">${t("common.cancel")}</button>
+              <button id="settings-migration-pick-path" type="button">${t("migration.overlay.pickPath")}</button>
+              <button id="settings-migration-step-select-next" type="button">${t("common.next")}</button>
+            </footer>
+          </section>
+
+          <section id="settings-migration-step-password" class="settings-migration-step" hidden>
+            <label class="stack" for="settings-migration-password-input">
+              <span>${t("migration.overlay.passwordLabel")}</span>
+              <input id="settings-migration-password-input" type="password" placeholder="${t("migration.overlay.passwordPlaceholder")}" autocomplete="new-password" />
+            </label>
+            <div id="settings-migration-password-error" class="status-line" hidden></div>
+            <footer class="settings-fullscreen-overlay-actions settings-migration-step-actions">
+              <button id="settings-migration-step-password-cancel" type="button" class="ghost">${t("common.cancel")}</button>
+              <button id="settings-migration-step-password-next" type="button">${t("common.next")}</button>
+            </footer>
+          </section>
+
+          <section id="settings-migration-step-processing" class="settings-migration-step" hidden>
+            <div class="settings-migration-processing-indicator" aria-hidden="true"></div>
+            <p id="settings-migration-processing-message" class="settings-migration-processing-message">${t("migration.overlay.processing")}</p>
+          </section>
+
+          <section id="settings-migration-step-result" class="settings-migration-step" hidden>
+            <h3 id="settings-migration-result-title" class="settings-migration-result-title"></h3>
+            <p id="settings-migration-result-message" class="settings-migration-result-message"></p>
+            <footer class="settings-fullscreen-overlay-actions settings-migration-step-actions">
+              <button id="settings-migration-result-retry" type="button" class="ghost">${t("migration.overlay.retry")}</button>
+              <button id="settings-migration-result-close" type="button">${t("migration.overlay.close")}</button>
+            </footer>
+          </section>
+        </section>
+      </div>
     </div>
     <div id="preset-feedback-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
       <div id="preset-feedback-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>

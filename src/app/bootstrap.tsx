@@ -121,6 +121,7 @@ const MODDED_FIRST_SETUP_POLL_INTERVAL_MS = 500;
 const LAUNCH_ERROR_DISPLAY_MS = 20_000;
 const SETTINGS_OVERLAY_TRANSITION_MS = 220;
 const LOCALE_SWITCH_RELOAD_ANIMATION_FLAG_KEY = "ui.localeSwitchReloadAnimation";
+const INSTALL_FLOW_HOME_AFTER_RELOAD_FLAG_KEY = "ui.installFlowHomeAfterReload";
 const LAST_MAIN_TAB_STORAGE_KEY = "ui.lastMainTab";
 const BACKGROUND_NOTIFICATION_OPEN_EVENT = "background-notification-open";
 const ONBOARDING_SPOTLIGHT_CLASS = "onboarding-spotlight-target";
@@ -258,6 +259,19 @@ function consumeLocaleSwitchReloadAnimation(): boolean {
       return false;
     }
     sessionStorage.removeItem(LOCALE_SWITCH_RELOAD_ANIMATION_FLAG_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function consumeInstallFlowHomeAfterReload(): boolean {
+  try {
+    const value = sessionStorage.getItem(INSTALL_FLOW_HOME_AFTER_RELOAD_FLAG_KEY);
+    if (value !== "1") {
+      return false;
+    }
+    sessionStorage.removeItem(INSTALL_FLOW_HOME_AFTER_RELOAD_FLAG_KEY);
     return true;
   } catch {
     return false;
@@ -770,7 +784,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let announceCenterRoot: Root | null = null;
   let pendingReportOpenThreadId: string | null = null;
   let pendingAnnounceOpenArticleId: string | null = null;
-  let activeTab: MainTabId = loadLastMainTab();
+  let activeTab: MainTabId = consumeInstallFlowHomeAfterReload() ? "home" : loadLastMainTab();
   let reportHomeNotificationLastFetchedAt = 0;
   let reportHomeNotificationFetching = false;
   let reportHomeNotificationPollTimer: number | null = null;

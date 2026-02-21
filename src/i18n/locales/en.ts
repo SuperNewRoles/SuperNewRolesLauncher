@@ -429,7 +429,7 @@ const en: Record<keyof typeof ja, string> = {
   "installFlow.complete": "Installation Complete!",
   "installFlow.completeMessage": "{modName} has been installed successfully.",
   "installFlow.completeHint":
-    'Press "Go to Launcher" to open the launcher screen where you can start the mod and configure settings.',
+    'Press "Next" to go to the Home screen. You can launch the mod and manage settings from Home.',
   "installFlow.goToLauncher": "Go to Launcher",
   "installFlow.next": "Next",
   "installFlow.epicLoginRequired": "Epic login is required when Epic is selected.",
