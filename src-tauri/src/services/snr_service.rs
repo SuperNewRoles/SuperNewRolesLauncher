@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
+use std::io;
 use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Runtime};
@@ -16,6 +17,9 @@ use tauri::{AppHandle, Emitter, Runtime};
 const PRESERVED_SAVE_DATA_DIR: &str = "preserved_save_data";
 const SAVE_DATA_STAGING_DIR_NAME: &str = "SaveData._import_staging";
 const SAVE_DATA_BACKUP_DIR_NAME: &str = "SaveData._import_backup";
+const OPTIONS_DATA_FILE_NAME: &str = "Options.data";
+const NO_IMPORTABLE_PRESETS_ERROR: &str =
+    "No importable presets were found in the source SaveData directory.";
 
 // インストール全体の進捗(0-100)へ統合するための配分。
 // downloading/extracting は各ステージの 0-100 をこの範囲へ線形変換する。
@@ -1060,15 +1064,42 @@ pub fn merge_savedata_presets_from_among_us_into_profile<R: Runtime>(
     })
 }
 
+fn is_not_found_io_error(error: &io::Error) -> bool {
+    error.kind() == io::ErrorKind::NotFound
+}
+
+fn path_is_missing(path: &Path) -> Result<bool, String> {
+    match fs::metadata(path) {
+        Ok(_) => Ok(false),
+        Err(error) if is_not_found_io_error(&error) => Ok(true),
+        Err(error) => Err(format!(
+            "Failed to inspect preserved SaveData source path '{}': {error}",
+            path.display()
+        )),
+    }
+}
+
 pub fn merge_preserved_savedata_presets_into_profile<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<SaveDataPresetMergeResult, String> {
     let source_save_data_path = preserved_save_data_path(app)?.join(save_data_root());
-    let imported = presets::import_presets_from_save_data_dir(app, &source_save_data_path)?;
+    let source_options_path = source_save_data_path.join(OPTIONS_DATA_FILE_NAME);
+
+    let imported_presets = if path_is_missing(&source_save_data_path)?
+        || path_is_missing(&source_options_path)?
+    {
+        0
+    } else {
+        match presets::import_presets_from_save_data_dir(app, &source_save_data_path) {
+            Ok(imported) => imported.imported_presets,
+            Err(error) if error == NO_IMPORTABLE_PRESETS_ERROR => 0,
+            Err(error) => return Err(error),
+        }
+    };
 
     Ok(SaveDataPresetMergeResult {
         source_save_data_path: source_save_data_path.to_string_lossy().to_string(),
-        imported_presets: imported.imported_presets,
+        imported_presets,
     })
 }
 
@@ -1437,6 +1468,29 @@ mod tests {
         );
         assert_eq!(preview.file_count, 2);
         assert!(preview.presets.is_empty());
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn not_found_io_error_is_classified() {
+        assert!(is_not_found_io_error(&io::Error::from(io::ErrorKind::NotFound)));
+        assert!(!is_not_found_io_error(&io::Error::from(
+            io::ErrorKind::PermissionDenied
+        )));
+    }
+
+    #[test]
+    fn path_is_missing_detects_existing_and_missing_paths() {
+        let path = make_temp_dir("path-missing-check");
+        let _ = fs::remove_dir_all(&path);
+        fs::create_dir_all(&path).expect("failed to create temp dir");
+
+        assert!(!path_is_missing(&path).expect("existing path should be readable"));
+        assert!(
+            path_is_missing(&path.join("does-not-exist"))
+                .expect("missing path should return skippable true")
+        );
 
         let _ = fs::remove_dir_all(&path);
     }

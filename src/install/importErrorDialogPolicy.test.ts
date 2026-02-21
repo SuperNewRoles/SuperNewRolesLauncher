@@ -18,6 +18,19 @@ describe("import error dialog policy", () => {
     expect(normalizeImportErrorMessage("  abc  ")).toBe("abc");
   });
 
+  it("shortens long unbroken segments for prompt readability", () => {
+    const longSegment = `C:\\Users\\yoking\\${"x".repeat(120)}\\SaveData`;
+    const normalized = normalizeImportErrorMessage(
+      `Source SaveData directory was not found: ${longSegment}`,
+    );
+
+    expect(normalized).toContain("Source SaveData directory was not found:");
+    expect(normalized).toContain("...");
+    expect(normalized.length).toBeLessThan(
+      `Source SaveData directory was not found: ${longSegment}`.length,
+    );
+  });
+
   it("shows prompt again when retry fails with the same message", async () => {
     // 同一エラーが連続しても確認ダイアログが都度表示されることを確認する。
     const markImportSkipped = vi.fn();

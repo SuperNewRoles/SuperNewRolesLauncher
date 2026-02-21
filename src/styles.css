@@ -1662,14 +1662,18 @@ progress {
 
 .complete-import-warning {
   margin: 12px auto 0;
-  max-width: 520px;
+  max-width: min(100%, 600px);
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(153, 99, 28, 0.35);
-  background: rgba(255, 248, 230, 0.75);
-  color: var(--warning);
+  border: 1px solid var(--badge-warn-border);
+  background: var(--badge-warn-bg);
+  color: var(--text);
   font-size: 13px;
   line-height: 1.45;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* SaveData import wizard step visual refresh */
@@ -4962,14 +4966,18 @@ body.locale-switch-animating {
 
 .complete-import-warning {
   margin: 12px auto 0;
-  max-width: 520px;
+  max-width: min(100%, 600px);
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(153, 99, 28, 0.35);
-  background: rgba(255, 248, 230, 0.75);
-  color: var(--warning);
+  border: 1px solid var(--badge-warn-border);
+  background: var(--badge-warn-bg);
+  color: var(--text);
   font-size: 13px;
   line-height: 1.45;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* ───────────────────────── Report Center (New Design) ───────────────────────── */
@@ -6807,12 +6815,16 @@ body.locale-switch-animating {
 
 .complete-import-warning {
   margin: 12px auto 0;
-  max-width: 520px;
+  max-width: min(100%, 600px);
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(153, 99, 28, 0.35);
-  background: rgba(255, 248, 230, 0.75);
-  color: var(--warning);
+  border: 1px solid var(--badge-warn-border);
+  background: var(--badge-warn-bg);
+  color: var(--text);
   font-size: 13px;
   line-height: 1.45;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
