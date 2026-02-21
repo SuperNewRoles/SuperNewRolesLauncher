@@ -4,7 +4,7 @@ import type { MessageKey } from "../../i18n";
 // bootstrap.tsx の locale-switch 入場アニメーション機構を再利用して
 // リロード後のメイン画面にもフェードイン演出を適用する
 const RELOAD_ENTRANCE_ANIMATION_FLAG = "ui.localeSwitchReloadAnimation";
-const GOTO_HOME_AFTER_INSTALL_RELOAD_FLAG = "ui.installFlowHomeAfterReload";
+const INSTALL_FLOW_HOME_AFTER_RELOAD_FLAG_KEY = "ui.installFlowHomeAfterReload";
 
 const LEAVE_ANIMATION_MS = 280;
 
@@ -100,7 +100,7 @@ export default function CompleteStep({
       try {
         // リロード後のメインレイアウトにフェードイン演出を適用するフラグ
         sessionStorage.setItem(RELOAD_ENTRANCE_ANIMATION_FLAG, "1");
-        sessionStorage.setItem(GOTO_HOME_AFTER_INSTALL_RELOAD_FLAG, "1");
+        sessionStorage.setItem(INSTALL_FLOW_HOME_AFTER_RELOAD_FLAG_KEY, "1");
       } catch {
         // storage failure は無視
       }
