@@ -30,6 +30,26 @@ describe("renderAppTemplate (settings general)", () => {
     expect(html).toContain('id="settings-uninstall-confirm-accept"');
   });
 
+  it("keeps settings overlays outside the settings tab container", () => {
+    const document = new DOMParser().parseFromString(html, "text/html");
+    const settingsTab = document.querySelector("#tab-settings");
+    const mainContent = document.querySelector(".main-content");
+
+    expect(settingsTab).not.toBeNull();
+    expect(mainContent).not.toBeNull();
+
+    for (const id of [
+      "settings-among-us-overlay",
+      "settings-uninstall-confirm-overlay",
+      "settings-migration-overlay",
+    ]) {
+      const overlay = document.getElementById(id);
+      expect(overlay).not.toBeNull();
+      expect(settingsTab?.contains(overlay as Node)).toBe(false);
+      expect(mainContent?.contains(overlay as Node)).toBe(true);
+    }
+  });
+
   it("includes redesigned migration controls and overlay", () => {
     expect(html).toContain('id="migration-export"');
     expect(html).toContain('id="migration-import"');
