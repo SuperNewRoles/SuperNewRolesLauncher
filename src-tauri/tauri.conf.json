@@ -30,7 +30,8 @@
     "windows": {
       "nsis": {
         "languages": ["Japanese", "English"],
-        "displayLanguageSelector": true
+        "displayLanguageSelector": true,
+        "installerIcon": "icons/installer-icon.ico"
       }
     },
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"]

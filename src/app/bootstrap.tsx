@@ -2368,7 +2368,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   function closeUpdateConfirmOverlay(force = false): void {
     closeSettingsOverlay(settingsUpdateConfirmOverlay, force);
-    if (!force || !updateConfirmResolver) {
+    // Any close path must settle the pending confirmation promise.
+    if (!updateConfirmResolver) {
       return;
     }
     const resolve = updateConfirmResolver;
