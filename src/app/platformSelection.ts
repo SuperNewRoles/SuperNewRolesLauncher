@@ -28,21 +28,23 @@ export function filterSelectablePlatformCandidates(
 export function normalizePlatformCandidates(
   candidates: { path: string; platform: string }[],
 ): NormalizedPlatformCandidate[] {
-  return candidates
-    .filter(
-      // 型ガードで未知プラットフォームを除外する。
-      (candidate): candidate is NormalizedPlatformCandidate =>
-        candidate.platform === "steam" || candidate.platform === "epic",
-    )
-    // 呼び出し元配列を変更しないため、並び替え前にコピーを作る。
-    .slice()
-    .sort((left, right) => {
-      // 表示順は Steam 優先、同一プラットフォーム内はパス文字列順に固定する。
-      if (left.platform !== right.platform) {
-        return left.platform === "steam" ? -1 : 1;
-      }
-      return left.path.localeCompare(right.path, undefined, { sensitivity: "base" });
-    });
+  return (
+    candidates
+      .filter(
+        // 型ガードで未知プラットフォームを除外する。
+        (candidate): candidate is NormalizedPlatformCandidate =>
+          candidate.platform === "steam" || candidate.platform === "epic",
+      )
+      // 呼び出し元配列を変更しないため、並び替え前にコピーを作る。
+      .slice()
+      .sort((left, right) => {
+        // 表示順は Steam 優先、同一プラットフォーム内はパス文字列順に固定する。
+        if (left.platform !== right.platform) {
+          return left.platform === "steam" ? -1 : 1;
+        }
+        return left.path.localeCompare(right.path, undefined, { sensitivity: "base" });
+      })
+  );
 }
 
 export function getPlatformIconPath(platform: GamePlatform): string {

@@ -70,8 +70,8 @@ export default function StepTransition({
         className={
           animateCurrentStep
             ? `step-transition-slide step-enter step-enter-${direction}`
-            // アニメーション不要時は static クラスで即時表示する。
-            : "step-transition-slide step-static"
+            : // アニメーション不要時は static クラスで即時表示する。
+              "step-transition-slide step-static"
         }
         key={displayStep}
       >

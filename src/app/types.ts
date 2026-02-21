@@ -35,8 +35,7 @@ export interface LauncherSettingsInput {
 
 export type NotificationOpenTarget =
   // バックグラウンド通知の遷移先を discriminated union で表現する。
-  | { kind: "report"; threadId: string }
-  | { kind: "announce"; articleId: string };
+  { kind: "report"; threadId: string } | { kind: "announce"; articleId: string };
 
 export interface SnrReleaseSummary {
   tag: string;

@@ -171,8 +171,8 @@ export default function ImportStep({
   };
 
   const previewStatus = previewing
-    // プレビュー状態に応じて案内文を切り替える。
-    ? t("installFlow.importPreviewLoading")
+    ? // プレビュー状態に応じて案内文を切り替える。
+      t("installFlow.importPreviewLoading")
     : previewError
       ? t("installFlow.importPreviewError", { error: previewError })
       : hasFolderPreview
@@ -185,8 +185,8 @@ export default function ImportStep({
         : t("installFlow.importNotConfigured");
 
   const archiveStatus = migrationArchiveError
-    // アーカイブ側はエラー・検証中・検証済みを優先表示する。
-    ? migrationArchiveError
+    ? // アーカイブ側はエラー・検証中・検証済みを優先表示する。
+      migrationArchiveError
     : migrationPasswordValidationState === "checking"
       ? t("installFlow.importArchivePasswordChecking")
       : migrationPasswordValidationState === "valid"
