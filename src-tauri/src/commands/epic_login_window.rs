@@ -85,7 +85,7 @@ impl EpicLoginWindow {
 
                     let app = app_for_navigation.clone();
                     if let Some(code) = Self::extract_code_param(url) {
-                        // 認証コード交換は非同期で実施し、完了後に必ずウィンドウを閉じる。
+                        // 認証コード交換は spawn された非同期タスク内で実施し、完了後にそのタスク内で必ずウィンドウを閉じる。
                         let on_success = on_success.clone();
                         let on_error = on_error.clone();
                         tauri::async_runtime::spawn(async move {

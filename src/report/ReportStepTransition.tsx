@@ -21,7 +21,7 @@ export function ReportStepTransition({ step, children }: ReportStepTransitionPro
   const [displayStep, setDisplayStep] = useState<ReportModalStep>(step);
   const [prevStep, setPrevStep] = useState<ReportModalStep | null>(null);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
-  // 前回ステップを保持し、方向付きアニメーションを安定させる。
+  // 現在ステップを保持し、方向付きアニメーションを安定させる。
   const currentStepRef = useRef<ReportModalStep>(step);
 
   useEffect(() => {
