@@ -14,8 +14,8 @@ use crate::utils::{mod_profile, reporting_api, settings};
 #[cfg(target_os = "windows")]
 pub const BACKGROUND_NOTIFICATION_OPEN_EVENT: &str = "background-notification-open";
 
-const REPORT_POLL_INTERVAL: Duration = Duration::from_secs(60);
-const ANNOUNCE_POLL_INTERVAL: Duration = Duration::from_secs(120);
+const REPORT_POLL_INTERVAL: Duration = Duration::from_secs(20);
+const ANNOUNCE_POLL_INTERVAL: Duration = Duration::from_secs(60);
 const WORKER_TICK_INTERVAL: Duration = Duration::from_secs(1);
 const MAX_REPORT_NOTIFICATIONS_PER_POLL: usize = 3;
 const ANNOUNCE_PREVIEW_CHARS: usize = 60;
