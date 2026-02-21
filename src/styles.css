@@ -1674,21 +1674,96 @@ progress {
 
 /* SaveData import wizard step visual refresh */
 .install-step.install-step-import {
-  --import-bg-top: #f5f9ff;
-  --import-bg-bottom: #edf3fc;
   --import-border-soft: #d8e5f6;
   --import-border: #ccddef;
   --import-text-main: #1f3653;
   --import-text-muted: #637893;
+  --import-title-color: #1d3552;
+  --import-card-bg: #ffffff;
+  --import-card-shadow: 0 8px 24px rgba(49, 89, 145, 0.07);
+  --import-option-bg: #ffffff;
+  --import-option-shadow: 0 1px 2px rgba(24, 70, 130, 0.04);
+  --import-subtle-border: #d8e5f4;
+  --import-subtle-bg: #f9fcff;
+  --import-path-strong: #3b5678;
+  --import-code-bg: rgba(231, 242, 255, 0.95);
+  --import-code-text: #2f4f75;
+  --import-code-border: #d4e3f4;
+  --import-heading-color: #375779;
+  --import-list-item-border: #dbe7f6;
+  --import-list-item-bg: #ffffff;
+  --import-preview-name-color: #2f4b6d;
+  --import-preview-missing-color: #b17b14;
+  --import-input-bg: #ffffff;
+  --import-focus-border: #7ea9dc;
+  --import-focus-ring: rgba(47, 123, 232, 0.18);
   --import-button: #2f7be8;
   --import-button-dark: #2167cb;
   gap: 18px;
   padding: 0 0 24px;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .install-step.install-step-import {
+    --import-border-soft: rgba(135, 173, 219, 0.3);
+    --import-border: rgba(129, 170, 220, 0.42);
+    --import-text-main: #e2ecfb;
+    --import-text-muted: #aec3df;
+    --import-title-color: #eff5ff;
+    --import-card-bg: rgba(15, 27, 45, 0.78);
+    --import-card-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
+    --import-option-bg: rgba(11, 23, 40, 0.7);
+    --import-option-shadow: 0 8px 24px rgba(0, 0, 0, 0.26);
+    --import-subtle-border: rgba(138, 181, 233, 0.28);
+    --import-subtle-bg: rgba(8, 19, 34, 0.7);
+    --import-path-strong: #c3d8f6;
+    --import-code-bg: rgba(17, 35, 58, 0.9);
+    --import-code-text: #d5e5fb;
+    --import-code-border: rgba(132, 177, 229, 0.34);
+    --import-heading-color: #c4d9f6;
+    --import-list-item-border: rgba(139, 181, 228, 0.3);
+    --import-list-item-bg: rgba(10, 22, 38, 0.76);
+    --import-preview-name-color: #d7e7ff;
+    --import-preview-missing-color: #f4c96f;
+    --import-input-bg: rgba(9, 21, 36, 0.82);
+    --import-focus-border: #76b9ff;
+    --import-focus-ring: rgba(90, 176, 255, 0.34);
+    --import-button: #4a9cf3;
+    --import-button-dark: #2d7fd6;
+  }
+}
+
+[data-theme="dark"] .install-step.install-step-import {
+  --import-border-soft: rgba(135, 173, 219, 0.3);
+  --import-border: rgba(129, 170, 220, 0.42);
+  --import-text-main: #e2ecfb;
+  --import-text-muted: #aec3df;
+  --import-title-color: #eff5ff;
+  --import-card-bg: rgba(15, 27, 45, 0.78);
+  --import-card-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
+  --import-option-bg: rgba(11, 23, 40, 0.7);
+  --import-option-shadow: 0 8px 24px rgba(0, 0, 0, 0.26);
+  --import-subtle-border: rgba(138, 181, 233, 0.28);
+  --import-subtle-bg: rgba(8, 19, 34, 0.7);
+  --import-path-strong: #c3d8f6;
+  --import-code-bg: rgba(17, 35, 58, 0.9);
+  --import-code-text: #d5e5fb;
+  --import-code-border: rgba(132, 177, 229, 0.34);
+  --import-heading-color: #c4d9f6;
+  --import-list-item-border: rgba(139, 181, 228, 0.3);
+  --import-list-item-bg: rgba(10, 22, 38, 0.76);
+  --import-preview-name-color: #d7e7ff;
+  --import-preview-missing-color: #f4c96f;
+  --import-input-bg: rgba(9, 21, 36, 0.82);
+  --import-focus-border: #76b9ff;
+  --import-focus-ring: rgba(90, 176, 255, 0.34);
+  --import-button: #4a9cf3;
+  --import-button-dark: #2d7fd6;
+}
+
 .install-step-import .step-title {
   margin: 0;
-  color: #1d3552;
+  color: var(--import-title-color);
   font-size: clamp(24px, 2.6vw, 32px);
   letter-spacing: 0.02em;
 }
@@ -1708,11 +1783,11 @@ progress {
   margin: 0 auto;
   border: 1px solid var(--import-border-soft);
   border-radius: 22px;
-  background: #ffffff;
+  background: var(--import-card-bg);
   padding: 18px;
   display: grid;
   gap: 14px;
-  box-shadow: 0 8px 24px rgba(49, 89, 145, 0.07);
+  box-shadow: var(--import-card-shadow);
 }
 
 .install-step-import .import-option-block {
@@ -1721,8 +1796,8 @@ progress {
   padding: 16px 18px;
   border-radius: 16px;
   border: 1px solid var(--import-border);
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(24, 70, 130, 0.04);
+  background: var(--import-option-bg);
+  box-shadow: var(--import-option-shadow);
 }
 
 .install-step-import .import-toggle {
@@ -1856,9 +1931,9 @@ progress {
 
 .install-step-import .import-paths,
 .install-step-import .import-preview-list-wrap {
-  border: 1px solid #d8e5f4;
+  border: 1px solid var(--import-subtle-border);
   border-radius: 12px;
-  background: #f9fcff;
+  background: var(--import-subtle-bg);
 }
 
 .install-step-import .import-paths {
@@ -1881,15 +1956,15 @@ progress {
 }
 
 .install-step-import .import-path-line strong {
-  color: #3b5678;
+  color: var(--import-path-strong);
 }
 
 .install-step-import .import-path-line code {
   font-size: 12px;
   overflow-wrap: anywhere;
-  background: rgba(231, 242, 255, 0.95);
-  color: #2f4f75;
-  border: 1px solid #d4e3f4;
+  background: var(--import-code-bg);
+  color: var(--import-code-text);
+  border: 1px solid var(--import-code-border);
   border-radius: 8px;
   padding: 2px 6px;
 }
@@ -1912,7 +1987,7 @@ progress {
   margin: 0;
   font-size: 13px;
   font-weight: 600;
-  color: #375779;
+  color: var(--import-heading-color);
 }
 
 .install-step-import .import-preview-empty {
@@ -1930,23 +2005,23 @@ progress {
 }
 
 .install-step-import .import-preview-item {
-  border: 1px solid #dbe7f6;
+  border: 1px solid var(--import-list-item-border);
   border-radius: 10px;
   padding: 8px 10px;
   display: grid;
   gap: 4px;
-  background: #ffffff;
+  background: var(--import-list-item-bg);
 }
 
 .install-step-import .import-preview-name {
   font-size: 13px;
   font-weight: 600;
-  color: #2f4b6d;
+  color: var(--import-preview-name-color);
 }
 
 .install-step-import .import-preview-missing {
   font-size: 12px;
-  color: #b17b14;
+  color: var(--import-preview-missing-color);
 }
 
 .install-step-import .import-archive-fields {
@@ -1961,7 +2036,7 @@ progress {
 .install-step-import .import-password-field > span {
   font-size: 13px;
   font-weight: 600;
-  color: #375779;
+  color: var(--import-heading-color);
 }
 
 .install-step-import .import-password-field input {
@@ -1969,14 +2044,14 @@ progress {
   border: 1px solid var(--import-border);
   border-radius: 10px;
   padding: 10px 12px;
-  background: #ffffff;
+  background: var(--import-input-bg);
   color: var(--import-text-main);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .install-step-import .import-password-field input:focus {
-  border-color: #7ea9dc;
-  box-shadow: 0 0 0 3px rgba(47, 123, 232, 0.18);
+  border-color: var(--import-focus-border);
+  box-shadow: 0 0 0 3px var(--import-focus-ring);
 }
 
 @media (max-width: 640px) {
@@ -2151,6 +2226,14 @@ progress {
   box-shadow: 0 26px 56px rgba(0, 0, 0, 0.56);
 }
 
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .onboarding-main-container {
+    background: linear-gradient(165deg, rgba(10, 18, 34, 0.96), rgba(12, 24, 44, 0.9)), var(--card);
+    border-color: rgba(90, 176, 255, 0.42);
+    box-shadow: 0 26px 56px rgba(0, 0, 0, 0.56);
+  }
+}
+
 .onboarding-wizard.onboarding-mode-fullscreen {
   background: rgba(6, 12, 24, 0.2);
 }
@@ -2194,6 +2277,16 @@ progress {
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.52), 0 4px 10px rgba(0, 0, 0, 0.32);
   backdrop-filter: blur(8px) saturate(1.06);
   -webkit-backdrop-filter: blur(8px) saturate(1.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .onboarding-wizard.onboarding-mode-spotlight .onboarding-main-container {
+    background: linear-gradient(165deg, rgba(9, 18, 34, 0.86), rgba(12, 24, 44, 0.78));
+    border-color: rgba(90, 176, 255, 0.38);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.52), 0 4px 10px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(8px) saturate(1.06);
+    -webkit-backdrop-filter: blur(8px) saturate(1.06);
+  }
 }
 
 .onboarding-header {
