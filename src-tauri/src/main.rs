@@ -12,13 +12,15 @@ use std::sync::{
 };
 use std::time::Duration;
 use tauri::{
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager, RunEvent, WebviewWindowBuilder,
 };
 use utils::mod_profile;
 
 const TRAY_ID: &str = "main-tray";
+const TRAY_MENU_INFO_TITLE_ID: &str = "tray_info_title";
+const TRAY_MENU_INFO_HINT_ID: &str = "tray_info_hint";
 const TRAY_MENU_SHOW_ID: &str = "tray_show";
 const TRAY_MENU_LAUNCH_ID: &str = "tray_launch";
 const TRAY_MENU_EXIT_ID: &str = "tray_exit";
@@ -99,15 +101,17 @@ impl TrayWebviewDestroyState {
     }
 }
 
-fn tray_menu_labels(locale: &str) -> (String, String, String) {
+fn tray_menu_labels(locale: &str) -> (String, String, String, String) {
     let short_name = mod_profile::get().mod_info.short_name.clone();
     match locale {
         "en" => (
+            "Background mode is active".to_string(),
             format!("Launch {short_name} AmongUs"),
             "Show".to_string(),
             "Exit".to_string(),
         ),
         _ => (
+            "バックグラウンド常駐中".to_string(),
             format!("{short_name} AmongUsを起動"),
             "表示".to_string(),
             "終了".to_string(),
@@ -198,13 +202,40 @@ fn setup_tray<R: tauri::Runtime>(
     let locale = crate::utils::settings::load_or_init_settings(app)
         .map(|settings| settings.ui_locale)
         .unwrap_or_else(|_| "ja".to_string());
-    let (launch_label, show_label, exit_label) = tray_menu_labels(&locale);
+    let (hint_label, launch_label, show_label, exit_label) = tray_menu_labels(&locale);
+    let title_label = format!(
+        "{}  v{}",
+        mod_profile.branding.launcher_name,
+        app.package_info().version
+    );
 
+    let title_item = MenuItem::with_id(
+        app,
+        TRAY_MENU_INFO_TITLE_ID,
+        title_label,
+        false,
+        None::<&str>,
+    )?;
+    let hint_item =
+        MenuItem::with_id(app, TRAY_MENU_INFO_HINT_ID, hint_label, false, None::<&str>)?;
+    let top_separator = PredefinedMenuItem::separator(app)?;
     let show_item = MenuItem::with_id(app, TRAY_MENU_SHOW_ID, show_label, true, None::<&str>)?;
     let launch_item =
         MenuItem::with_id(app, TRAY_MENU_LAUNCH_ID, launch_label, true, None::<&str>)?;
+    let bottom_separator = PredefinedMenuItem::separator(app)?;
     let exit_item = MenuItem::with_id(app, TRAY_MENU_EXIT_ID, exit_label, true, None::<&str>)?;
-    let tray_menu = Menu::with_items(app, &[&launch_item, &show_item, &exit_item])?;
+    let tray_menu = Menu::with_items(
+        app,
+        &[
+            &title_item,
+            &hint_item,
+            &top_separator,
+            &launch_item,
+            &show_item,
+            &bottom_separator,
+            &exit_item,
+        ],
+    )?;
 
     let tray_webview_destroy_state_for_tray = tray_webview_destroy_state.clone();
     let mut tray_builder = TrayIconBuilder::with_id(TRAY_ID)
