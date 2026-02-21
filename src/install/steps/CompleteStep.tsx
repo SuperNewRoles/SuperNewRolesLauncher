@@ -93,7 +93,7 @@ export default function CompleteStep({
     return () => clearTimeout(timer);
   }, []);
 
-const handleNext = () => {
+  const handleNext = () => {
     if (leaving) return;
     setLeaving(true);
     window.setTimeout(() => {
