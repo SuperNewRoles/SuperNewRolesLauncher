@@ -10,7 +10,7 @@
     "launcherName": "SuperNewRolesLauncher",
     "windowTitle": "SuperNewRolesLauncher",
     "trayTooltip": "SuperNewRolesLauncher",
-    "identifier": "jp.ykundesu.supernewroleslauncher",
+    "identifier": "dev.yoking.supernewroleslauncher",
     "moddedShortcutName": "SuperNewRoles Mod Launch.lnk"
   },
   "features": {
