@@ -2,12 +2,14 @@ import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 
 
 export type ReportModalStep = "type" | "details" | "confirm";
 
+// モーダル内ステップの順序定義。
 const STEP_ORDER: Record<ReportModalStep, number> = {
   type: 0,
   details: 1,
   confirm: 2,
 };
 
+// スライド遷移の表示時間。
 const TRANSITION_MS = 420;
 
 interface ReportStepTransitionProps {
@@ -19,6 +21,7 @@ export function ReportStepTransition({ step, children }: ReportStepTransitionPro
   const [displayStep, setDisplayStep] = useState<ReportModalStep>(step);
   const [prevStep, setPrevStep] = useState<ReportModalStep | null>(null);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
+  // 前回ステップを保持し、方向付きアニメーションを安定させる。
   const currentStepRef = useRef<ReportModalStep>(step);
 
   useEffect(() => {
@@ -26,6 +29,7 @@ export function ReportStepTransition({ step, children }: ReportStepTransitionPro
       return;
     }
 
+    // 順序比較で遷移方向を決め、退出中ステップを一時保持する。
     const fromStep = currentStepRef.current;
     const isForward = STEP_ORDER[step] > STEP_ORDER[fromStep];
     setDirection(isForward ? "forward" : "back");
@@ -33,6 +37,7 @@ export function ReportStepTransition({ step, children }: ReportStepTransitionPro
     setDisplayStep(step);
     currentStepRef.current = step;
 
+    // 退出アニメーション完了後に旧ステップを破棄する。
     const timer = window.setTimeout(() => setPrevStep(null), TRANSITION_MS);
     return () => {
       window.clearTimeout(timer);

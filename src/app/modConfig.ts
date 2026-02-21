@@ -87,6 +87,7 @@ export interface ModConfig {
 const config = rawConfig as ModConfig;
 
 function ensureNonEmpty(value: string, name: string): string {
+  // 空白だけの値も無効として扱う。
   const trimmed = value.trim();
   if (trimmed.length === 0) {
     throw new Error(`Invalid mod config: '${name}' must not be empty.`);
@@ -95,11 +96,13 @@ function ensureNonEmpty(value: string, name: string): string {
 }
 
 function normalizeBaseUrl(url: string, name: string): string {
+  // API ベースURLは末尾スラッシュありに正規化する。
   const normalized = ensureNonEmpty(url, name);
   return normalized.endsWith("/") ? normalized : `${normalized}/`;
 }
 
 function ensureHexColor(value: string, name: string): string {
+  // テーマ色は #RRGGBB のみ許可する。
   const normalized = ensureNonEmpty(value, name);
   if (!/^#[0-9A-Fa-f]{6}$/.test(normalized)) {
     throw new Error(`Invalid mod config: '${name}' must be a 6-digit hex color (#RRGGBB).`);
@@ -108,6 +111,7 @@ function ensureHexColor(value: string, name: string): string {
 }
 
 function hexToRgbTuple(hexColor: string): string {
+  // CSS 変数に流し込むため "r, g, b" 形式へ変換する。
   const normalized = hexColor.slice(1);
   const red = Number.parseInt(normalized.slice(0, 2), 16);
   const green = Number.parseInt(normalized.slice(2, 4), 16);
@@ -120,6 +124,7 @@ function assertModConfig(input: ModConfig): ModConfig {
     throw new Error(`Unsupported mod config schemaVersion: ${input.schemaVersion}`);
   }
 
+  // 必須文字列項目は起動時にまとめて検証しておく。
   ensureNonEmpty(input.mod.id, "mod.id");
   ensureNonEmpty(input.mod.displayName, "mod.displayName");
   ensureNonEmpty(input.mod.shortName, "mod.shortName");
@@ -186,6 +191,7 @@ function assertModConfig(input: ModConfig): ModConfig {
     throw new Error("Invalid mod config: 'links.official' must be an array.");
   }
   for (const [index, item] of input.links.official.entries()) {
+    // 公式リンクは表示名・URL・色・アイコンIDをすべて必須にする。
     ensureNonEmpty(item.label, `links.official[${index}].label`);
     ensureNonEmpty(item.url, `links.official[${index}].url`);
     ensureNonEmpty(item.backgroundColor, `links.official[${index}].backgroundColor`);
@@ -197,6 +203,7 @@ function assertModConfig(input: ModConfig): ModConfig {
     }
   }
 
+  // この時点で input は正規化済みのため、そのまま実行時設定として扱える。
   return input;
 }
 

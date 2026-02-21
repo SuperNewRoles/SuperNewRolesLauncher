@@ -28,6 +28,7 @@ export function OnboardingLayout({
   isLastStep,
   nextDisabled,
 }: OnboardingLayoutProps) {
+  // 各ステップで共通の本文レイアウトとフッター操作を提供する。
   return (
     <div className="onboarding-layout">
       <div className="onboarding-content">
@@ -41,9 +42,11 @@ export function OnboardingLayout({
             {backLabel || t("common.back")}
           </button>
         ) : (
+          // 戻るボタンがないステップでも左右バランスを保つための空要素。
           <div /> /* Spacer */
         )}
         <button type="button" className="primary" onClick={onNext} disabled={nextDisabled}>
+          {/* 最終ステップのみ文言を「開始」に切り替える。 */}
           {nextLabel || (isLastStep ? t("onboarding.start") : t("common.next"))}
         </button>
       </div>

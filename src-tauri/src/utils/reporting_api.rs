@@ -1,3 +1,4 @@
+// 通報APIとの通信・トークン管理・ログ送信整形を担当する。
 use aes::Aes256;
 use base64::Engine;
 use brotli::CompressorWriter;
@@ -193,10 +194,12 @@ struct TokenCandidate {
 }
 
 fn reporting_api_base_url() -> &'static str {
+    // エンドポイント基底URLはmodプロファイルから一元取得する。
     mod_profile::get().apis.reporting_base_url.as_str()
 }
 
 fn reporting_user_agent() -> String {
+    // ランチャー識別情報をUser-Agentへ載せてサーバ側解析を容易にする。
     format!(
         "{}/{}",
         mod_profile::get().branding.launcher_name,
@@ -220,6 +223,7 @@ fn token_cache() -> &'static Mutex<Option<String>> {
 }
 
 fn get_cached_token() -> Option<String> {
+    // インメモリキャッシュから読み出し、I/O回数を削減する。
     token_cache().lock().ok().and_then(|guard| guard.clone())
 }
 
@@ -365,6 +369,7 @@ async fn resolve_valid_token<R: Runtime>(
     client: &Client,
     allow_create: bool,
 ) -> Result<(String, String, bool), String> {
+    // 優先順位: メモリキャッシュ -> ファイル候補 -> createAccount。
     if let Some(cached) = get_cached_token() {
         if validate_token(client, &cached).await? {
             return Ok((cached, "memory-cache".to_string(), false));
@@ -387,6 +392,7 @@ async fn resolve_valid_token<R: Runtime>(
     }
 
     if !allow_create {
+        // 一覧取得など「作成しない」モードではここで打ち切る。
         return Err("No valid reporting token found".to_string());
     }
 
@@ -422,6 +428,7 @@ fn report_log_source_info<R: Runtime>(app: &AppHandle<R>) -> Result<LogSourceInf
     let selected_path = if profile_candidate_path.is_file() {
         Some(profile_candidate_path.clone())
     } else if !game_candidate_path.as_os_str().is_empty() && game_candidate_path.is_file() {
+        // プロファイルに無い場合のみゲーム本体側ログへフォールバックする。
         Some(game_candidate_path.clone())
     } else {
         None

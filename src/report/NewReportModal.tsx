@@ -15,6 +15,7 @@ import type { createTranslator } from "../i18n";
 import { type ReportModalStep, ReportStepTransition } from "./ReportStepTransition";
 
 type Translator = ReturnType<typeof createTranslator>;
+// 閉じアニメーションと送信進捗表示の最小表示時間設定。
 const MODAL_CLOSE_ANIMATION_MS = 220;
 const SUBMIT_PROGRESS_MIN_VISIBLE_MS = 400;
 const SUBMIT_PROGRESS_SETTLE_TIMEOUT_MS = 250;
@@ -50,6 +51,7 @@ const REPORT_TYPES: { type: ReportType; icon: string; color: string }[] = [
 ];
 
 export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalProps) {
+  // ウィザード状態・フォーム内容・送信進捗をそれぞれ分離して管理する。
   const [step, setStep] = useState<ReportModalStep>("type");
   const [reportType, setReportType] = useState<ReportType>("Bug");
   const [isRendered, setIsRendered] = useState(isOpen);
@@ -73,9 +75,11 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
   const isSubmitSending = submitPhase === "sending";
   const isSubmitSuccess = submitPhase === "success";
   const isSubmitError = submitPhase === "error";
+  // 送信中はモーダルを閉じられないようにして中断状態を防ぐ。
   const canCloseModal = submitPhase !== "sending";
 
   const clearCloseAnimationTimeout = useCallback(() => {
+    // 開閉が連続した際に古い close タイマーが残らないようにする。
     if (closeAnimationTimeoutRef.current !== null) {
       window.clearTimeout(closeAnimationTimeoutRef.current);
       closeAnimationTimeoutRef.current = null;
@@ -83,6 +87,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
   }, []);
 
   const resetSubmitState = useCallback(() => {
+    // 再オープン時に送信状態を初期化し、前回結果を持ち越さない。
     setSubmitPhase("idle");
     setSubmitStage("preparing");
     setSubmitProgressTarget(0);
@@ -92,6 +97,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
   }, []);
 
   const resetForm = useCallback(() => {
+    // 入力フォームを初期値に戻す。
     setStep("type");
     setReportType("Bug");
     setTitle("");
@@ -103,6 +109,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
 
   const handleClose = useCallback(() => {
     if (canCloseModal) {
+      // 送信中以外はフォームをリセットして閉じる。
       resetSubmitState();
       resetForm();
       onClose();
@@ -110,6 +117,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
   }, [canCloseModal, resetSubmitState, resetForm, onClose]);
 
   const clearProgressAnimationFrame = useCallback(() => {
+    // requestAnimationFrame の重複実行を防ぐ。
     if (progressAnimationFrameRef.current !== null) {
       window.cancelAnimationFrame(progressAnimationFrameRef.current);
       progressAnimationFrameRef.current = null;
@@ -118,6 +126,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
 
   useEffect(() => {
     if (isOpen) {
+      // 開く際は描画状態を先に確保し、次フレームで表示クラスを付与する。
       clearCloseAnimationTimeout();
       resetSubmitState();
       setIsRendered(true);
@@ -143,6 +152,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
   }, [isOpen, isRendered, clearCloseAnimationTimeout, resetSubmitState]);
 
   useEffect(() => {
+    // アンマウント時にタイマー・アニメーションを必ず解放する。
     return () => {
       clearCloseAnimationTimeout();
       clearProgressAnimationFrame();
@@ -150,6 +160,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
   }, [clearCloseAnimationTimeout, clearProgressAnimationFrame]);
 
   useEffect(() => {
+    // バックエンド送信進捗イベントを購読して進捗率を更新する。
     const unlisten = listen<ReportingSendProgressPayload>("reporting-send-progress", (event) => {
       const stage = String(event.payload.stage || "");
       if (stage.length > 0) {
@@ -182,6 +193,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
     clearProgressAnimationFrame();
 
     const animate = () => {
+      // 目標値との差分に応じて加速/減速しながら滑らかに追従する。
       const current = submitProgressDisplayRef.current;
       const target = submitProgressTarget;
 
@@ -212,6 +224,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
     }
 
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      // モーダル表示中は Esc で閉じられるようにする。
       if (event.key === "Escape") {
         handleClose();
       }
@@ -229,6 +242,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
         return;
       }
 
+      // 種別選択後は入力ステップへ遷移する。
       setReportType(type);
       setStep("details");
     },
@@ -236,6 +250,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
   );
 
   const handleBack = useCallback(() => {
+    // 現在ステップに応じて1段階だけ戻す。
     if (step === "details") {
       setStep("type");
     } else if (step === "confirm") {
@@ -251,6 +266,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
   const canProceed = hasTitle && hasDescription && (!isBug || hasRequiredBugDetails);
 
   const handleNext = useCallback(() => {
+    // 必須入力が満たされた場合のみ確認ステップへ進める。
     if (step === "details" && canProceed) {
       setStep("confirm");
     }
@@ -259,6 +275,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
   const handleSubmit = useCallback(async () => {
     if (!canProceed) return;
 
+    // 送信開始時に進捗表示を初期化する。
     setSubmitError(null);
     setSubmitPhase("sending");
     setSubmitStage("preparing");
@@ -278,6 +295,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
       setSubmitStage("complete");
       setSubmitProgressTarget(100);
 
+      // 早すぎる完了時でも進捗表示を一定時間見せる。
       const elapsed = performance.now() - submitStartAtRef.current;
       const waitForMinimumVisible = Math.max(0, SUBMIT_PROGRESS_MIN_VISIBLE_MS - elapsed);
       if (waitForMinimumVisible > 0) {
@@ -288,6 +306,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
 
       const settleDeadline = performance.now() + SUBMIT_PROGRESS_SETTLE_TIMEOUT_MS;
       while (submitProgressDisplayRef.current < 99 && performance.now() < settleDeadline) {
+        // 表示 progress が追いつくまで短時間だけ待機する。
         await new Promise<void>((resolve) => {
           window.setTimeout(resolve, 16);
         });
@@ -303,6 +322,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
         .replace(/^Failed to send report:\s*/iu, "")
         .replace(/^報告送信失敗:\s*/u, "")
         .trim();
+      // フロント表示用に不要な接頭辞を除去したメッセージを保持する。
       setSubmitStage("failed");
       setSubmitPhase("error");
       setSubmitError(normalized.length > 0 ? normalized : cleaned.length > 0 ? cleaned : raw);
@@ -312,6 +332,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
   const handleOpenTerms = useCallback(async (event: ReactMouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     try {
+      // Tauri の opener を優先し、失敗時のみ window.open を使う。
       await openUrl(REPORTING_TERMS_URL);
     } catch {
       window.open(REPORTING_TERMS_URL, "_blank", "noopener,noreferrer");
@@ -328,6 +349,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
         : t("report.sending");
 
   const closeOnActivation = (event: ReactKeyboardEvent<HTMLElement>) => {
+    // オーバーレイへの Enter/Space で閉じ操作を可能にする。
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       handleClose();
@@ -335,6 +357,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
   };
 
   const stopPropagation = (event: ReactKeyboardEvent<HTMLElement>) => {
+    // dialog 内キー操作がオーバーレイへ伝播しないようにする。
     if (event.key === " ") {
       event.preventDefault();
     }

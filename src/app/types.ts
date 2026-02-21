@@ -20,6 +20,7 @@ export interface LauncherSettings {
 }
 
 export interface LauncherSettingsInput {
+  // 更新API向けに部分更新できるよう全項目 optional にしている。
   amongUsPath?: string;
   gamePlatform?: GamePlatform;
   selectedReleaseTag?: string;
@@ -33,6 +34,7 @@ export interface LauncherSettingsInput {
 }
 
 export type NotificationOpenTarget =
+  // バックグラウンド通知の遷移先を discriminated union で表現する。
   | { kind: "report"; threadId: string }
   | { kind: "announce"; articleId: string };
 
@@ -151,6 +153,7 @@ export interface EpicLoginStatus {
 export type SocialBrandId = "fanbox" | "discord" | "youtube" | "github" | "x";
 
 export type SocialIcon =
+  // SVG の path 直書きと画像参照の双方を許可する。
   | { kind: "svg-path"; viewBox: string; pathD: string }
   | { kind: "image"; src: string; imageClassName?: string };
 
@@ -188,6 +191,7 @@ export interface ReportThread {
 }
 
 export interface ReportMessage {
+  // messageType により本文/ステータス更新の描画分岐を行う。
   messageType: string;
   messageId: string;
   createdAt: string;

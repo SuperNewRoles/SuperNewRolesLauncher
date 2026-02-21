@@ -6,6 +6,7 @@ import { settingsProfileReady } from "./app/services/tauriClient";
 import { initTheme } from "./app/theme";
 
 function applyConfiguredAuraColors(): void {
+  // mod.config 由来の色を CSS カスタムプロパティへ反映する。
   const rootStyle = document.documentElement.style;
   rootStyle.setProperty("--body-aura-orange-rgb", BODY_AURA_RGB.colorLeft);
   rootStyle.setProperty("--body-aura-green-rgb", BODY_AURA_RGB.colorRight);
@@ -13,6 +14,7 @@ function applyConfiguredAuraColors(): void {
 }
 
 async function run() {
+  // 画面描画前に見た目の初期値を適用してちらつきを抑える。
   applyConfiguredAuraColors();
 
   // テーマ初期化（システム設定に連動）
@@ -29,14 +31,17 @@ async function run() {
   const isInstalled = await settingsProfileReady().catch(() => false);
 
   if (isInstalled) {
+    // インストール済みならランチャー本体へ遷移する。
     const { runLauncher } = await import("./app/bootstrap");
     await runLauncher(container);
     return;
   }
 
+  // 未インストール時のみインストールウィザードを表示する。
   container.replaceChildren();
   const root = createRoot(container);
   root.render(<App />);
 }
 
+// エントリポイントでは戻り値を待たずに起動し、内部で例外を管理する。
 void run();

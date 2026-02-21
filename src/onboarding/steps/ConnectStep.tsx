@@ -22,6 +22,7 @@ const FANBOX_URL =
   modConfig.links.official.find((link) => link.iconId === "fanbox")?.url ?? FALLBACK_FANBOX_URL;
 
 function formatActionError(error: unknown): string {
+  // Tauri invoke 例外の共通プレフィックスを除去して表示しやすくする。
   const raw = error instanceof Error ? error.message : String(error);
   const withoutInvokePrefix = raw.replace(/^Error invoking '[^']+':\s*/u, "");
   return (
@@ -34,6 +35,7 @@ function formatActionError(error: unknown): string {
 
 function SocialIconGraphic({ icon }: { icon: SocialIcon }) {
   if (icon.kind === "image") {
+    // 画像アイコン指定時はそのまま img で描画する。
     return (
       <img
         src={icon.src}
@@ -47,6 +49,7 @@ function SocialIconGraphic({ icon }: { icon: SocialIcon }) {
     );
   }
 
+  // パスデータ指定時は SVG アイコンとして描画する。
   return (
     <svg viewBox={icon.viewBox} aria-hidden="true" focusable="false">
       <path fill="currentColor" d={icon.pathD} />
@@ -70,12 +73,14 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
     return () => window.clearTimeout(timer);
   }, []);
 
+  // 外部コミュニティリンクの起動ハンドラー。
   const handleDiscord = () => openUrl(DISCORD_URL);
   const handleTwitter = () => openUrl(TWITTER_URL);
   const handleFanbox = () => openUrl(FANBOX_URL);
 
   const handleShortcut = async () => {
     try {
+      // OS ショートカット作成の進行状態を UI に反映する。
       setShortcutStatus("creating");
       setShortcutErrorMessage(null);
       await launchShortcutCreate();
@@ -154,6 +159,7 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
             type="button"
             className={`connect-card ${shortcutStatus === "created" ? "connect-card-done" : ""}`}
             data-brand="shortcut"
+            // 作成中/作成済みは再実行を抑止して二重作成を防ぐ。
             onClick={handleShortcut}
             disabled={shortcutStatus === "creating" || shortcutStatus === "created"}
           >

@@ -5,6 +5,7 @@ interface DetectingStepProps {
 }
 
 export default function DetectingStep({ t }: DetectingStepProps) {
+  // 検出ステップは中央寄せでローディング専用 UI を表示する。
   return (
     <div
       className="install-step install-step-detecting"
@@ -20,6 +21,7 @@ export default function DetectingStep({ t }: DetectingStepProps) {
     >
       <div
         className="spinner"
+        // 既存共通スピナーを大きめサイズで再利用して待機中を強調する。
         style={{ width: "48px", height: "48px", borderWidth: "5px", marginBottom: "24px" }}
       />
       <p style={{ fontSize: "1.4rem", color: "var(--text)", margin: 0 }}>{t("detect.loading")}</p>

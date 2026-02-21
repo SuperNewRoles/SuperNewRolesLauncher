@@ -1,3 +1,4 @@
+// 設定読み書きとフォルダ起動を公開するコマンド群。
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tauri::{AppHandle, Runtime};
@@ -27,6 +28,7 @@ pub fn settings_profile_ready<R: Runtime>(
     app: AppHandle<R>,
     profile_path: Option<String>,
 ) -> Result<bool, String> {
+    // 引数未指定時は保存済み設定か既定値から対象パスを決定する。
     let target_path = if let Some(profile_path) = profile_path {
         let trimmed = profile_path.trim();
         if trimmed.is_empty() {
@@ -61,6 +63,7 @@ pub fn settings_open_folder(path: String) -> Result<(), String> {
 }
 
 fn open_directory(path: &Path) -> Result<(), String> {
+    // OSごとの既定コマンドを使ってフォルダを開く。
     #[cfg(target_os = "windows")]
     let mut command = {
         let mut cmd = Command::new("explorer");
@@ -82,6 +85,7 @@ fn open_directory(path: &Path) -> Result<(), String> {
         cmd
     };
 
+    // フォルダ起動要求だけを投げ、外部アプリの終了待ちは行わない。
     command
         .spawn()
         .map_err(|e| format!("Failed to open directory {}: {e}", path.to_string_lossy()))?;

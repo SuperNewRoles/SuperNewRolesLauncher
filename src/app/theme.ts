@@ -8,6 +8,7 @@ const THEME_STORAGE_KEY = "snr-launcher.theme";
  * 保存されているテーマ設定を取得
  */
 export function getStoredTheme(): ThemePreference {
+  // テスト環境など localStorage 非対応時は system を既定値にする。
   if (typeof localStorage === "undefined") return "system";
   return (localStorage.getItem(THEME_STORAGE_KEY) as ThemePreference) || "system";
 }
@@ -16,6 +17,7 @@ export function getStoredTheme(): ThemePreference {
  * テーマ設定を保存
  */
 export function setStoredTheme(theme: ThemePreference): void {
+  // 保存失敗よりも UI 継続を優先し、未対応環境では何もしない。
   if (typeof localStorage === "undefined") return;
   localStorage.setItem(THEME_STORAGE_KEY, theme);
 }
@@ -24,6 +26,7 @@ export function setStoredTheme(theme: ThemePreference): void {
  * テーマを適用（systemの場合はOS設定に従う）
  */
 export function applyTheme(theme: ThemePreference): void {
+  // 明示テーマ時は data-theme を設定して CSS 側の分岐を有効化する。
   if (theme === "dark") {
     document.documentElement.setAttribute("data-theme", "dark");
   } else if (theme === "light") {
@@ -39,6 +42,7 @@ export function applyTheme(theme: ThemePreference): void {
  */
 export async function initTheme(): Promise<() => void> {
   const storedTheme = getStoredTheme();
+  // 保存済み設定を最初に反映して、初期描画時のテーマずれを防ぐ。
   applyTheme(storedTheme);
 
   // systemモード時はOSの変更を監視
@@ -52,6 +56,7 @@ export async function initTheme(): Promise<() => void> {
     });
 
     return () => {
+      // アプリ終了時や再初期化時に購読を確実に解除する。
       unlisten();
     };
   }

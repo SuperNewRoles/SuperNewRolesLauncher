@@ -51,6 +51,7 @@ import VersionStep from "./steps/VersionStep";
 import WelcomeStep from "./steps/WelcomeStep";
 import type { DetectedPlatform, InstallStep } from "./types";
 
+// 言語選択プルダウンで使う表示キー定義。
 const LOCALE_OPTION_LABEL_KEYS: Record<LocaleCode, MessageKey> = {
   ja: "language.option.ja",
   en: "language.option.en",
@@ -100,11 +101,13 @@ export default function InstallWizard() {
   const releasesRequestIdRef = useRef(0);
   const migrationPasswordValidationRequestIdRef = useRef(0);
   const installInProgressRef = useRef(false);
+  // イベント名は設定値から参照し、バックエンド側の命名変更に追従する。
   const installProgressEventName = modConfig.events.installProgress;
   const migrationExtension = modConfig.migration.extension;
   const migrationLegacyExtension = "snrdata";
 
   const resetImportState = useCallback(() => {
+    // インポート関連の入力・検証結果を初期状態へ戻す。
     setImportEnabled(false);
     setMigrationImportEnabled(false);
     setImportSourceAmongUsPath("");
@@ -122,6 +125,7 @@ export default function InstallWizard() {
   }, []);
 
   const fetchReleasesForInstall = useCallback(async () => {
+    // 非同期競合時に古いレスポンスを無視するため連番で管理する。
     const requestId = releasesRequestIdRef.current + 1;
     releasesRequestIdRef.current = requestId;
     setReleasesLoading(true);
@@ -137,6 +141,7 @@ export default function InstallWizard() {
 
       setReleases(rels);
       if (rels.length > 0) {
+        // 既存選択が空なら先頭リリースを既定値にする。
         setReleaseTag((current) => (current.trim().length > 0 ? current : rels[0].tag));
       }
     } catch (e) {
@@ -154,6 +159,7 @@ export default function InstallWizard() {
   }, []);
 
   const onStart = useCallback(async () => {
+    // インストール開始時に検出・保存データ状態・リリース一覧をまとめて初期化する。
     setError(null);
     resetImportState();
     setStep("detecting");
@@ -178,6 +184,7 @@ export default function InstallWizard() {
 
   const onPlatformSelect = useCallback(
     (path: string, plat: GamePlatform) => {
+      // 機能フラグ無効時の Epic 選択をガードする。
       if (!isPlatformSelectable(plat, EPIC_LOGIN_ENABLED)) {
         setError(t("launch.errorEpicFeatureDisabled"));
         setStep("platform");
@@ -198,6 +205,7 @@ export default function InstallWizard() {
 
   const onManualFolderSelect = useCallback(
     (path: string, plat: GamePlatform) => {
+      // 手動選択時も通常選択と同じ遷移条件を適用する。
       if (!isPlatformSelectable(plat, EPIC_LOGIN_ENABLED)) {
         setError(t("launch.errorEpicFeatureDisabled"));
         setStep("platform");
@@ -221,12 +229,14 @@ export default function InstallWizard() {
   }, []);
 
   const onVersionSelect = useCallback((tag: string) => {
+    // バージョン確定後はインポート設定ステップへ進める。
     setReleaseTag(tag);
     setError(null);
     setStep("import");
   }, []);
 
   const onImportSourceSelect = useCallback(async (sourcePath: string) => {
+    // プレビュー取得前に前回結果をクリアして表示の整合を保つ。
     setImportSourceAmongUsPath(sourcePath);
     setImportSourceSaveDataPath("");
     setImportPreviewPresets([]);
@@ -234,6 +244,7 @@ export default function InstallWizard() {
     setImportPreviewError(null);
 
     try {
+      // 選択フォルダから移行対象データを事前解析する。
       const preview = await modSaveDataPreview(sourcePath);
       setImportSourceAmongUsPath(preview.sourceAmongUsPath);
       setImportSourceSaveDataPath(preview.sourceSaveDataPath);
@@ -246,6 +257,7 @@ export default function InstallWizard() {
 
   const isMigrationPasswordError = useCallback(
     (message: string): boolean => {
+      // バックエンド由来の代表的なパスワードエラー文言を吸収する。
       const normalized = message.toLowerCase();
       return (
         normalized.includes("incorrect password") ||
@@ -260,6 +272,7 @@ export default function InstallWizard() {
   );
 
   const validateMigrationPassword = useCallback(async (): Promise<boolean> => {
+    // 移行機能が無効な場合は検証をスキップする。
     if (!MIGRATION_ENABLED || !migrationImportEnabled) {
       return true;
     }
@@ -278,6 +291,7 @@ export default function InstallWizard() {
       return false;
     }
 
+    // 最新検証のみ有効にするため requestId を更新する。
     const requestId = migrationPasswordValidationRequestIdRef.current + 1;
     migrationPasswordValidationRequestIdRef.current = requestId;
     setMigrationArchiveError(null);
@@ -303,6 +317,7 @@ export default function InstallWizard() {
       const message = String(validationError);
       setMigrationPasswordValidationState("invalid");
       if (isMigrationPasswordError(message)) {
+        // 想定内の認証エラーは専用メッセージで案内する。
         setMigrationArchiveError(t("installFlow.importArchivePasswordInvalid"));
       } else {
         setMigrationArchiveError(
@@ -320,6 +335,7 @@ export default function InstallWizard() {
   ]);
 
   const onMigrationArchiveSelect = useCallback((archivePath: string) => {
+    // 新しいアーカイブ選択時は以前の検証結果を無効化する。
     migrationPasswordValidationRequestIdRef.current += 1;
     setMigrationArchivePath(archivePath);
     setMigrationArchiveError(null);
@@ -327,6 +343,7 @@ export default function InstallWizard() {
   }, []);
 
   const onImportNext = useCallback(async () => {
+    // インポート有効時はプレビュー成功まで次へ進ませない。
     if (
       importEnabled &&
       (importSourceSaveDataPath.trim().length === 0 || importPreviewError !== null)
@@ -350,6 +367,7 @@ export default function InstallWizard() {
         migrationPasswordValidationState === "idle" ||
         migrationPasswordValidationState === "invalid")
     ) {
+      // 未検証・検証中・検証失敗のいずれも再検証してから遷移する。
       const validated = await validateMigrationPassword();
       if (!validated) {
         return;
@@ -370,6 +388,7 @@ export default function InstallWizard() {
   ]);
 
   const onConfirmInstall = useCallback(async () => {
+    // 二重実行を防ぐため、ref と state の両方で進行中フラグを管理する。
     if (installInProgressRef.current) {
       return;
     }
@@ -405,11 +424,13 @@ export default function InstallWizard() {
       }
 
       const markImportSkipped = (reason: string) => {
+        // 失敗時にスキップ理由を蓄積し、完了画面で通知できるようにする。
         setImportSkippedAfterFailure(true);
         setImportSkipReason((current) => (current ? `${current} / ${reason}` : reason));
       };
 
       const runSaveDataImportFlow = async (): Promise<boolean> => {
+        // インストール本体完了後の補助処理として進捗 99% 帯で表示する。
         setProgress(99);
         setProgressMessage(t("installFlow.importingSaveData"));
         return runImportOperationWithRetryPrompt({
@@ -421,6 +442,7 @@ export default function InstallWizard() {
       };
 
       const runMigrationImportFlow = async (): Promise<boolean> => {
+        // 移行アーカイブ取り込みも同じリトライダイアログ方針で扱う。
         setProgress(99);
         setProgressMessage(t("installFlow.importingMigrationData"));
         return runImportOperationWithRetryPrompt({
@@ -436,6 +458,7 @@ export default function InstallWizard() {
       };
 
       const runSaveDataPresetMergeFlow = async (): Promise<boolean> => {
+        // セーブデータ系プリセットの統合を後段で実行する。
         setProgress(99);
         setProgressMessage(t("installFlow.importingSaveDataPresetMerge"));
         return runImportOperationWithRetryPrompt({
@@ -447,6 +470,7 @@ export default function InstallWizard() {
       };
 
       const runPreservedSaveDataPresetMergeFlow = async (): Promise<boolean> => {
+        // 既存保持データ側のプリセット統合処理。
         setProgress(99);
         setProgressMessage(t("installFlow.importingPreservedSaveDataPresetMerge"));
         return runImportOperationWithRetryPrompt({
@@ -465,6 +489,7 @@ export default function InstallWizard() {
       setError(null);
 
       try {
+        // インストール前に設定値を反映し、続けて本体導入を実行する。
         await settingsUpdate({
           amongUsPath,
           gamePlatform: platform,
@@ -506,6 +531,7 @@ export default function InstallWizard() {
 
         setStep("complete");
       } catch (e) {
+        // 失敗時は確認画面へ戻し、再実行しやすい導線を維持する。
         setError(String(e));
         setStep("confirm");
       }
@@ -529,6 +555,7 @@ export default function InstallWizard() {
   ]);
 
   const onBack = useCallback(() => {
+    // 現在ステップに応じて戻り先を固定し、分岐遷移を明示する。
     if (step === "platform") {
       setStep("welcome");
     } else if (step === "version") {
@@ -543,6 +570,7 @@ export default function InstallWizard() {
   }, [step, platform]);
 
   useEffect(() => {
+    // バックエンド進捗イベントを購読してバー表示へ反映する。
     const unlisten = listen<InstallProgressPayload>(installProgressEventName, (event) => {
       const payload = event.payload;
       setProgress(Math.max(0, Math.min(100, payload.progress ?? 0)));
@@ -554,6 +582,7 @@ export default function InstallWizard() {
   }, [installProgressEventName]);
 
   useEffect(() => {
+    // ログイン成功イベント到達時に最新アカウント状態を再取得する。
     const unsubSuccess = listen("epic-login-success", () => {
       void epicStatusGet().then((s) => {
         setEpicLoggedIn(s.loggedIn);
@@ -567,6 +596,7 @@ export default function InstallWizard() {
 
   useEffect(() => {
     if (!EPIC_LOGIN_ENABLED) {
+      // 機能フラグ無効時はログイン状態を常に未ログインへ固定する。
       setEpicLoggedIn(false);
       setEpicUserDisplay(null);
       return;
@@ -581,6 +611,7 @@ export default function InstallWizard() {
   }, []);
 
   const handleLocaleChange = useCallback(async (newLocale: LocaleCode) => {
+    // UI と設定の両方に言語変更を反映する。
     setLocale(newLocale);
     saveLocale(newLocale);
     await settingsUpdate({ uiLocale: newLocale }).catch(() => undefined);
@@ -588,12 +619,14 @@ export default function InstallWizard() {
   }, []);
 
   const handleThemeChange = useCallback((newTheme: ThemePreference) => {
+    // テーマ変更は state・永続化・DOM 反映を同時に更新する。
     setTheme(newTheme);
     setStoredTheme(newTheme);
     applyTheme(newTheme);
   }, []);
 
   const renderStep = (s: InstallStep, _isExiting: boolean, _direction: "forward" | "back") => {
+    // ステップごとに必要な props を渡して画面を切り替える。
     if (s === "welcome")
       return (
         <WelcomeStep

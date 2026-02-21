@@ -1,5 +1,6 @@
 //! ゲーム起動・実行監視・ショートカット生成を扱うサービス層。
 //! OS依存処理を内包し、commands層は公開APIだけに集中させる。
+// 起動前検証・プロセス追跡・補助ファイル管理を一箇所に集約する。
 
 use crate::utils::{
     epic_api::{self, EpicApi},
@@ -21,10 +22,12 @@ const STEAM_APP_ID_FILE_NAME: &str = "steam_appid.txt";
 const STEAM_APP_ID_VALUE: &str = "945360";
 
 fn among_us_exe_file_name() -> &'static str {
+    // 実行ファイル名はmodプロファイル定義を単一の参照元にする。
     mod_profile::get().paths.among_us_exe.as_str()
 }
 
 fn among_us_data_dir_name() -> &'static str {
+    // Dataフォルダ名も設定から取得してハードコードを避ける。
     mod_profile::get().paths.among_us_data_dir.as_str()
 }
 
@@ -44,18 +47,21 @@ pub struct GameStatePayload {
 }
 
 pub fn clear_autolaunch_error() {
+    // 次回起動前に前回エラーを持ち越さないよう明示的にクリアする。
     if let Ok(mut guard) = LAST_AUTOLAUNCH_ERROR.lock() {
         *guard = None;
     }
 }
 
 pub fn set_autolaunch_error(message: String) {
+    // UI側が後から取得できるよう、最新エラーのみ保持する。
     if let Ok(mut guard) = LAST_AUTOLAUNCH_ERROR.lock() {
         *guard = Some(message);
     }
 }
 
 pub fn take_autolaunch_error() -> Option<String> {
+    // takeで読み出すことで同じエラーの重複表示を防ぐ。
     match LAST_AUTOLAUNCH_ERROR.lock() {
         Ok(mut guard) => guard.take(),
         Err(_) => Some("Failed to access auto launch error state".to_string()),
@@ -63,6 +69,7 @@ pub fn take_autolaunch_error() -> Option<String> {
 }
 
 pub fn is_game_running<R: Runtime>(app: AppHandle<R>) -> Result<bool, String> {
+    // まずメモリ上の子プロセスを確認し、なければPIDファイルの状態へフォールバックする。
     let mut guard = GAME_PROCESS
         .lock()
         .map_err(|_| "Failed to acquire game process lock".to_string())?;
@@ -98,6 +105,7 @@ pub fn is_game_running<R: Runtime>(app: AppHandle<R>) -> Result<bool, String> {
 }
 
 fn running_game_pid_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    // PIDファイルはアプリ専用データ配下へ保存する。
     Ok(settings::app_data_dir(app)?.join(RUNNING_GAME_PID_FILE_NAME))
 }
 
@@ -111,6 +119,7 @@ fn persist_running_game_pid<R: Runtime>(app: &AppHandle<R>, pid: u32) {
     };
 
     if let Some(parent) = path.parent() {
+        // 初回起動時にも書き込めるよう親ディレクトリを準備する。
         if let Err(error) = fs::create_dir_all(parent) {
             eprintln!("Failed to create running game PID directory: {error}");
             return;
@@ -154,6 +163,7 @@ fn load_persisted_running_game_pid<R: Runtime>(app: &AppHandle<R>) -> Result<Opt
     match content.trim().parse::<u32>() {
         Ok(pid) => Ok(Some(pid)),
         Err(_) => {
+            // 壊れたPIDファイルは削除して次回以降の誤判定を防ぐ。
             clear_persisted_running_game_pid(app);
             Ok(None)
         }
@@ -322,6 +332,7 @@ pub fn create_modded_launch_shortcut() -> Result<String, String> {
 
 fn monitor_game_process<R: Runtime>(app: AppHandle<R>) {
     std::thread::spawn(move || {
+        // 起動直後に running=true を通知してUI表示を同期する。
         let _ = app.emit("game-state-changed", GameStatePayload { running: true });
 
         loop {
@@ -333,6 +344,7 @@ fn monitor_game_process<R: Runtime>(app: AppHandle<R>) {
 
             match guard.as_mut().and_then(|process| process.try_wait().ok()) {
                 Some(Some(_)) | None => {
+                    // 終了検知または追跡不能時は監視対象を解除する。
                     *guard = None;
                     break;
                 }
@@ -366,6 +378,7 @@ fn launch_process<R: Runtime>(app: AppHandle<R>, mut command: Command) -> Result
             .as_mut()
             .is_some_and(|child| child.try_wait().ok().flatten().is_none())
         {
+            // 既存プロセス稼働中は二重起動を拒否する。
             return Err("Game is already running".to_string());
         }
 
@@ -415,6 +428,7 @@ fn ensure_valid_among_us_launch_target(game_exe_path: &Path) -> Result<&Path, St
     if !game_dir.join(among_us_exe_file_name()).is_file()
         || !game_dir.join(among_us_data_dir_name()).is_dir()
     {
+        // exeとDataフォルダの両方が揃っているかを最終確認する。
         return Err(format!(
             "The selected folder is not an Among Us installation directory: {}",
             game_dir.to_string_lossy()
@@ -426,6 +440,7 @@ fn ensure_valid_among_us_launch_target(game_exe_path: &Path) -> Result<&Path, St
 
 fn ensure_steam_appid_file_if_needed(game_dir: &Path, platform: &str) -> Result<(), String> {
     if !platform.trim().eq_ignore_ascii_case("steam") {
+        // Steam以外のプラットフォームでは不要。
         return Ok(());
     }
 
@@ -463,6 +478,7 @@ pub fn modded_first_setup_pending<R: Runtime>(
 
     let game_exe_path = PathBuf::from(game_exe);
     let game_dir = ensure_valid_among_us_launch_target(&game_exe_path)?;
+    // ゲーム側にinterop生成済みなら、BepInEx初回展開は完了済みとみなす。
     if has_non_empty_interop(game_dir) {
         return Ok(false);
     }
@@ -481,6 +497,7 @@ async fn add_epic_auth_argument_if_needed(
     platform: &str,
 ) -> Result<(), String> {
     if !platform.trim().eq_ignore_ascii_case("epic") {
+        // Epic以外では認証引数を追加しない。
         return Ok(());
     }
     if !mod_profile::feature_enabled(mod_profile::Feature::EpicLogin) {
@@ -498,6 +515,7 @@ async fn add_epic_auth_argument_if_needed(
         format!("Epic authentication check failed. Please log in to Epic and try again: {error}")
     })?;
 
+    // Epic起動に必要な一時トークンをコマンドライン引数として注入する。
     command.arg(format!("-AUTH_PASSWORD={token}"));
     Ok(())
 }
@@ -505,6 +523,7 @@ async fn add_epic_auth_argument_if_needed(
 pub async fn launch_modded_from_saved_settings<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<(), String> {
+    // 設定保存済みのパス情報を使って再入力なしで起動する。
     let launcher_settings = settings::load_or_init_settings(&app)?;
     let among_us_path = launcher_settings.among_us_path.trim();
     if among_us_path.is_empty() {
@@ -556,6 +575,7 @@ pub async fn launch_modded<R: Runtime>(
     let coreclr_path_str = coreclr_path.to_string_lossy().to_string();
 
     let mut command = Command::new(&game_exe_path);
+    // Doorstop関連引数を付与してBepInEx経由で起動する。
     command
         .current_dir(game_dir)
         .args(["--doorstop-enabled", "true"])
@@ -578,6 +598,7 @@ pub async fn launch_vanilla<R: Runtime>(
     ensure_steam_appid_file_if_needed(game_dir, &platform)?;
 
     let mut command = Command::new(&game_exe_path);
+    // Vanillaは追加引数なしで実行ディレクトリのみ設定する。
     command.current_dir(game_dir);
 
     add_epic_auth_argument_if_needed(&mut command, &platform).await?;

@@ -5,11 +5,13 @@ import {
   runImportOperationWithRetryPrompt,
 } from "./importErrorDialogPolicy";
 
+// テスト用翻訳関数は key と error を可視化できる最小実装にする。
 const t = (key: MessageKey, params?: Record<string, string | number>) =>
   `${String(key)}:${String(params?.error ?? "")}`;
 
 describe("import error dialog policy", () => {
   it("normalizes empty errors to fallback message", () => {
+    // 空文字や undefined は既定の文言へ置き換える。
     expect(normalizeImportErrorMessage("")).toBe("Unknown import error");
     expect(normalizeImportErrorMessage("   ")).toBe("Unknown import error");
     expect(normalizeImportErrorMessage(undefined)).toBe("Unknown import error");
@@ -17,6 +19,7 @@ describe("import error dialog policy", () => {
   });
 
   it("shows prompt again when retry fails with the same message", async () => {
+    // 同一エラーが連続しても確認ダイアログが都度表示されることを確認する。
     const markImportSkipped = vi.fn();
     const confirmDialog = vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false);
     const operation = vi
@@ -39,6 +42,7 @@ describe("import error dialog policy", () => {
   });
 
   it("shows prompt on each different failure until cancelled", async () => {
+    // エラー内容が変わっても最後の失敗理由でスキップ記録されることを確認する。
     const markImportSkipped = vi.fn();
     const confirmDialog = vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false);
     const operation = vi
@@ -61,6 +65,7 @@ describe("import error dialog policy", () => {
   });
 
   it("returns true when retry succeeds", async () => {
+    // 再試行成功時はスキップ扱いにしない。
     const markImportSkipped = vi.fn();
     const confirmDialog = vi.fn().mockResolvedValue(true);
     const operation = vi
@@ -82,6 +87,7 @@ describe("import error dialog policy", () => {
   });
 
   it("returns false when user cancels", async () => {
+    // ユーザーがキャンセルした時点で false を返して処理を打ち切る。
     const markImportSkipped = vi.fn();
     const confirmDialog = vi.fn().mockResolvedValue(false);
     const operation = vi.fn<() => Promise<void>>().mockRejectedValueOnce("stop");

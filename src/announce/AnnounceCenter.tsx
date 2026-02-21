@@ -9,6 +9,7 @@ import type { createTranslator } from "../i18n";
 import { announceGetArticle, announceListArticles } from "./announceApi";
 import type { AnnounceArticle, AnnounceArticleMinimal } from "./types";
 
+// 一定間隔でお知らせ一覧を再取得し、未読状態を最新化する。
 const ANNOUNCE_POLL_INTERVAL_MS = 300_000;
 
 type Translator = ReturnType<typeof createTranslator>;
@@ -24,18 +25,21 @@ interface AnnounceCenterProps {
 function formatDateTime(value: string, locale: LocaleCode): string {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
+    // 不正な日時は原文を表示して情報欠落を避ける。
     return value;
   }
   return parsed.toLocaleString(locale);
 }
 
 function parseAnnounceCreatedAt(value: string): number {
+  // 比較で扱いやすいよう、created_at を UNIX 時刻に正規化する。
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
 function getAnnounceReadCreatedAt(): number | null {
   try {
+    // 永続化済みの既読境界時刻を復元する。
     const value = localStorage.getItem(ANNOUNCE_BADGE_READ_CREATED_AT_STORAGE_KEY);
     if (!value) {
       return null;
@@ -49,6 +53,7 @@ function getAnnounceReadCreatedAt(): number | null {
 
 function setAnnounceReadCreatedAt(value: number): void {
   try {
+    // 既読境界を保存し、次回起動時も未読バッジ計算を安定させる。
     localStorage.setItem(ANNOUNCE_BADGE_READ_CREATED_AT_STORAGE_KEY, String(value));
   } catch {
     // ignore storage failures
@@ -56,6 +61,7 @@ function setAnnounceReadCreatedAt(value: number): void {
 }
 
 function resolveLatestVisibleCreatedAt(items: AnnounceArticleMinimal[]): number {
+  // 一覧上で最も新しい作成日時を既読更新の基準に使う。
   let latestCreatedAt = 0;
   for (const item of items) {
     const createdAt = parseAnnounceCreatedAt(item.created_at);
@@ -84,6 +90,7 @@ export function AnnounceCenter({
   const [listError, setListError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>("");
+  // 最新状態を非同期処理間で共有するため、参照値も保持しておく。
   const readCreatedAtRef = useRef<number | null>(readCreatedAt);
   const selectedArticleIdRef = useRef<string | null>(null);
   const openArticleReloadRequestedRef = useRef<string | null>(null);
@@ -102,6 +109,7 @@ export function AnnounceCenter({
   }, [selectedArticleId]);
 
   const markReadUntil = useCallback((candidateCreatedAt: number): boolean => {
+    // 既読境界は後退させず、常に最大値を維持する。
     if (candidateCreatedAt <= 0) {
       return false;
     }
@@ -121,6 +129,7 @@ export function AnnounceCenter({
 
   const openExternal = useCallback(async (url: string): Promise<void> => {
     try {
+      // Tauri 側の opener を優先し、失敗時のみブラウザ API にフォールバックする。
       await openUrl(url);
     } catch {
       window.open(url, "_blank", "noopener,noreferrer");
@@ -129,10 +138,12 @@ export function AnnounceCenter({
 
   const loadDetail = useCallback(
     async (articleId: string, force = false): Promise<void> => {
+      // 古いリクエストの完了で UI が巻き戻らないように連番で管理する。
       const requestId = latestDetailRequestIdRef.current + 1;
       latestDetailRequestIdRef.current = requestId;
 
       if (!force) {
+        // 一覧の行き来ではキャッシュを使い、体感速度を優先する。
         const cached = articleCacheRef.current.get(articleId);
         if (cached) {
           if (latestDetailRequestIdRef.current === requestId) {
@@ -179,6 +190,7 @@ export function AnnounceCenter({
   const refreshArticles = useCallback(
     async (manual = false): Promise<void> => {
       if (manual) {
+        // 手動更新時だけ明示的なステータスメッセージを表示する。
         setStatusMessage(t("announce.loadingList"));
       }
 
@@ -186,6 +198,7 @@ export function AnnounceCenter({
       setListError(null);
 
       try {
+        // 初回の自動取得で見えている記事は既読境界を自動的に進める。
         const shouldAutoReadVisibleOnThisRefresh = !manual && initialAutoReadPendingRef.current;
         if (shouldAutoReadVisibleOnThisRefresh) {
           initialAutoReadPendingRef.current = false;
@@ -222,6 +235,7 @@ export function AnnounceCenter({
             ? preferredId
             : nextItems[0].id;
 
+        // 選択中の記事が一覧から消えた場合は先頭記事へフォールバックする。
         setSelectedArticleId(nextSelectedId);
         selectedArticleIdRef.current = nextSelectedId;
         await loadDetail(nextSelectedId, manual);
@@ -247,6 +261,7 @@ export function AnnounceCenter({
   );
 
   useEffect(() => {
+    // マウント直後の読み込みと定期ポーリングをここで開始する。
     isMountedRef.current = true;
     articleCacheRef.current.clear();
     void refreshArticles();
@@ -262,6 +277,7 @@ export function AnnounceCenter({
   }, [refreshArticles]);
 
   useEffect(() => {
+    // 同じ deep-link を二重処理しないよう、処理済み ID を記録している。
     if (!openArticleId) {
       openArticleReloadRequestedRef.current = null;
       handledOpenArticleIdRef.current = null;
@@ -279,6 +295,7 @@ export function AnnounceCenter({
         return;
       }
 
+      // 一覧に存在しない場合でも通知ディープリンクを開くため詳細 API を直接叩く。
       // Notification target may not appear in the first page list;
       // fallback to direct detail fetch so the deep-link still opens.
       openArticleReloadRequestedRef.current = null;
@@ -302,6 +319,7 @@ export function AnnounceCenter({
 
   const handleSelectArticle = useCallback(
     (item: AnnounceArticleMinimal): void => {
+      // 明示選択時はステータス表示を消して詳細読み込みに集中させる。
       const articleId = item.id;
       setSelectedArticleId(articleId);
       selectedArticleIdRef.current = articleId;
@@ -311,12 +329,14 @@ export function AnnounceCenter({
     [loadDetail],
   );
 
+  // 既読境界より新しい記事が1件でもあれば未読扱いにする。
   const hasUnreadItems = items.some((item) => {
     const itemCreatedAt = parseAnnounceCreatedAt(item.created_at);
     return readCreatedAt === null || itemCreatedAt > readCreatedAt;
   });
 
   const handleMarkAllRead = useCallback((): void => {
+    // 現在表示中の最新日時まで既読を進める。
     const latestVisibleCreatedAt = resolveLatestVisibleCreatedAt(items);
     if (latestVisibleCreatedAt <= 0) {
       return;

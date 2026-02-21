@@ -6,6 +6,7 @@ import type { MessageKey } from "../../i18n";
 const RELOAD_ENTRANCE_ANIMATION_FLAG = "ui.localeSwitchReloadAnimation";
 const INSTALL_FLOW_HOME_AFTER_RELOAD_FLAG_KEY = "ui.installFlowHomeAfterReload";
 
+// 完了画面のフェードアウト時間。CSS と揃えている。
 const LEAVE_ANIMATION_MS = 280;
 
 interface CompleteStepProps {
@@ -16,6 +17,7 @@ interface CompleteStepProps {
 
 function Confetti() {
   const [particles] = useState(() =>
+    // 初回レンダーで紙吹雪パラメータを固定し、再描画で揺れないようにする。
     Array.from({ length: 40 }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
@@ -55,6 +57,7 @@ function Confetti() {
 }
 
 function SuccessIcon() {
+  // 完了アイコンは単純な SVG で描画し、テーマ色に追従させる。
   return (
     <div className="success-icon-container">
       <svg
@@ -89,11 +92,13 @@ export default function CompleteStep({
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
+    // 入場アニメーションのために本文表示を少し遅らせる。
     const timer = setTimeout(() => setShowContent(true), 320);
     return () => clearTimeout(timer);
   }, []);
 
   const handleNext = () => {
+    // 連打による重複遷移を防止する。
     if (leaving) return;
     setLeaving(true);
     window.setTimeout(() => {

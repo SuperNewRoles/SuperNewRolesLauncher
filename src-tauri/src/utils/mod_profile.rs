@@ -153,6 +153,7 @@ pub enum Feature {
 }
 
 fn non_empty(name: &str, value: &str) -> Result<(), String> {
+    // 空文字や空白のみの設定値は初期化段階で弾く。
     if value.trim().is_empty() {
         return Err(format!("Invalid mod config: '{name}' must not be empty."));
     }
@@ -160,6 +161,7 @@ fn non_empty(name: &str, value: &str) -> Result<(), String> {
 }
 
 fn parse_mod_profile() -> Result<ModProfile, String> {
+    // 埋め込みJSONを読み取り、起動時に一度だけ検証して共有する。
     let mut profile = serde_json::from_str::<ModProfile>(MOD_CONFIG_RAW)
         .map_err(|e| format!("Failed to parse mod.config.json: {e}"))?;
     validate_mod_profile(&mut profile)?;
@@ -167,6 +169,7 @@ fn parse_mod_profile() -> Result<ModProfile, String> {
 }
 
 fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
+    // スキーマ不一致は後続処理が壊れるため、最優先で弾く。
     if profile.schema_version != 1 {
         return Err(format!(
             "Unsupported mod config schemaVersion: {} (expected 1)",
@@ -192,6 +195,7 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
             profile.distribution.source
         ));
     }
+    // リポジトリ指定の書式を事前検証し、API URL組み立て時の不整合を防ぐ。
     non_empty("distribution.githubRepo", &profile.distribution.github_repo)?;
     let github_repo = profile.distribution.github_repo.trim();
     let is_valid_repo_format = github_repo
@@ -214,6 +218,7 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
     Regex::new(&profile.distribution.asset_regex.steam).map_err(|e| {
         format!("Invalid mod config: distribution.assetRegex.steam is not a valid regex: {e}")
     })?;
+    // Epic用のアセット抽出正規表現もここでコンパイル検証する。
     Regex::new(&profile.distribution.asset_regex.epic).map_err(|e| {
         format!("Invalid mod config: distribution.assetRegex.epic is not a valid regex: {e}")
     })?;
@@ -325,6 +330,7 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
 }
 
 pub fn validate() -> Result<(), String> {
+    // 既に初期化済みなら再検証は不要。
     if MOD_PROFILE.get().is_some() {
         return Ok(());
     }
@@ -335,6 +341,7 @@ pub fn validate() -> Result<(), String> {
 }
 
 pub fn get() -> &'static ModProfile {
+    // 未初期化時は初回アクセスで同期的に初期化する。
     MOD_PROFILE.get_or_init(|| match parse_mod_profile() {
         Ok(profile) => profile,
         Err(error) => panic!("Invalid mod.config.json: {error}"),
@@ -342,6 +349,7 @@ pub fn get() -> &'static ModProfile {
 }
 
 pub fn feature_enabled(feature: Feature) -> bool {
+    // 機能フラグは単一点参照にして呼び出し側の分岐を簡潔に保つ。
     let features = &get().features;
     match feature {
         Feature::Announce => features.announce,
@@ -358,6 +366,7 @@ pub fn ensure_feature_enabled(feature: Feature) -> Result<(), String> {
         return Ok(());
     }
 
+    // エラーメッセージは mod.config.json のキー名に合わせて返す。
     let name = match feature {
         Feature::Announce => "announce",
         Feature::Reporting => "reporting",
@@ -370,6 +379,7 @@ pub fn ensure_feature_enabled(feature: Feature) -> Result<(), String> {
 }
 
 pub fn github_releases_api_url() -> String {
+    // リリース一覧取得は共通のper_pageで固定する。
     format!(
         "https://api.github.com/repos/{}/releases?per_page=30",
         get().distribution.github_repo
@@ -377,6 +387,7 @@ pub fn github_releases_api_url() -> String {
 }
 
 pub fn github_release_by_tag_api_base_url() -> String {
+    // タグ指定APIは呼び出し側でタグを後置できるよう、末尾 /tags まで返す。
     format!(
         "https://api.github.com/repos/{}/releases/tags",
         get().distribution.github_repo
@@ -385,6 +396,7 @@ pub fn github_release_by_tag_api_base_url() -> String {
 
 pub fn to_relative_path(value: &str) -> PathBuf {
     let mut result = PathBuf::new();
+    // 余分な区切りや空セグメントを無視して安全な相対パスへ変換する。
     for segment in value
         .split('/')
         .map(str::trim)

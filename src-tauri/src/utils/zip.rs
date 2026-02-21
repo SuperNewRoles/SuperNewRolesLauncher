@@ -1,3 +1,4 @@
+// zip展開時の安全性チェックと進捗通知を提供する。
 use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{BufWriter, Read, Write};
@@ -15,6 +16,7 @@ fn copy_with_reused_buffer<R: Read, W: Write>(
     let mut written = 0_u64;
 
     loop {
+        // 再利用バッファでコピーし、エントリごとの割り当てを抑える。
         let read = reader.read(buffer)?;
         if read == 0 {
             break;
@@ -31,6 +33,7 @@ pub fn extract_zip<F>(zip_path: &Path, destination: &Path, mut on_progress: F) -
 where
     F: FnMut(usize, usize),
 {
+    // zip-slip対策のため、各エントリは必ずenclosed_nameで検証する。
     let file = File::open(zip_path).map_err(|e| format!("Failed to open zip archive: {e}"))?;
     let mut archive =
         zip::ZipArchive::new(file).map_err(|e| format!("Invalid zip archive format: {e}"))?;
@@ -39,6 +42,7 @@ where
         .map_err(|e| format!("Failed to create extraction directory: {e}"))?;
 
     let total = archive.len();
+    // エントリ数が少ない場合も進捗が止まって見えないよう最小ステップを1にする。
     let progress_step = (total / 100).max(1);
     let mut last_reported = 0_usize;
     let mut last_progress_emitted_at = Instant::now();
@@ -91,6 +95,7 @@ where
         }
 
         let current = i + 1;
+        // 件数差分と経過時間の両方で進捗発火し、重いエントリ中の無反応を避ける。
         let should_emit_progress = current == total
             || current.saturating_sub(last_reported) >= progress_step
             || last_progress_emitted_at.elapsed() >= EXTRACT_PROGRESS_MIN_INTERVAL;

@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// アプリ起動エントリ。トレイ常駐と自動起動フローをここで束ねる。
 
 mod commands;
 mod services;
@@ -33,6 +34,7 @@ struct TrayWebviewDestroyState {
 
 impl TrayWebviewDestroyState {
     fn new() -> Self {
+        // 生成番号は遅延破棄タスクの世代管理に使う。
         Self {
             generation: AtomicU64::new(0),
             pending_cancel_tx: Mutex::new(None),
@@ -40,6 +42,7 @@ impl TrayWebviewDestroyState {
     }
 
     fn cancel_pending(&self) {
+        // 最新世代へ進めることで、過去に予約した破棄処理を無効化する。
         self.generation.fetch_add(1, Ordering::SeqCst);
         if let Ok(mut guard) = self.pending_cancel_tx.lock() {
             if let Some(cancel_tx) = guard.take() {
@@ -49,6 +52,7 @@ impl TrayWebviewDestroyState {
     }
 
     fn schedule_destroy<R: tauri::Runtime + 'static>(self: &Arc<Self>, app: AppHandle<R>) {
+        // 現在世代に紐づく破棄予約を作成し、一定時間後に実行判定する。
         let generation = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
         let (cancel_tx, cancel_rx) = mpsc::channel::<()>();
 
@@ -116,6 +120,7 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
+    // single-instance 経由で渡された引数群から自動起動フラグのみ検出する。
     args.into_iter()
         .any(|arg| arg.as_ref() == commands::launch::AUTOLAUNCH_MODDED_ARGUMENT)
 }
@@ -130,6 +135,7 @@ fn start_modded_autolaunch<R: tauri::Runtime>(
     tray_webview_destroy_state: Arc<TrayWebviewDestroyState>,
     exit_on_success: bool,
 ) {
+    // 新しい自動起動試行の前に、前回エラーを消して状態を初期化する。
     commands::launch::clear_autolaunch_error();
     tauri::async_runtime::spawn(async move {
         match commands::launch::launch_modded_from_saved_settings(app_handle.clone()).await {
@@ -187,6 +193,7 @@ fn setup_tray<R: tauri::Runtime>(
     app: &AppHandle<R>,
     tray_webview_destroy_state: Arc<TrayWebviewDestroyState>,
 ) -> tauri::Result<()> {
+    // ロケールに応じたメニュー文言を構成し、トレイを初期化する。
     let mod_profile = mod_profile::get();
     let locale = crate::utils::settings::load_or_init_settings(app)
         .map(|settings| settings.ui_locale)
@@ -241,6 +248,7 @@ fn setup_tray<R: tauri::Runtime>(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // 起動引数と共有状態を先に確定し、後続クロージャで再利用する。
     let auto_launch_modded = should_auto_launch_modded();
     let bypass_close_to_tray = Arc::new(AtomicBool::new(false));
     let bypass_close_to_tray_for_single_instance = bypass_close_to_tray.clone();
@@ -285,6 +293,7 @@ pub fn run() {
                 let _bypass_close_to_tray_for_menu = bypass_close_to_tray_for_menu.clone();
                 let tray_webview_destroy_state_for_launch =
                     tray_webview_destroy_state_for_menu.clone();
+                // 起動処理は時間がかかるため、メニューイベント処理本体は即座に返す。
                 tauri::async_runtime::spawn(async move {
                     match commands::launch::launch_modded_from_saved_settings(app_handle.clone())
                         .await
@@ -318,6 +327,7 @@ pub fn run() {
 
                 let close_to_tray =
                     match crate::utils::settings::load_or_init_settings(window.app_handle()) {
+                        // 設定読み込み失敗時は安全側としてトレイ遷移+webview解放を既定にする。
                         Ok(settings) => (
                             settings.close_to_tray_on_close,
                             settings.close_webview_on_tray_background,
@@ -419,6 +429,7 @@ pub fn run() {
 
     app.run(move |app_handle, event| {
         if let RunEvent::ExitRequested { api, code, .. } = event {
+            // 明示終了(codeあり)か終了バイパス時は、通常終了フローをそのまま通す。
             if code.is_some() || bypass_close_to_tray_for_exit.load(Ordering::SeqCst) {
                 return;
             }

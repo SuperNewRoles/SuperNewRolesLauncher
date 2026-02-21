@@ -1,3 +1,4 @@
+// プリセットの入出力をフロントへ公開するコマンド群。
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
 
@@ -41,6 +42,7 @@ pub struct PresetImportResult {
 }
 
 fn ensure_presets_enabled() -> Result<(), String> {
+    // プリセット機能の有効化状態を事前に確認する。
     mod_profile::ensure_feature_enabled(mod_profile::Feature::Presets)
 }
 
@@ -48,6 +50,7 @@ fn ensure_presets_enabled() -> Result<(), String> {
 #[tauri::command]
 pub fn presets_list_local<R: Runtime>(app: AppHandle<R>) -> Result<Vec<PresetSummary>, String> {
     ensure_presets_enabled()?;
+    // サービス層の返却型をフロント向けDTOへ変換する。
     let presets = presets::list_local_presets(&app)?;
     Ok(presets
         .into_iter()
@@ -78,6 +81,7 @@ pub fn presets_export<R: Runtime>(
 #[tauri::command]
 pub fn presets_inspect_archive(archive_path: String) -> Result<Vec<PresetSummary>, String> {
     ensure_presets_enabled()?;
+    // 空白のみ入力を防ぎ、ファイル選択ダイアログの誤操作を早期検出する。
     let normalized = archive_path.trim();
     if normalized.is_empty() {
         return Err("Preset archive path is required".to_string());
@@ -107,6 +111,7 @@ pub fn presets_import_archive<R: Runtime>(
         return Err("Preset archive path is required".to_string());
     }
 
+    // 取り込み指定を内部型へ正規化してから実処理を呼び出す。
     let selections = selections
         .into_iter()
         .map(|selection| presets::PresetImportSelection {

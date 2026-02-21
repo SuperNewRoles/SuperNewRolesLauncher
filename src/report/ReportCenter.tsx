@@ -14,6 +14,7 @@ import { ReportThreadPanel } from "./ReportThreadPanel";
 
 type Translator = ReturnType<typeof createTranslator>;
 
+// スレッド一覧の定期更新間隔と、手動更新時の最短再取得間隔。
 const REPORT_THREADS_POLL_INTERVAL_MS = 180_000;
 const REPORT_THREADS_REFRESH_GAP_MS = 30_000;
 const PANEL_CLOSE_ANIMATION_MS = 300;
@@ -25,6 +26,7 @@ interface ReportCenterProps {
 }
 
 function formatActionError(error: unknown): string {
+  // Tauri invoke の先頭装飾を除去してユーザー向け文言に整える。
   const raw = error instanceof Error ? error.message : String(error);
   return raw.replace(/^Error invoking '[^']+':\s*/u, "").trim() || raw;
 }
@@ -43,6 +45,7 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
   const [statusMessage, setStatusMessage] = useState<string>("");
   const isMountedRef = useRef(false);
   const closePanelTimeoutRef = useRef<number | null>(null);
+  // スレッド一覧の過剰再取得を抑えるため最終取得時刻を保持する。
   const reportThreadsLastFetchAtRef = useRef(0);
   const reportThreadsLoadingRef = useRef(false);
   const messageCacheRef = useRef<Map<string, ReportMessage[]>>(new Map());
@@ -51,6 +54,7 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
   const handledOpenThreadIdRef = useRef<string | null>(null);
 
   const clearClosePanelTimeout = useCallback(() => {
+    // パネル開閉が連続しても古いタイマーを残さない。
     if (closePanelTimeoutRef.current !== null) {
       window.clearTimeout(closePanelTimeoutRef.current);
       closePanelTimeoutRef.current = null;
@@ -59,11 +63,13 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
 
   const loadThreads = useCallback(async ({ force = false } = {}) => {
     const now = Date.now();
+    // 連続再取得を抑制して API 負荷を避ける。
     if (!force && now - reportThreadsLastFetchAtRef.current < REPORT_THREADS_REFRESH_GAP_MS) {
       return;
     }
 
     if (reportThreadsLoadingRef.current) {
+      // 同時実行を防止する。
       return;
     }
 
@@ -91,6 +97,7 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
 
   // Initialize
   useEffect(() => {
+    // 初期化時に reporting の準備とスレッド初回取得を行う。
     isMountedRef.current = true;
 
     const init = async () => {
@@ -116,6 +123,7 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
   }, [loadThreads, clearClosePanelTimeout]);
 
   useEffect(() => {
+    // 一覧は定期ポーリングで更新し、初回も即時取得する。
     const timer = window.setInterval(() => {
       void loadThreads();
     }, REPORT_THREADS_POLL_INTERVAL_MS);
@@ -130,6 +138,7 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
   // Load messages when thread is selected
   useEffect(() => {
     if (!selectedThread) {
+      // 選択解除時はメッセージ表示を完全リセットする。
       messageRequestIdRef.current += 1;
       setMessages([]);
       setIsLoadingMessages(false);
@@ -142,6 +151,7 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
     const cachedMessages = messageCacheRef.current.get(threadId);
 
     if (cachedMessages) {
+      // キャッシュがある場合は先に表示して体感レスポンスを上げる。
       setMessages(cachedMessages);
       setIsLoadingMessages(false);
     } else {
@@ -153,6 +163,7 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
       try {
         const result = await reportingMessagesList(threadId);
         if (!isMountedRef.current || requestId !== messageRequestIdRef.current) {
+          // 古いリクエスト結果で表示を上書きしない。
           return;
         }
         messageCacheRef.current.set(threadId, result);
@@ -175,6 +186,7 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
     (thread: ReportThread) => {
       clearClosePanelTimeout();
 
+      // スレッド選択時にローカル上の未読フラグを即時解除する。
       const normalizedThread = thread.unread
         ? {
             ...thread,
@@ -200,6 +212,7 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
 
   useEffect(() => {
     if (!openThreadId) {
+      // deep-link 指定が外れたら処理状態を初期化する。
       openThreadReloadRequestedRef.current = null;
       handledOpenThreadIdRef.current = null;
       return;
@@ -220,11 +233,13 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
     if (openThreadReloadRequestedRef.current === openThreadId) {
       return;
     }
+    // 一覧未取得の場合は一度だけ強制再取得して対象スレッドを探す。
     openThreadReloadRequestedRef.current = openThreadId;
     void loadThreads({ force: true });
   }, [handleThreadSelect, loadThreads, onOpenThreadHandled, openThreadId, threads]);
 
   const handleClosePanel = useCallback(() => {
+    // 閉じアニメーション後に selectedThread を破棄する。
     setIsPanelOpen(false);
     clearClosePanelTimeout();
     closePanelTimeoutRef.current = window.setTimeout(() => {
@@ -234,6 +249,7 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
   }, [clearClosePanelTimeout]);
 
   const handleToggleFullscreen = useCallback(() => {
+    // パネル表示サイズをトグルする。
     setIsFullscreen((prev) => !prev);
   }, []);
 
@@ -255,6 +271,7 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
       timing?: string;
     }) => {
       try {
+        // 送信成功後は一覧を再取得し、新規スレッドを即反映する。
         await reportingReportSend(reportData);
         setStatusMessage("");
         void loadThreads({ force: true });
@@ -274,7 +291,7 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
 
       try {
         await reportingMessageSend(selectedThread.threadId, content);
-        // Reload messages
+        // 返信後は最新メッセージを再取得してキャッシュも更新する。
         const result = await reportingMessagesList(selectedThread.threadId);
         if (isMountedRef.current) {
           messageCacheRef.current.set(selectedThread.threadId, result);

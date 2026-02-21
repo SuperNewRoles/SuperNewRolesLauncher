@@ -36,6 +36,7 @@ export function ReportThreadPanel({
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   const normalizedMessages = useMemo(() => {
+    // firstMessage を通常メッセージ列の先頭に合成して表示を統一する。
     if (!thread || !thread.firstMessage) {
       return messages;
     }
@@ -68,6 +69,7 @@ export function ReportThreadPanel({
       return;
     }
 
+    // 新着表示時は末尾へスクロールして最新発言を見せる。
     requestAnimationFrame(() => {
       const container = messagesContainerRef.current;
       if (!container) {
@@ -79,10 +81,12 @@ export function ReportThreadPanel({
   }, [isOpen, normalizedMessages]);
 
   const handleSend = useCallback(async () => {
+    // 空返信は送信しない。
     if (!replyText.trim()) return;
 
     setIsSending(true);
     try {
+      // 送信成功後は入力欄をクリアする。
       await onSendReply(replyText.trim());
       setReplyText("");
     } finally {
@@ -126,6 +130,7 @@ export function ReportThreadPanel({
       <div className="report-thread-panel-content" ref={messagesContainerRef}>
         {normalizedMessages.length === 0 ? (
           isLoading ? (
+            // 取得中は output + aria-live で更新をスクリーンリーダーへ通知する。
             <output className="report-messages-loading" aria-live="polite">
               <div className="report-spinner" aria-hidden="true" />
               <span>{t("report.messagesLoading")}</span>
@@ -138,6 +143,7 @@ export function ReportThreadPanel({
             {normalizedMessages.map((message) => {
               const isStatus = message.messageType === "status";
               const sender = message.sender;
+              // sender が github: 以外のものは自分側メッセージとして表示する。
               const isOwnMessage = !sender?.startsWith("github:");
               const senderName = sender?.replace("github:", "") ?? t("report.untitled");
 

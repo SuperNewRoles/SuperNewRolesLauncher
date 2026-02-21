@@ -1,6 +1,8 @@
 import type ja from "./ja";
 
+// 英語辞書は ja のキーセットに追従させ、欠落を型で検知する。
 const en: Record<keyof typeof ja, string> = {
+  // プレースホルダ名は ja 側と一致させないと置換漏れが起きるため要注意。
   "language.label": "Language",
   "language.option.ja": "Japanese",
   "language.option.en": "English",

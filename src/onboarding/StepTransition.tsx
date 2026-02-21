@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { OnboardingStep } from "./types";
 import { STEP_ORDER } from "./types";
 
+// ステップ遷移アニメーション時間。
 const TRANSITION_MS = 420;
 
 interface StepTransitionProps {
@@ -26,6 +27,7 @@ export default function StepTransition({
     if (step === currentStepRef.current) return;
 
     const fromStep = currentStepRef.current;
+    // 呼び出し側で抑止指定がある場合は即時切り替えにする。
     const shouldAnimate = shouldAnimateTransition?.(fromStep, step) ?? true;
     const isForward = STEP_ORDER[step] > STEP_ORDER[fromStep];
     setDirection(isForward ? "forward" : "back");
@@ -42,6 +44,7 @@ export default function StepTransition({
     setPrevStep(fromStep);
     setIsAnimating(true);
 
+    // 退場ステップはアニメーション完了後に破棄する。
     const t = window.setTimeout(() => {
       setPrevStep(null);
       setIsAnimating(false);
@@ -67,6 +70,7 @@ export default function StepTransition({
         className={
           animateCurrentStep
             ? `step-transition-slide step-enter step-enter-${direction}`
+            // アニメーション不要時は static クラスで即時表示する。
             : "step-transition-slide step-static"
         }
         key={displayStep}
