@@ -368,6 +368,16 @@ fn set_dll_directory(path: &str) -> Result<(), String> {
         .map_err(|e| format!("SetDllDirectory failed: {e}"))
 }
 
+#[cfg(windows)]
+fn reset_dll_directory() -> Result<(), String> {
+    use windows::core::PCWSTR;
+    use windows::Win32::System::LibraryLoader::SetDllDirectoryW;
+
+    // SAFETY: null を渡すと DLL 検索パスを既定状態に戻す API 契約に従う。
+    unsafe { SetDllDirectoryW(PCWSTR::null()) }
+        .map_err(|e| format!("Failed to reset DLL directory: {e}"))
+}
+
 fn launch_process<R: Runtime>(app: AppHandle<R>, mut command: Command) -> Result<(), String> {
     {
         let mut guard = GAME_PROCESS
@@ -597,9 +607,15 @@ pub async fn launch_vanilla<R: Runtime>(
     let game_dir = ensure_valid_among_us_launch_target(&game_exe_path)?;
     ensure_steam_appid_file_if_needed(game_dir, &platform)?;
 
+    #[cfg(windows)]
+    reset_dll_directory()?;
+
     let mut command = Command::new(&game_exe_path);
-    // Vanillaは追加引数なしで実行ディレクトリのみ設定する。
-    command.current_dir(game_dir);
+    // 既存導入済みの Doorstop を明示的に無効化して素のゲームを起動する。
+    command
+        .current_dir(game_dir)
+        .args(["--doorstop-enabled", "false"])
+        .env("DOORSTOP_ENABLED", "FALSE");
 
     add_epic_auth_argument_if_needed(&mut command, &platform).await?;
 
