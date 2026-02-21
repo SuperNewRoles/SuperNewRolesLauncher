@@ -20,6 +20,7 @@ use crate::utils::{mod_profile, settings};
 
 const TOKEN_FILE_NAME: &str = "RequestInGame.token";
 const LOG_OUTPUT_RELATIVE_PATH: &str = "BepInEx/LogOutput.log";
+const LOG_ENCRYPTION_KEY_SOURCE: &str = "SNRLogKey2024!@#";
 const B64: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 const REPORT_SEND_PROGRESS_EVENT: &str = "reporting-send-progress";
 const REPORT_SEND_UPLOAD_CHUNK_SIZE: usize = 16 * 1024;
@@ -510,8 +511,8 @@ fn format_report_message<R: Runtime>(app: &AppHandle<R>, input: &SendReportInput
 }
 
 fn make_log_encryption_key() -> [u8; 32] {
-    let source = format!("{}-launcher-log-key", mod_profile::get().mod_info.id);
-    let source_bytes = source.as_bytes();
+    // reports-api 側の LOG_ENCRYPTION_KEY と一致させる。
+    let source_bytes = LOG_ENCRYPTION_KEY_SOURCE.as_bytes();
     let mut key = [0u8; 32];
     let copy_len = source_bytes.len().min(key.len());
     key[..copy_len].copy_from_slice(&source_bytes[..copy_len]);

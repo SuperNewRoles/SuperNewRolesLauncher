@@ -116,6 +116,12 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
     }
   }, [canCloseModal, resetSubmitState, resetForm, onClose]);
 
+  const handleBackToInputOnError = useCallback(() => {
+    // 送信失敗後はモーダルを閉じず、入力ステップへ戻して再送しやすくする。
+    setStep("details");
+    resetSubmitState();
+  }, [resetSubmitState]);
+
   const clearProgressAnimationFrame = useCallback(() => {
     // requestAnimationFrame の重複実行を防ぐ。
     if (progressAnimationFrameRef.current !== null) {
@@ -323,6 +329,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
         .replace(/^報告送信失敗:\s*/u, "")
         .trim();
       // フロント表示用に不要な接頭辞を除去したメッセージを保持する。
+      setStep("details");
       setSubmitStage("failed");
       setSubmitPhase("error");
       setSubmitError(normalized.length > 0 ? normalized : cleaned.length > 0 ? cleaned : raw);
@@ -687,7 +694,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
                 <button
                   type="button"
                   className="report-submit-overlay-close-btn"
-                  onClick={handleClose}
+                  onClick={handleBackToInputOnError}
                 >
                   {t("common.close")}
                 </button>
