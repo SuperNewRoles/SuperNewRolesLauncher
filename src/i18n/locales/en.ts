@@ -399,7 +399,9 @@ const en: Record<keyof typeof ja, string> = {
 
   "update.checking": "Checking for updates...",
   "update.latest": "You are up to date.",
-  "update.confirmPrompt": "v{version} is available. Download and install now?",
+  "update.confirmTitle": "Update Confirmation",
+  "update.confirmPrompt": "Launcher v{version} is available. Download and install now?",
+  "update.confirmInstall": "Install Update",
   "update.skipped": "Update v{version} was not applied.",
   "update.downloading": "Downloading update...",
   "update.downloadingPercent": "Downloading update... {percent}%",

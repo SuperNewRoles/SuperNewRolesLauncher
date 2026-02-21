@@ -400,6 +400,27 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
         </section>
       </div>
 
+      <div id="settings-update-confirm-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
+        <div id="settings-update-confirm-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
+        <section
+          class="settings-fullscreen-overlay-panel settings-update-confirm-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-update-confirm-title"
+          aria-describedby="settings-update-confirm-message"
+        >
+          <header class="settings-fullscreen-overlay-header">
+            <h2 id="settings-update-confirm-title">${t("update.confirmTitle")}</h2>
+            <button id="settings-update-confirm-close" type="button" class="settings-fullscreen-overlay-close" aria-label="${t("common.close")}">×</button>
+          </header>
+          <p id="settings-update-confirm-message" class="settings-update-confirm-message"></p>
+          <footer class="settings-fullscreen-overlay-actions">
+            <button id="settings-update-confirm-cancel" type="button" class="ghost">${t("common.cancel")}</button>
+            <button id="settings-update-confirm-accept" type="button">${t("update.confirmInstall")}</button>
+          </footer>
+        </section>
+      </div>
+
       <div id="settings-migration-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
         <div id="settings-migration-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
         <section class="settings-fullscreen-overlay-panel settings-migration-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="settings-migration-overlay-title">

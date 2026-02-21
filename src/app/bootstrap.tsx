@@ -400,6 +400,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     settingsUninstallConfirmCloseButton,
     settingsUninstallConfirmCancelButton,
     settingsUninstallConfirmAcceptButton,
+    settingsUpdateConfirmOverlay,
+    settingsUpdateConfirmOverlayBackdrop,
+    settingsUpdateConfirmCloseButton,
+    settingsUpdateConfirmCancelButton,
+    settingsUpdateConfirmAcceptButton,
+    settingsUpdateConfirmMessage,
     settingsMigrationOverlay,
     settingsMigrationOverlayBackdrop,
     settingsMigrationOverlayCloseButton,
@@ -818,6 +824,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let presetFeedbackCloseAllOnDismiss = false;
   let presetFeedbackPrimaryAction: (() => void | Promise<void>) | null = null;
   let presetFeedbackSecondaryAction: (() => void | Promise<void>) | null = null;
+  let updateConfirmResolver: ((accepted: boolean) => void) | null = null;
+  let updateConfirmBackdropUnlockAt = 0;
   const overlayAnimationTimers = new WeakMap<HTMLDivElement, number>();
   const overlayCloseTimers = new WeakMap<HTMLDivElement, number>();
 
@@ -1994,6 +2002,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     const overlayOpen =
       !settingsAmongUsOverlay.hidden ||
       !settingsUninstallConfirmOverlay.hidden ||
+      !settingsUpdateConfirmOverlay.hidden ||
       !settingsMigrationOverlay.hidden ||
       !presetOverlay.hidden ||
       !presetFeedbackOverlay.hidden;
@@ -2355,6 +2364,57 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       uninstallInProgress = false;
       updateButtons();
     }
+  });
+
+  function closeUpdateConfirmOverlay(force = false): void {
+    closeSettingsOverlay(settingsUpdateConfirmOverlay, force);
+    if (!force || !updateConfirmResolver) {
+      return;
+    }
+    const resolve = updateConfirmResolver;
+    updateConfirmResolver = null;
+    resolve(false);
+  }
+
+  function resolveUpdateConfirm(accepted: boolean): void {
+    if (!updateConfirmResolver) {
+      return;
+    }
+    const resolve = updateConfirmResolver;
+    updateConfirmResolver = null;
+    closeSettingsOverlay(settingsUpdateConfirmOverlay);
+    resolve(accepted);
+  }
+
+  function openUpdateConfirmOverlay(version: string): Promise<boolean> {
+    if (updateConfirmResolver) {
+      const resolve = updateConfirmResolver;
+      updateConfirmResolver = null;
+      resolve(false);
+    }
+    updateConfirmBackdropUnlockAt = Date.now() + 1_000;
+    settingsUpdateConfirmMessage.textContent = t("update.confirmPrompt", { version });
+    openSettingsOverlay(settingsUpdateConfirmOverlay);
+    settingsUpdateConfirmAcceptButton.focus();
+    return new Promise<boolean>((resolve) => {
+      updateConfirmResolver = resolve;
+    });
+  }
+
+  settingsUpdateConfirmOverlayBackdrop.addEventListener("click", () => {
+    if (Date.now() < updateConfirmBackdropUnlockAt) {
+      return;
+    }
+    resolveUpdateConfirm(false);
+  });
+  settingsUpdateConfirmCloseButton.addEventListener("click", () => {
+    resolveUpdateConfirm(false);
+  });
+  settingsUpdateConfirmCancelButton.addEventListener("click", () => {
+    resolveUpdateConfirm(false);
+  });
+  settingsUpdateConfirmAcceptButton.addEventListener("click", () => {
+    resolveUpdateConfirm(true);
   });
 
   function isMigrationProcessing(): boolean {
@@ -2806,6 +2866,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     closePresetResultOverlay(force);
     closePresetOverlay(force);
     closeUninstallConfirmOverlay(force);
+    closeUpdateConfirmOverlay(force);
     closeMigrationOverlay(force);
     closeAmongUsOverlay(force);
   }
@@ -2947,6 +3008,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
     if (!settingsUninstallConfirmOverlay.hidden) {
       closeUninstallConfirmOverlay();
+      return;
+    }
+    if (!settingsUpdateConfirmOverlay.hidden) {
+      resolveUpdateConfirm(false);
       return;
     }
     if (!settingsMigrationOverlay.hidden) {
@@ -3436,7 +3501,14 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         return;
       }
 
-      const shouldInstall = window.confirm(t("update.confirmPrompt", { version: update.version }));
+      // 起動直後の背景状態では自動適用せず、可視・フォーカス時だけ確認を出す。
+      const canPromptOnStartup = source === "manual" || (document.visibilityState === "visible" && document.hasFocus());
+      if (!canPromptOnStartup) {
+        setUpdateStatus(t("update.skipped", { version: update.version }), "skipped");
+        return;
+      }
+
+      const shouldInstall = await openUpdateConfirmOverlay(update.version);
       if (!shouldInstall) {
         setUpdateStatus(t("update.skipped", { version: update.version }), "skipped");
         return;
@@ -3474,7 +3546,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
           "error",
         );
       } else {
-        // 起動時の自動チェック失敗は動作継続を優先してログのみ残す。
         console.warn("Auto update check failed:", error);
         setUpdateStatus("", "idle");
       }

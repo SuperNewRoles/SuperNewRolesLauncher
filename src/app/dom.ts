@@ -33,6 +33,12 @@ export interface AppDom {
   settingsUninstallConfirmCloseButton: HTMLButtonElement;
   settingsUninstallConfirmCancelButton: HTMLButtonElement;
   settingsUninstallConfirmAcceptButton: HTMLButtonElement;
+  settingsUpdateConfirmOverlay: HTMLDivElement;
+  settingsUpdateConfirmOverlayBackdrop: HTMLDivElement;
+  settingsUpdateConfirmCloseButton: HTMLButtonElement;
+  settingsUpdateConfirmCancelButton: HTMLButtonElement;
+  settingsUpdateConfirmAcceptButton: HTMLButtonElement;
+  settingsUpdateConfirmMessage: HTMLParagraphElement;
   settingsMigrationOverlay: HTMLDivElement;
   settingsMigrationOverlayBackdrop: HTMLDivElement;
   settingsMigrationOverlayCloseButton: HTMLButtonElement;
@@ -185,6 +191,20 @@ export function collectAppDom(): AppDom {
     settingsUninstallConfirmAcceptButton: mustElement<HTMLButtonElement>(
       "#settings-uninstall-confirm-accept",
     ),
+    settingsUpdateConfirmOverlay: mustElement<HTMLDivElement>("#settings-update-confirm-overlay"),
+    settingsUpdateConfirmOverlayBackdrop: mustElement<HTMLDivElement>(
+      "#settings-update-confirm-overlay-backdrop",
+    ),
+    settingsUpdateConfirmCloseButton: mustElement<HTMLButtonElement>(
+      "#settings-update-confirm-close",
+    ),
+    settingsUpdateConfirmCancelButton: mustElement<HTMLButtonElement>(
+      "#settings-update-confirm-cancel",
+    ),
+    settingsUpdateConfirmAcceptButton: mustElement<HTMLButtonElement>(
+      "#settings-update-confirm-accept",
+    ),
+    settingsUpdateConfirmMessage: mustElement<HTMLParagraphElement>("#settings-update-confirm-message"),
     settingsMigrationOverlay: optionalElement("#settings-migration-overlay", "div"),
     settingsMigrationOverlayBackdrop: optionalElement(
       "#settings-migration-overlay-backdrop",

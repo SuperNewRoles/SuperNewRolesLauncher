@@ -4515,6 +4515,21 @@ body.locale-switch-animating {
   font-size: 13px;
 }
 
+.settings-update-confirm-panel {
+  width: min(560px, 100%);
+}
+
+.settings-update-confirm-message {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg-1);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
 /* ホームタブ（元のUI案に準拠） */
 .home-content {
   flex: 1;
