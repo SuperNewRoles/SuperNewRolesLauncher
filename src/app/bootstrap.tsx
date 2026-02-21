@@ -129,6 +129,7 @@ const ONBOARDING_SPOTLIGHT_CLASS = "onboarding-spotlight-target";
 const ONBOARDING_SPOTLIGHT_FOCUS_CLASS = "onboarding-spotlight-target-focus";
 const ONBOARDING_EXIT_ANIMATION_MS = 340;
 type MainTabId = "home" | "report" | "announce" | "preset" | "settings";
+type AvailableUpdate = NonNullable<Awaited<ReturnType<typeof check>>>;
 type SettingsCategoryId =
   | "general"
   | "notifications"
@@ -824,6 +825,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let presetFeedbackCloseAllOnDismiss = false;
   let presetFeedbackPrimaryAction: (() => void | Promise<void>) | null = null;
   let presetFeedbackSecondaryAction: (() => void | Promise<void>) | null = null;
+  let pendingStartupUpdate: AvailableUpdate | null = null;
   let updateConfirmResolver: ((accepted: boolean) => void) | null = null;
   let updateConfirmBackdropUnlockAt = 0;
   const overlayAnimationTimers = new WeakMap<HTMLDivElement, number>();
@@ -3486,9 +3488,71 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     updateStatus.dataset.state = state;
   }
 
+  function canPromptUpdateNow(): boolean {
+    return document.visibilityState === "visible" && document.hasFocus();
+  }
+
+  async function applyAvailableUpdate(update: AvailableUpdate): Promise<void> {
+    const shouldInstall = await openUpdateConfirmOverlay(update.version);
+    if (!shouldInstall) {
+      setUpdateStatus(t("update.skipped", { version: update.version }), "skipped");
+      return;
+    }
+
+    let downloadedBytes = 0;
+    let totalBytes = 0;
+
+    await update.downloadAndInstall((event) => {
+      if (event.event === "Started") {
+        totalBytes = event.data.contentLength ?? 0;
+        setUpdateStatus(t("update.downloading"), "downloading");
+        return;
+      }
+      if (event.event === "Progress") {
+        downloadedBytes += event.data.chunkLength;
+        if (totalBytes > 0) {
+          const percent = Math.min(100, Math.floor((downloadedBytes / totalBytes) * 100));
+          setUpdateStatus(t("update.downloadingPercent", { percent }), "downloading");
+        } else {
+          setUpdateStatus(t("update.downloading"), "downloading");
+        }
+        return;
+      }
+      setUpdateStatus(t("update.applying"), "applying");
+    });
+
+    setUpdateStatus(t("update.appliedRestart"), "success");
+  }
+
+  async function runPendingStartupUpdateIfPossible(): Promise<void> {
+    if (!pendingStartupUpdate || checkingUpdate || !canPromptUpdateNow()) {
+      return;
+    }
+
+    const update = pendingStartupUpdate;
+    pendingStartupUpdate = null;
+    checkingUpdate = true;
+    checkUpdateButton.disabled = true;
+    setUpdateStatus(t("update.checking"), "checking");
+
+    try {
+      await applyAvailableUpdate(update);
+    } catch (error) {
+      console.warn("Deferred auto update prompt failed:", error);
+      setUpdateStatus("", "idle");
+    } finally {
+      checkingUpdate = false;
+      checkUpdateButton.disabled = false;
+    }
+  }
+
   async function runUpdateCheck(source: "manual" | "startup"): Promise<void> {
     if (checkingUpdate) {
       return;
+    }
+
+    if (source === "manual") {
+      pendingStartupUpdate = null;
     }
 
     checkingUpdate = true;
@@ -3498,46 +3562,20 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     try {
       const update = await check();
       if (!update) {
+        pendingStartupUpdate = null;
         setUpdateStatus(t("update.latest"), "latest");
         return;
       }
 
       // 起動直後の背景状態では自動適用せず、可視・フォーカス時だけ確認を出す。
-      const canPromptOnStartup = source === "manual" || (document.visibilityState === "visible" && document.hasFocus());
-      if (!canPromptOnStartup) {
+      if (source === "startup" && !canPromptUpdateNow()) {
+        pendingStartupUpdate = update;
         setUpdateStatus(t("update.skipped", { version: update.version }), "skipped");
         return;
       }
 
-      const shouldInstall = await openUpdateConfirmOverlay(update.version);
-      if (!shouldInstall) {
-        setUpdateStatus(t("update.skipped", { version: update.version }), "skipped");
-        return;
-      }
-
-      let downloadedBytes = 0;
-      let totalBytes = 0;
-
-      await update.downloadAndInstall((event) => {
-        if (event.event === "Started") {
-          totalBytes = event.data.contentLength ?? 0;
-          setUpdateStatus(t("update.downloading"), "downloading");
-          return;
-        }
-        if (event.event === "Progress") {
-          downloadedBytes += event.data.chunkLength;
-          if (totalBytes > 0) {
-            const percent = Math.min(100, Math.floor((downloadedBytes / totalBytes) * 100));
-            setUpdateStatus(t("update.downloadingPercent", { percent }), "downloading");
-          } else {
-            setUpdateStatus(t("update.downloading"), "downloading");
-          }
-          return;
-        }
-        setUpdateStatus(t("update.applying"), "applying");
-      });
-
-      setUpdateStatus(t("update.appliedRestart"), "success");
+      pendingStartupUpdate = null;
+      await applyAvailableUpdate(update);
     } catch (error) {
       if (source === "manual") {
         setUpdateStatus(
@@ -3558,6 +3596,15 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   checkUpdateButton.addEventListener("click", async () => {
     await runUpdateCheck("manual");
+  });
+  window.addEventListener("focus", () => {
+    void runPendingStartupUpdateIfPossible();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") {
+      return;
+    }
+    void runPendingStartupUpdateIfPossible();
   });
 
   setVersionDisplay(t("launcher.currentVersionLoading"), "loading");
