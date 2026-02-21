@@ -44,21 +44,6 @@ fn parse_registry_icon_value(raw_value: &str) -> Option<PathBuf> {
 #[cfg(target_os = "windows")]
 fn detect_from_registry() -> Option<PathBuf> {
     let hkcr = RegKey::predef(HKEY_CLASSES_ROOT);
-
-    for key_name in ["AmongUs", "amongus"] {
-        let path = hkcr
-            .open_subkey(key_name)
-            .ok()
-            .and_then(|key| key.open_subkey("DefaultIcon").ok())
-            .and_then(|icon_key| icon_key.get_value::<String, _>("").ok())
-            .and_then(|raw| parse_registry_icon_value(&raw))
-            .filter(|candidate| verify_among_us_directory(candidate));
-
-        if path.is_some() {
-            return path;
-        }
-    }
-
     None
 }
 

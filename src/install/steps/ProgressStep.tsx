@@ -17,9 +17,11 @@ export default function ProgressStep({ t, progress, message }: ProgressStepProps
       </div>
       <div className="progress-bar-container">
         <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
-        <span className="progress-message">{message || t("installFlow.processing")}</span>
       </div>
-      <span className="progress-percent">{Math.round(progress)}%</span>
+      <div className="progress-meta">
+        <span className="progress-message">{message || t("installFlow.processing")}</span>
+        <span className="progress-percent">{Math.round(progress)}%</span>
+      </div>
     </div>
   );
 }

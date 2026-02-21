@@ -421,7 +421,7 @@ const ja = {
   "installFlow.complete": "インストール完了!",
   "installFlow.completeMessage": "{modName}のインストールが正常に完了しました。",
   "installFlow.completeHint":
-    "「ランチャーへ」を押すとランチャー画面に移動します。そこからModの起動や設定ができます。",
+    "「次へ」を押すとホーム画面に移動します。インストール後の起動や各種設定はホーム画面から行えます。",
   "installFlow.goToLauncher": "ランチャーへ",
   "installFlow.next": "次へ",
   "installFlow.epicLoginRequired": "Epicを選択した場合はEpicログインが必要です。",
