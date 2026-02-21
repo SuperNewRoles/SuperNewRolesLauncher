@@ -11,6 +11,7 @@ import type { AnnounceArticle, AnnounceArticleMinimal } from "./types";
 
 // 一定間隔でお知らせ一覧を再取得し、未読状態を最新化する。
 const ANNOUNCE_POLL_INTERVAL_MS = 300_000;
+const ANNOUNCE_MARKDOWN_VIDEO_PATTERN = /\.(mp4|webm|ogg|ogv|mov|m4v)(?:$|[?#])/i;
 
 type Translator = ReturnType<typeof createTranslator>;
 
@@ -20,6 +21,22 @@ interface AnnounceCenterProps {
   onArticlesUpdated?: (items: AnnounceArticleMinimal[]) => void;
   openArticleId?: string | null;
   onOpenArticleHandled?: (articleId: string) => void;
+}
+
+function isMarkdownImageVideoSource(src: string): boolean {
+  if (src.startsWith("data:video/")) {
+    return true;
+  }
+  if (ANNOUNCE_MARKDOWN_VIDEO_PATTERN.test(src)) {
+    return true;
+  }
+  try {
+    // 相対 URL でも拡張子判定できるよう仮の origin を付与する。
+    const parsed = new URL(src, "https://announce.local");
+    return ANNOUNCE_MARKDOWN_VIDEO_PATTERN.test(parsed.pathname);
+  } catch {
+    return false;
+  }
 }
 
 function formatDateTime(value: string, locale: LocaleCode): string {
@@ -506,6 +523,24 @@ export function AnnounceCenter({
                         {children}
                       </a>
                     ),
+                    img: ({ src, alt, title }) => {
+                      if (!src) {
+                        return null;
+                      }
+                      if (isMarkdownImageVideoSource(src)) {
+                        return (
+                          <video
+                            src={src}
+                            title={title}
+                            controls
+                            preload="metadata"
+                            playsInline
+                            aria-label={alt || undefined}
+                          />
+                        );
+                      }
+                      return <img src={src} alt={alt ?? ""} title={title} loading="lazy" />;
+                    },
                   }}
                 >
                   {selectedArticle.body}
