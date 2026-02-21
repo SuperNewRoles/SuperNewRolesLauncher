@@ -6611,6 +6611,11 @@ body.locale-switch-animating {
   padding: 16px 18px 90px;
   line-height: 1.7;
   font-size: 14px;
+  white-space: normal;
+}
+
+.announce-detail-body p,
+.announce-detail-body li {
   white-space: pre-line;
 }
 
