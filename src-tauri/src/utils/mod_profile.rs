@@ -126,6 +126,7 @@ pub struct GameServerEndpoint {
     pub id: String,
     pub label: String,
     pub rooms_api_domain: String,
+    pub server_type: i32,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -133,7 +134,6 @@ pub struct GameServerEndpoint {
 pub struct JoinDirectEndpoint {
     pub localhost_base_url: String,
     pub join_path: String,
-    pub server_type: i32,
     pub aes_key: String,
     pub aes_iv: String,
     pub timeout_ms: u64,
@@ -351,6 +351,11 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
             .trim()
             .trim_end_matches('/')
             .to_string();
+        if server.server_type < 0 {
+            return Err(format!(
+                "Invalid mod config: apis.gameServers[{idx}].serverType must be >= 0."
+            ));
+        }
     }
 
     non_empty(
@@ -371,9 +376,6 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
     } else {
         format!("/{join_path}")
     };
-    if profile.apis.join_direct.server_type < 0 {
-        return Err("Invalid mod config: apis.joinDirect.serverType must be >= 0.".to_string());
-    }
     non_empty("apis.joinDirect.aesKey", &profile.apis.join_direct.aes_key)?;
     profile.apis.join_direct.aes_key = profile.apis.join_direct.aes_key.trim().to_string();
     if profile.apis.join_direct.aes_key.as_bytes().len() != 16 {

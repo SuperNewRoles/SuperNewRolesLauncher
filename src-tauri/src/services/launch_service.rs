@@ -41,6 +41,39 @@ fn modded_shortcut_description() -> String {
     format!("Launch {} modded", mod_profile::get().mod_info.display_name)
 }
 
+#[cfg(windows)]
+fn resolve_available_shortcut_path(desktop_dir: &Path, file_name: &str) -> PathBuf {
+    let default_path = desktop_dir.join(file_name);
+    if !default_path.exists() {
+        return default_path;
+    }
+
+    let base_file_name = Path::new(file_name);
+    let stem = base_file_name
+        .file_stem()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .unwrap_or(file_name);
+    let extension = base_file_name
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .filter(|ext| !ext.is_empty());
+
+    for suffix in 2.. {
+        // 既存ショートカットがある場合は Windows と同様の連番サフィックスを付与する。
+        let candidate_name = match extension {
+            Some(ext) => format!("{stem} ({suffix}).{ext}"),
+            None => format!("{stem} ({suffix})"),
+        };
+        let candidate_path = desktop_dir.join(candidate_name);
+        if !candidate_path.exists() {
+            return candidate_path;
+        }
+    }
+
+    unreachable!("infinite suffix iterator exhausted unexpectedly")
+}
+
 #[derive(Clone, serde::Serialize)]
 pub struct GameStatePayload {
     pub running: bool,
@@ -311,7 +344,8 @@ pub fn create_modded_launch_shortcut() -> Result<String, String> {
         fs::create_dir_all(&desktop_dir)
             .map_err(|e| format!("Failed to create desktop directory: {e}"))?;
 
-        let shortcut_path = desktop_dir.join(modded_shortcut_file_name());
+        let shortcut_path =
+            resolve_available_shortcut_path(&desktop_dir, modded_shortcut_file_name());
         let description = modded_shortcut_description();
         create_shortcut_with_shell_link(
             &shortcut_path,

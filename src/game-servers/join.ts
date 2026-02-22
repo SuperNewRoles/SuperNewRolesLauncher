@@ -114,15 +114,17 @@ export interface JoinGamePayload {
   ip: number;
   port: number;
   gameId: number;
+  serverType: number;
   matchmakerIp?: string | null;
   matchmakerPort?: string | number | null;
 }
 
-export function joinPayloadFromRoom(room: GameServerRoom): JoinGamePayload {
+export function joinPayloadFromRoom(room: GameServerRoom, serverType: number): JoinGamePayload {
   return {
     ip: room.ipNumber,
     port: room.port,
     gameId: room.gameId,
+    serverType,
     matchmakerIp: room.matchmakerIp,
     matchmakerPort: room.matchmakerPort,
   };
@@ -154,7 +156,7 @@ export async function buildJoinQuery(
 
   await appendEncrypted("serverIP", intToIPv4LittleEndian(payload.ip));
   await appendEncrypted("serverPort", payload.port);
-  await appendEncrypted("serverType", config.serverType);
+  await appendEncrypted("serverType", payload.serverType);
   await appendEncrypted("gameID", payload.gameId);
 
   const matchmakerIp = payload.matchmakerIp?.trim() ?? "";

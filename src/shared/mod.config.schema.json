@@ -279,7 +279,7 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "label", "roomsApiDomain"],
+            "required": ["id", "label", "roomsApiDomain", "serverType"],
             "properties": {
               "id": {
                 "type": "string",
@@ -292,6 +292,10 @@
               "roomsApiDomain": {
                 "type": "string",
                 "format": "uri"
+              },
+              "serverType": {
+                "type": "integer",
+                "minimum": 0
               }
             }
           }
@@ -302,7 +306,6 @@
           "required": [
             "localhostBaseUrl",
             "joinPath",
-            "serverType",
             "aesKey",
             "aesIv",
             "timeoutMs"
@@ -315,9 +318,6 @@
             "joinPath": {
               "type": "string",
               "minLength": 1
-            },
-            "serverType": {
-              "type": "integer"
             },
             "aesKey": {
               "type": "string",

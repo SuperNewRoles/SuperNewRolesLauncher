@@ -73,18 +73,19 @@
       {
         "id": "snr-jp",
         "label": "SuperNewRoles Tokyo(JP)",
-        "roomsApiDomain": "https://cs.supernewroles.com"
+        "roomsApiDomain": "https://cs.supernewroles.com",
+        "serverType": 3
       },
       {
         "id": "snr-useast",
         "label": "SuperNewRoles USEast",
-        "roomsApiDomain": "https://cs-useast.supernewroles.com"
+        "roomsApiDomain": "https://cs-useast.supernewroles.com",
+        "serverType": 5
       }
     ],
     "joinDirect": {
       "localhostBaseUrl": "http://localhost:49152",
       "joinPath": "/joinGame",
-      "serverType": 3,
       "aesKey": "ThisIsA16ByteKey",
       "aesIv": "ThisIsA16ByteIV!",
       "timeoutMs": 5000

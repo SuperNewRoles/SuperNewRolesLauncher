@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { GAME_SERVER_JOIN_DIRECT_CONFIG } from "../app/modConfig";
+import { GAME_SERVER_CATALOG, GAME_SERVER_JOIN_DIRECT_CONFIG } from "../app/modConfig";
 import { buildJoinQuery, intToIPv4BigEndian, intToIPv4LittleEndian } from "./join";
 
 const hasSubtleCrypto = typeof globalThis.crypto?.subtle !== "undefined";
 const cryptoIt = hasSubtleCrypto ? it : it.skip;
+const defaultServerType = GAME_SERVER_CATALOG[0]?.serverType ?? 0;
 
 function fromBase64(value: string): Uint8Array {
   const binary = atob(value);
@@ -54,6 +55,7 @@ describe("game-servers/join", () => {
       ip: 0x01020304,
       port: 22023,
       gameId: -1819931171,
+      serverType: defaultServerType,
     });
     const params = new URLSearchParams(query.slice(1));
 
@@ -65,7 +67,7 @@ describe("game-servers/join", () => {
     expect(await decryptJoinValue(params.get("serverIP") ?? "")).toBe("4.3.2.1");
     expect(await decryptJoinValue(params.get("serverPort") ?? "")).toBe("22023");
     expect(await decryptJoinValue(params.get("serverType") ?? "")).toBe(
-      String(GAME_SERVER_JOIN_DIRECT_CONFIG.serverType),
+      String(defaultServerType),
     );
     expect(await decryptJoinValue(params.get("gameID") ?? "")).toBe("-1819931171");
   });
@@ -77,6 +79,7 @@ describe("game-servers/join", () => {
           ip: 0x01020304,
           port: 22023,
           gameId: -100,
+          serverType: defaultServerType,
           matchmakerIp: "127.0.0.1",
           matchmakerPort: "22000",
         })
@@ -94,6 +97,7 @@ describe("game-servers/join", () => {
           ip: 0x01020304,
           port: 22023,
           gameId: -100,
+          serverType: defaultServerType,
           matchmakerIp: "127.0.0.1",
           matchmakerPort: "",
         })

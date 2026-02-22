@@ -89,6 +89,7 @@ export function GameServersCenter({
 
   const isMountedRef = useRef(true);
   const hasFetchedRef = useRef(false);
+  const latestRefreshRequestIdRef = useRef(0);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -104,6 +105,8 @@ export function GameServersCenter({
 
   const refreshRooms = useCallback(
     async (manual = false) => {
+      const requestId = latestRefreshRequestIdRef.current + 1;
+      latestRefreshRequestIdRef.current = requestId;
       if (manual) {
         setStatusMessage(t("gameServers.statusRefreshing"));
       } else if (!hasFetchedRef.current) {
@@ -114,7 +117,7 @@ export function GameServersCenter({
 
       try {
         const snapshot = await fetchGameServerRooms(selectedServerId);
-        if (!isMountedRef.current) {
+        if (!isMountedRef.current || requestId !== latestRefreshRequestIdRef.current) {
           return;
         }
         hasFetchedRef.current = true;
@@ -124,12 +127,12 @@ export function GameServersCenter({
         setLastUpdatedAt(snapshot.fetchedAt);
         setStatusMessage(manual ? t("gameServers.statusUpdated") : "");
       } catch (error) {
-        if (!isMountedRef.current) {
+        if (!isMountedRef.current || requestId !== latestRefreshRequestIdRef.current) {
           return;
         }
         setErrorMessage(t("gameServers.statusLoadFailed", { error: formatActionError(error) }));
       } finally {
-        if (isMountedRef.current) {
+        if (isMountedRef.current && requestId === latestRefreshRequestIdRef.current) {
           setIsLoading(false);
         }
       }
@@ -183,7 +186,8 @@ export function GameServersCenter({
       setJoinMessageTone("info");
       setJoinMessage(t("gameServers.joinJoining"));
       try {
-        const query = await buildJoinQuery(joinPayloadFromRoom(room));
+        const selectedServer = resolveGameServerById(selectedServerId);
+        const query = await buildJoinQuery(joinPayloadFromRoom(room, selectedServer.serverType));
         const result = await gameServersJoinDirect(query);
         if (result.ok) {
           setJoinMessageTone("success");
@@ -207,7 +211,7 @@ export function GameServersCenter({
         setJoiningRoomKey(null);
       }
     },
-    [t],
+    [selectedServerId, t],
   );
 
   const joinMessageClassName =

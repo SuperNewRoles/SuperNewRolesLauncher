@@ -3476,7 +3476,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   void settingsUpdate({
     uiLocale: currentLocale,
-    selectedGameServerId: resolveLocalePreferredGameServerId(currentLocale),
   }).catch(() => undefined);
 
   replayOnboardingButton.addEventListener("click", () => {

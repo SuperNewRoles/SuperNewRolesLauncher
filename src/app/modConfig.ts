@@ -6,12 +6,12 @@ export interface GameServerCatalogEntry {
   id: string;
   label: string;
   roomsApiDomain: string;
+  serverType: number;
 }
 
 export interface GameServerJoinDirectConfig {
   localhostBaseUrl: string;
   joinPath: string;
-  serverType: number;
   aesKey: string;
   aesIv: string;
   timeoutMs: number;
@@ -243,6 +243,10 @@ function assertModConfig(input: ModConfig): ModConfig {
       server.roomsApiDomain,
       `apis.gameServers[${index}].roomsApiDomain`,
     );
+    server.serverType = ensureInteger(server.serverType, `apis.gameServers[${index}].serverType`);
+    if (server.serverType < 0) {
+      throw new Error(`Invalid mod config: 'apis.gameServers[${index}].serverType' must be >= 0.`);
+    }
   }
   input.apis.joinDirect.localhostBaseUrl = normalizeUrlWithoutTrailingSlash(
     input.apis.joinDirect.localhostBaseUrl,
@@ -251,10 +255,6 @@ function assertModConfig(input: ModConfig): ModConfig {
   input.apis.joinDirect.joinPath = normalizeJoinPath(
     input.apis.joinDirect.joinPath,
     "apis.joinDirect.joinPath",
-  );
-  input.apis.joinDirect.serverType = ensureInteger(
-    input.apis.joinDirect.serverType,
-    "apis.joinDirect.serverType",
   );
   input.apis.joinDirect.aesKey = ensureFixedUtf8Length(
     input.apis.joinDirect.aesKey,
