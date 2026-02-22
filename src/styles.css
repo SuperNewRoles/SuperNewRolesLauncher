@@ -4778,6 +4778,9 @@ body.locale-switch-animating {
 
 .tab-bar-item-announce {
   position: relative;
+  padding-left: 12px;
+  padding-right: 12px;
+  white-space: nowrap;
 }
 
 .tab-bar-item:hover {
