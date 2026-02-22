@@ -384,14 +384,14 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
     };
     non_empty("apis.joinDirect.aesKey", &profile.apis.join_direct.aes_key)?;
     profile.apis.join_direct.aes_key = profile.apis.join_direct.aes_key.trim().to_string();
-    if profile.apis.join_direct.aes_key.as_bytes().len() != 16 {
+    if profile.apis.join_direct.aes_key.len() != 16 {
         return Err(
             "Invalid mod config: apis.joinDirect.aesKey must be exactly 16 bytes.".to_string(),
         );
     }
     non_empty("apis.joinDirect.aesIv", &profile.apis.join_direct.aes_iv)?;
     profile.apis.join_direct.aes_iv = profile.apis.join_direct.aes_iv.trim().to_string();
-    if profile.apis.join_direct.aes_iv.as_bytes().len() != 16 {
+    if profile.apis.join_direct.aes_iv.len() != 16 {
         return Err(
             "Invalid mod config: apis.joinDirect.aesIv must be exactly 16 bytes.".to_string(),
         );

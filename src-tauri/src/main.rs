@@ -424,11 +424,8 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .on_window_event(move |window, event| {
             if window.label() == TRAY_MENU_WINDOW_LABEL {
-                match event {
-                    tauri::WindowEvent::CloseRequested { .. } => {
-                        hide_tray_menu_window(window.app_handle());
-                    }
-                    _ => {}
+                if let tauri::WindowEvent::CloseRequested { .. } = event {
+                    hide_tray_menu_window(window.app_handle());
                 }
                 return;
             }
