@@ -46,6 +46,7 @@ pub struct LauncherSettings {
     pub among_us_path: String,
     pub game_platform: GamePlatform,
     pub selected_release_tag: String,
+    pub selected_game_server_id: String,
     pub profile_path: String,
     pub close_to_tray_on_close: bool,
     pub close_webview_on_tray_background: bool,
@@ -61,6 +62,7 @@ struct LauncherSettingsOnDisk {
     among_us_path: Option<String>,
     game_platform: Option<GamePlatform>,
     selected_release_tag: Option<String>,
+    selected_game_server_id: Option<String>,
     profile_path: Option<String>,
     close_to_tray_on_close: Option<bool>,
     close_webview_on_tray_background: Option<bool>,
@@ -76,6 +78,7 @@ pub struct LauncherSettingsInput {
     pub among_us_path: Option<String>,
     pub game_platform: Option<GamePlatform>,
     pub selected_release_tag: Option<String>,
+    pub selected_game_server_id: Option<String>,
     pub profile_path: Option<String>,
     pub close_to_tray_on_close: Option<bool>,
     pub close_webview_on_tray_background: Option<bool>,
@@ -91,6 +94,31 @@ fn normalize_ui_locale(value: &str) -> &'static str {
         "en" => "en",
         _ => "ja",
     }
+}
+
+fn default_selected_game_server_id() -> String {
+    // ゲームサーバー未選択時は mod.config の先頭エントリを既定にする。
+    mod_profile::default_game_server_id()
+        .unwrap_or_default()
+        .to_string()
+}
+
+fn normalize_selected_game_server_id(value: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return default_selected_game_server_id();
+    }
+
+    if mod_profile::get()
+        .apis
+        .game_servers
+        .iter()
+        .any(|server| server.id == trimmed)
+    {
+        return trimmed.to_string();
+    }
+
+    default_selected_game_server_id()
 }
 
 /// アプリ固有データの保存先ディレクトリを返す。
@@ -115,6 +143,7 @@ fn make_default_settings<R: Runtime>(app: &AppHandle<R>) -> Result<LauncherSetti
         among_us_path: String::new(),
         game_platform: GamePlatform::Steam,
         selected_release_tag: String::new(),
+        selected_game_server_id: default_selected_game_server_id(),
         profile_path: profile_path.to_string_lossy().to_string(),
         close_to_tray_on_close: true,
         close_webview_on_tray_background: true,
@@ -129,6 +158,8 @@ fn normalize_settings(mut settings: LauncherSettings) -> LauncherSettings {
     // 文字列項目を保存前にトリムし、表記ゆれを抑える。
     settings.among_us_path = settings.among_us_path.trim().to_string();
     settings.selected_release_tag = settings.selected_release_tag.trim().to_string();
+    settings.selected_game_server_id =
+        normalize_selected_game_server_id(&settings.selected_game_server_id);
     settings.profile_path = settings.profile_path.trim().to_string();
     settings.ui_locale = normalize_ui_locale(&settings.ui_locale).to_string();
     settings
@@ -169,6 +200,9 @@ pub fn load_settings_or_default<R: Runtime>(
     default_settings.among_us_path = on_disk.among_us_path.unwrap_or_default();
     default_settings.game_platform = on_disk.game_platform.unwrap_or_default();
     default_settings.selected_release_tag = on_disk.selected_release_tag.unwrap_or_default();
+    if let Some(selected_game_server_id) = on_disk.selected_game_server_id {
+        default_settings.selected_game_server_id = selected_game_server_id;
+    }
     default_settings.close_to_tray_on_close = on_disk.close_to_tray_on_close.unwrap_or(true);
     default_settings.close_webview_on_tray_background =
         on_disk.close_webview_on_tray_background.unwrap_or(true);
@@ -219,6 +253,9 @@ pub fn apply_settings_input<R: Runtime>(
     }
     if let Some(selected_release_tag) = input.selected_release_tag {
         settings.selected_release_tag = selected_release_tag;
+    }
+    if let Some(selected_game_server_id) = input.selected_game_server_id {
+        settings.selected_game_server_id = selected_game_server_id;
     }
     if let Some(profile_path) = input.profile_path {
         settings.profile_path = profile_path;

@@ -81,12 +81,13 @@ body {
   height: 100%;
   border-radius: 14px;
   border: 1px solid var(--tray-menu-panel-border);
-  background:
-    radial-gradient(95% 110% at 100% 0%, var(--tray-menu-panel-bg-sub) 0%, transparent 52%),
+  background: radial-gradient(
+      95% 110% at 100% 0%,
+      var(--tray-menu-panel-bg-sub) 0%,
+      transparent 52%
+    ),
     linear-gradient(180deg, var(--tray-menu-panel-bg-main) 0%, var(--tray-menu-panel-bg-main) 100%);
-  box-shadow:
-    var(--tray-menu-panel-shadow),
-    var(--tray-menu-panel-inner-shadow);
+  box-shadow: var(--tray-menu-panel-shadow), var(--tray-menu-panel-inner-shadow);
   padding: 6px 5px;
   display: flex;
   flex-direction: column;

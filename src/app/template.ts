@@ -3,6 +3,7 @@ import {
   ANNOUNCE_ENABLED,
   CONNECT_LINKS_ENABLED,
   EPIC_LOGIN_ENABLED,
+  GAME_SERVERS_ENABLED,
   LAUNCHER_NAME,
   MIGRATION_ENABLED,
   PRESETS_ENABLED,
@@ -42,6 +43,7 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
   const migrationHiddenAttr = MIGRATION_ENABLED ? "" : " hidden";
   const epicHiddenAttr = EPIC_LOGIN_ENABLED ? "" : " hidden";
   const connectLinksHiddenAttr = CONNECT_LINKS_ENABLED ? "" : " hidden";
+  const gameServersHiddenAttr = GAME_SERVERS_ENABLED ? "" : " hidden";
   // 文字列テンプレートを使うことで初期描画時の依存を減らし、描画順を制御しやすくする。
   return `
   <main class="main-layout">
@@ -154,6 +156,11 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
             </section>
           </section>
         </div>
+      </section>
+
+      <!-- ゲームサーバータブ -->
+      <section id="tab-servers" class="tab-panel" data-tab="servers"${gameServersHiddenAttr}>
+        <div id="game-servers-root" class="tab-inner tab-game-servers-root"></div>
       </section>
 
       <!-- 設定タブ -->
@@ -487,17 +494,18 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
     </div>
 
     <nav class="tab-bar" role="tablist" aria-label="メインナビゲーション">
-      <button type="button" class="tab-bar-item tab-bar-item-active" data-tab="home" role="tab" aria-selected="true">${t("home.tab")}</button>
-      <button type="button" class="tab-bar-item tab-bar-item-report" data-tab="report" role="tab" aria-selected="false"${reportHiddenAttr}>
-        ${t("report.title")}
-        <span id="report-tab-badge" class="report-center-badge report-tab-badge" aria-hidden="true"></span>
-      </button>
+      <button type="button" class="tab-bar-item" data-tab="preset" role="tab" aria-selected="false"${presetHiddenAttr}>📦 ${t("preset.tab")}</button>
       <button type="button" class="tab-bar-item tab-bar-item-announce" data-tab="announce" role="tab" aria-selected="false"${announceHiddenAttr}>
-        ${t("announce.tab")}
+        📢 ${t("announce.tab")}
         <span id="announce-tab-badge" class="report-center-badge announce-tab-badge" aria-hidden="true"></span>
       </button>
-      <button type="button" class="tab-bar-item" data-tab="preset" role="tab" aria-selected="false"${presetHiddenAttr}>${t("preset.tab")}</button>
-      <button type="button" class="tab-bar-item" data-tab="settings" role="tab" aria-selected="false">${t("settings.tab")}</button>
+      <button type="button" class="tab-bar-item tab-bar-item-active" data-tab="home" role="tab" aria-selected="true">🏠 ${t("home.tab")}</button>
+      <button type="button" class="tab-bar-item" data-tab="servers" role="tab" aria-selected="false"${gameServersHiddenAttr}>🌐 ${t("gameServers.tab")}</button>
+      <button type="button" class="tab-bar-item tab-bar-item-report" data-tab="report" role="tab" aria-selected="false"${reportHiddenAttr}>
+        📝 ${t("report.title")}
+        <span id="report-tab-badge" class="report-center-badge report-tab-badge" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="tab-bar-item" data-tab="settings" role="tab" aria-selected="false">⚙️ ${t("settings.tab")}</button>
     </nav>
   </main>
 `;

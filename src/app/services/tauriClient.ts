@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   EpicLoginStatus,
   GamePlatform,
+  GameServersJoinDirectResult,
   InstallResult,
   LauncherSettings,
   LauncherSettingsInput,
@@ -233,6 +234,11 @@ export function reportingLogSourceGet(): Promise<ReportingLogSourceInfo> {
 
 export function notificationsTakeOpenTarget(): Promise<NotificationOpenTarget | null> {
   return invoke<NotificationOpenTarget | null>("notifications_take_open_target");
+}
+
+// ゲームサーバー関連API
+export function gameServersJoinDirect(query: string): Promise<GameServersJoinDirectResult> {
+  return invoke<GameServersJoinDirectResult>("game_servers_join_direct", { query });
 }
 
 // 起動関連API

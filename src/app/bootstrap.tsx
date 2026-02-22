@@ -10,6 +10,7 @@ import { type Root, createRoot } from "react-dom/client";
 import { AnnounceCenter } from "../announce/AnnounceCenter";
 import { announceListArticles } from "../announce/announceApi";
 import type { AnnounceArticleMinimal } from "../announce/types";
+import { GameServersCenter } from "../game-servers/GameServersCenter";
 import {
   type LocaleCode,
   createTranslator,
@@ -31,6 +32,7 @@ import {
   ANNOUNCE_ENABLED,
   CONNECT_LINKS_ENABLED,
   EPIC_LOGIN_ENABLED,
+  GAME_SERVERS_ENABLED,
   MIGRATION_ENABLED,
   PRESETS_ENABLED,
   REPORTING_ENABLED,
@@ -128,7 +130,11 @@ const BACKGROUND_NOTIFICATION_OPEN_EVENT = "background-notification-open";
 const ONBOARDING_SPOTLIGHT_CLASS = "onboarding-spotlight-target";
 const ONBOARDING_SPOTLIGHT_FOCUS_CLASS = "onboarding-spotlight-target-focus";
 const ONBOARDING_EXIT_ANIMATION_MS = 340;
-type MainTabId = "home" | "report" | "announce" | "preset" | "settings";
+const LOCALE_PREFERRED_GAME_SERVER_IDS: Record<LocaleCode, string> = {
+  ja: "snr-jp",
+  en: "snr-useast",
+};
+type MainTabId = "home" | "report" | "announce" | "preset" | "servers" | "settings";
 type AvailableUpdate = NonNullable<Awaited<ReturnType<typeof check>>>;
 type SettingsCategoryId =
   | "general"
@@ -143,6 +149,15 @@ type PresetOverlayMode = "import" | "export";
 type PresetFeedbackMode = "none" | "confirmImport" | "result";
 const DEFAULT_SETTINGS_CATEGORY: SettingsCategoryId = "general";
 
+function resolveLocalePreferredGameServerId(locale: LocaleCode): string {
+  const preferredId = LOCALE_PREFERRED_GAME_SERVER_IDS[locale];
+  const preferredServer = modConfig.apis.gameServers.find((server) => server.id === preferredId);
+  if (preferredServer) {
+    return preferredServer.id;
+  }
+  return modConfig.apis.gameServers[0]?.id ?? "";
+}
+
 function isMainTabEnabled(tabId: MainTabId): boolean {
   // 機能フラグで非表示になるタブはここで一元判定する。
   if (tabId === "report") {
@@ -153,6 +168,9 @@ function isMainTabEnabled(tabId: MainTabId): boolean {
   }
   if (tabId === "preset") {
     return PRESETS_ENABLED;
+  }
+  if (tabId === "servers") {
+    return GAME_SERVERS_ENABLED;
   }
   return true;
 }
@@ -225,6 +243,7 @@ function isMainTabId(value: string | undefined): value is MainTabId {
     value === "report" ||
     value === "announce" ||
     value === "preset" ||
+    value === "servers" ||
     value === "settings"
   );
 }
@@ -535,6 +554,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     const announcePanel = document.querySelector<HTMLDivElement>("#tab-announce");
     const settingsPanel = document.querySelector<HTMLDivElement>("#tab-settings");
     const presetPanel = document.querySelector<HTMLDivElement>("#tab-preset");
+    const serversPanel = document.querySelector<HTMLDivElement>("#tab-servers");
     const homeContent = document.querySelector<HTMLDivElement>("#tab-home .home-content");
 
     for (const panel of document.querySelectorAll(".tab-panel")) {
@@ -553,6 +573,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     if (presetPanel) {
       presetPanel.classList.remove("tab-preset-enter");
     }
+    if (serversPanel) {
+      serversPanel.classList.remove("tab-servers-enter");
+    }
 
     if (homeContent) {
       homeContent.classList.remove("home-content-enter");
@@ -567,6 +590,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     if (tabId === "report" && REPORTING_ENABLED) {
       mountReportCenter();
       unmountAnnounceCenter();
+      unmountGameServersCenter();
       if (reportPanel) {
         requestAnimationFrame(() => {
           reportPanel.classList.add("tab-report-enter");
@@ -586,6 +610,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     } else if (tabId === "announce" && ANNOUNCE_ENABLED) {
       unmountReportCenter();
       mountAnnounceCenter();
+      unmountGameServersCenter();
       if (announcePanel) {
         requestAnimationFrame(() => {
           announcePanel.classList.add("tab-announce-enter");
@@ -602,9 +627,28 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
           { once: true },
         );
       }
+    } else if (tabId === "servers" && GAME_SERVERS_ENABLED && serversPanel) {
+      unmountReportCenter();
+      unmountAnnounceCenter();
+      mountGameServersCenter();
+      requestAnimationFrame(() => {
+        serversPanel.classList.add("tab-servers-enter");
+      });
+
+      serversPanel.addEventListener(
+        "animationend",
+        (event) => {
+          if (event.target !== serversPanel || event.animationName !== "servers-tab-enter") {
+            return;
+          }
+          serversPanel.classList.remove("tab-servers-enter");
+        },
+        { once: true },
+      );
     } else if (tabId === "settings" && settingsPanel) {
       unmountReportCenter();
       unmountAnnounceCenter();
+      unmountGameServersCenter();
       requestAnimationFrame(() => {
         settingsPanel.classList.add("tab-settings-enter");
       });
@@ -622,6 +666,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     } else if (tabId === "preset" && PRESETS_ENABLED && presetPanel) {
       unmountReportCenter();
       unmountAnnounceCenter();
+      unmountGameServersCenter();
       requestAnimationFrame(() => {
         presetPanel.classList.add("tab-preset-enter");
       });
@@ -639,6 +684,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     } else {
       unmountReportCenter();
       unmountAnnounceCenter();
+      unmountGameServersCenter();
       if (tabId === "home" && homeContent) {
         requestAnimationFrame(() => {
           homeContent.classList.add("home-content-enter");
@@ -796,6 +842,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let onboardingReturnTab: MainTabId | null = null;
   let reportCenterRoot: Root | null = null;
   let announceCenterRoot: Root | null = null;
+  let gameServersCenterRoot: Root | null = null;
   let pendingReportOpenThreadId: string | null = null;
   let pendingAnnounceOpenArticleId: string | null = null;
   let activeTab: MainTabId = consumeInstallFlowHomeAfterReload() ? "home" : loadLastMainTab();
@@ -1033,6 +1080,36 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     );
   }
 
+  function mountGameServersCenter() {
+    if (!GAME_SERVERS_ENABLED) {
+      return;
+    }
+    const containerId = "game-servers-root";
+    const container = document.getElementById(containerId);
+    if (!container) {
+      return;
+    }
+
+    if (!gameServersCenterRoot) {
+      gameServersCenterRoot = createRoot(container);
+    }
+
+    gameServersCenterRoot.render(
+      <GameServersCenter
+        locale={currentLocale}
+        t={t}
+        initialSelectedServerId={settings?.selectedGameServerId ?? null}
+        onSelectedServerIdChange={async (serverId) => {
+          if (settings?.selectedGameServerId === serverId) {
+            return;
+          }
+          settings = await settingsUpdate({ selectedGameServerId: serverId });
+          renderSettings();
+        }}
+      />,
+    );
+  }
+
   function unmountReportCenter() {
     if (reportCenterRoot) {
       reportCenterRoot.unmount();
@@ -1044,6 +1121,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     if (announceCenterRoot) {
       announceCenterRoot.unmount();
       announceCenterRoot = null;
+    }
+  }
+
+  function unmountGameServersCenter() {
+    if (gameServersCenterRoot) {
+      gameServersCenterRoot.unmount();
+      gameServersCenterRoot = null;
     }
   }
 
@@ -1713,6 +1797,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   async function reloadSettings(): Promise<LauncherSettings> {
     settings = await settingsGet();
     renderSettings();
+    if (GAME_SERVERS_ENABLED && activeTab === "servers") {
+      mountGameServersCenter();
+    }
     return settings;
   }
 
@@ -3387,7 +3474,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
   });
 
-  void settingsUpdate({ uiLocale: currentLocale }).catch(() => undefined);
+  void settingsUpdate({
+    uiLocale: currentLocale,
+  }).catch(() => undefined);
 
   replayOnboardingButton.addEventListener("click", () => {
     mountOnboarding();
@@ -3421,7 +3510,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     try {
       saveLocale(nextLocale);
 
-      await settingsUpdate({ uiLocale: nextLocale });
+      await settingsUpdate({
+        uiLocale: nextLocale,
+        selectedGameServerId: resolveLocalePreferredGameServerId(nextLocale),
+      });
     } catch {
       // ignore backend locale sync failures
     }

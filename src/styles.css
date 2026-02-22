@@ -379,6 +379,12 @@ body {
   color: var(--warning);
 }
 
+.badge.danger {
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--line) 58%);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+}
+
 input,
 textarea,
 select,
@@ -3074,6 +3080,10 @@ progress {
   transform: translateY(10px);
 }
 
+#tab-servers.tab-panel {
+  transform: translateY(10px);
+}
+
 .tab-panel.tab-panel-active {
   position: absolute;
   inset: 0;
@@ -3092,6 +3102,10 @@ progress {
   transform: translateY(0);
 }
 
+#tab-servers.tab-panel.tab-panel-active {
+  transform: translateY(0);
+}
+
 #tab-report.tab-panel:not(.tab-panel-active) .tab-inner {
   opacity: 0;
   transform: translateY(14px);
@@ -3099,6 +3113,12 @@ progress {
 }
 
 #tab-announce.tab-panel:not(.tab-panel-active) .tab-inner {
+  opacity: 0;
+  transform: translateY(14px);
+  pointer-events: none;
+}
+
+#tab-servers.tab-panel:not(.tab-panel-active) .tab-inner {
   opacity: 0;
   transform: translateY(14px);
   pointer-events: none;
@@ -3118,6 +3138,14 @@ progress {
 
 #tab-announce.tab-panel.tab-announce-enter .tab-inner {
   animation: announce-tab-inner-enter 220ms ease-out forwards;
+}
+
+#tab-servers.tab-panel.tab-servers-enter {
+  animation: servers-tab-enter 220ms ease-out forwards;
+}
+
+#tab-servers.tab-panel.tab-servers-enter .tab-inner {
+  animation: servers-tab-inner-enter 220ms ease-out forwards;
 }
 
 #tab-settings.tab-panel.tab-settings-enter {
@@ -3142,6 +3170,11 @@ progress {
 }
 
 #tab-announce.tab-panel.tab-panel-active .tab-inner {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#tab-servers.tab-panel.tab-panel-active .tab-inner {
   opacity: 1;
   transform: translateY(0);
 }
@@ -3194,6 +3227,30 @@ progress {
   }
 }
 
+@keyframes servers-tab-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes servers-tab-inner-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes preset-tab-enter {
   from {
     opacity: 0;
@@ -3225,6 +3282,10 @@ progress {
   gap: 20px;
 }
 
+#tab-servers .tab-inner {
+  padding: 10px 0 36px;
+}
+
 #tab-report .tab-inner {
   flex: 1 1 auto;
   height: 100%;
@@ -3247,6 +3308,16 @@ progress {
 #tab-announce .tab-announce-root {
   box-sizing: border-box;
   padding: 0 0 88px;
+}
+
+#tab-servers .tab-game-servers-root {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  display: block;
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 0 0 calc(96px + env(safe-area-inset-bottom));
 }
 
 .tab-settings-scroll {
@@ -4707,6 +4778,9 @@ body.locale-switch-animating {
 
 .tab-bar-item-announce {
   position: relative;
+  padding-left: 12px;
+  padding-right: 12px;
+  white-space: nowrap;
 }
 
 .tab-bar-item:hover {
@@ -6663,6 +6737,373 @@ body.locale-switch-animating {
     "Courier New", monospace;
 }
 
+.game-servers-center {
+  display: grid;
+  gap: 14px;
+  min-height: 0;
+  padding: 10px 2px 0;
+}
+
+.game-servers-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.game-servers-controls {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr);
+  gap: 10px;
+  flex: 1 1 320px;
+}
+
+.game-servers-control-field {
+  display: grid;
+  gap: 6px;
+}
+
+.game-servers-control-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.game-servers-control-input {
+  width: 100%;
+}
+
+.game-servers-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.game-servers-auto-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.game-servers-refresh-button {
+  min-width: 110px;
+}
+
+.game-servers-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.game-servers-stat-card {
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+  box-shadow: var(--shadow-card);
+}
+
+.game-servers-stat-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.game-servers-stat-value {
+  font-size: 24px;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+.game-servers-status {
+  min-height: 18px;
+}
+
+.game-servers-status-line {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.game-servers-status-separator {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.game-servers-room-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+  align-content: flex-start;
+  align-items: start;
+}
+
+.game-servers-loading {
+  grid-column: 1 / -1;
+  min-height: clamp(220px, 36vh, 420px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-servers-loading-spinner {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--line) 74%, #a7adb7);
+  border-top-color: var(--accent);
+  animation: spin 0.88s linear infinite;
+}
+
+.game-servers-empty {
+  margin: 0;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 14px;
+}
+
+.game-servers-room-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.game-servers-room-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.game-servers-room-heading {
+  min-width: 0;
+}
+
+.game-servers-room-title {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.game-servers-room-badges {
+  display: grid;
+  gap: 6px;
+  justify-items: flex-end;
+}
+
+.game-servers-room-players {
+  min-width: 0;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--accent) 28%);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-soft) 30%, var(--card-strong));
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.game-servers-room-players-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.game-servers-room-state-badge {
+  padding: 1px 7px;
+  font-size: 11px;
+}
+
+.game-servers-room-players-label {
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.game-servers-room-players-value-wrap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.game-servers-room-players-value {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text);
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.game-servers-room-players-value > span {
+  margin-left: 1px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.game-servers-room-priority-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.game-servers-room-priority-item {
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
+  background: color-mix(in srgb, var(--accent-soft) 48%, var(--card-strong));
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 2px;
+}
+
+.game-servers-room-priority-label {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+.game-servers-room-priority-value {
+  font-size: 17px;
+  line-height: 1.2;
+  color: var(--text);
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+.game-servers-room-join-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.game-servers-room-join-meta {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.game-servers-room-code-wrap {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.game-servers-room-code-label {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.game-servers-room-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--text) 80%, var(--muted));
+  overflow-wrap: anywhere;
+}
+
+.game-servers-room-language {
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--text) 80%, var(--muted));
+  overflow-wrap: anywhere;
+}
+
+.game-servers-room-join {
+  flex: 0 0 auto;
+}
+
+.game-servers-room-join.game-servers-room-join-unavailable:disabled {
+  background: color-mix(in srgb, var(--muted) 24%, var(--card-strong));
+  border-color: color-mix(in srgb, var(--muted) 48%, var(--line));
+  color: color-mix(in srgb, var(--text) 56%, var(--muted));
+  opacity: 1;
+  filter: none;
+}
+
+.game-servers-room-details {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.game-servers-room-details > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--accent);
+  user-select: none;
+}
+
+.game-servers-room-details-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 220ms ease;
+}
+
+.game-servers-room-details[open] .game-servers-room-details-content {
+  grid-template-rows: 1fr;
+}
+
+.game-servers-room-details-content-inner {
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 180ms ease, transform 220ms ease;
+}
+
+.game-servers-room-details[open] .game-servers-room-details-content-inner {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-servers-room-details-content,
+  .game-servers-room-details-content-inner {
+    transition: none;
+  }
+}
+
+.game-servers-room-detail-grid {
+  margin: 8px 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.game-servers-room-detail-grid dt {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.game-servers-room-detail-grid dd {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
 /* Mobile responsive */
 @media (max-width: 640px) {
   .main-header-left {
@@ -6813,6 +7254,36 @@ body.locale-switch-animating {
 
   .report-modal {
     border-radius: 12px;
+  }
+
+  .game-servers-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .game-servers-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .game-servers-room-list {
+    grid-template-columns: 1fr;
+  }
+
+  .game-servers-room-header {
+    flex-direction: column;
+  }
+
+  .game-servers-room-badges {
+    justify-items: flex-start;
+    width: 100%;
+  }
+
+  .game-servers-room-priority-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .game-servers-room-detail-grid {
+    grid-template-columns: 1fr;
   }
 }
 

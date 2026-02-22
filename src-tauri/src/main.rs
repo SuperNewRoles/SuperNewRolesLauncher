@@ -342,40 +342,38 @@ fn setup_tray<R: tauri::Runtime>(
     let tray_webview_destroy_state_for_tray = tray_webview_destroy_state.clone();
     let mut tray_builder = TrayIconBuilder::with_id(TRAY_ID)
         .tooltip(mod_profile.branding.tray_tooltip.clone())
-        .on_tray_icon_event(move |tray, event| {
-            match event {
-                TrayIconEvent::Click {
-                    button: MouseButton::Left,
-                    button_state: MouseButtonState::Down,
-                    ..
-                } => {
-                    hide_tray_menu_window(tray.app_handle());
-                    tray_webview_destroy_state_for_tray.cancel_pending();
-                    let _ = get_or_create_main_window(tray.app_handle());
-                }
-                TrayIconEvent::Click {
-                    button: MouseButton::Left,
-                    button_state: MouseButtonState::Up,
-                    ..
-                } => {
-                    hide_tray_menu_window(tray.app_handle());
-                    show_main_window(tray.app_handle(), &tray_webview_destroy_state_for_tray);
-                }
-                TrayIconEvent::Click {
-                    button: MouseButton::Right,
-                    button_state: MouseButtonState::Up,
-                    position,
-                    ..
-                } => {
-                    tray_webview_destroy_state_for_tray.cancel_pending();
-                    if is_tray_menu_visible(tray.app_handle()) {
-                        hide_tray_menu_window(tray.app_handle());
-                    } else {
-                        show_tray_menu_window(tray.app_handle(), position);
-                    }
-                }
-                _ => {}
+        .on_tray_icon_event(move |tray, event| match event {
+            TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Down,
+                ..
+            } => {
+                hide_tray_menu_window(tray.app_handle());
+                tray_webview_destroy_state_for_tray.cancel_pending();
+                let _ = get_or_create_main_window(tray.app_handle());
             }
+            TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } => {
+                hide_tray_menu_window(tray.app_handle());
+                show_main_window(tray.app_handle(), &tray_webview_destroy_state_for_tray);
+            }
+            TrayIconEvent::Click {
+                button: MouseButton::Right,
+                button_state: MouseButtonState::Up,
+                position,
+                ..
+            } => {
+                tray_webview_destroy_state_for_tray.cancel_pending();
+                if is_tray_menu_visible(tray.app_handle()) {
+                    hide_tray_menu_window(tray.app_handle());
+                } else {
+                    show_tray_menu_window(tray.app_handle(), position);
+                }
+            }
+            _ => {}
         });
 
     if let Some(icon) = app.default_window_icon() {
@@ -426,11 +424,8 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .on_window_event(move |window, event| {
             if window.label() == TRAY_MENU_WINDOW_LABEL {
-                match event {
-                    tauri::WindowEvent::CloseRequested { .. } => {
-                        hide_tray_menu_window(window.app_handle());
-                    }
-                    _ => {}
+                if let tauri::WindowEvent::CloseRequested { .. } = event {
+                    hide_tray_menu_window(window.app_handle());
                 }
                 return;
             }
@@ -529,6 +524,7 @@ pub fn run() {
             commands::reporting::reporting_notification_flag_get,
             commands::reporting::reporting_log_source_get,
             commands::notifications::notifications_take_open_target,
+            commands::game_servers::game_servers_join_direct,
             commands::launch::launch_modded,
             commands::launch::launch_vanilla,
             commands::launch::launch_shortcut_create,

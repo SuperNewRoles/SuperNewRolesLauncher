@@ -2,6 +2,21 @@ import rawConfig from "../shared/mod.config.json";
 import { SOCIAL_ICON_SPECS } from "./socialBrandIcons";
 import type { OfficialLink, SocialBrandId } from "./types";
 
+export interface GameServerCatalogEntry {
+  id: string;
+  label: string;
+  roomsApiDomain: string;
+  serverType: number;
+}
+
+export interface GameServerJoinDirectConfig {
+  localhostBaseUrl: string;
+  joinPath: string;
+  aesKey: string;
+  aesIv: string;
+  timeoutMs: number;
+}
+
 export interface ModConfig {
   schemaVersion: number;
   mod: {
@@ -23,6 +38,7 @@ export interface ModConfig {
     migration: boolean;
     epicLogin: boolean;
     connectLinks: boolean;
+    gameServers: boolean;
   };
   distribution: {
     source: "github";
@@ -60,6 +76,8 @@ export interface ModConfig {
     announceBaseUrl: string;
     reportingBaseUrl: string;
     reportingTermsUrl: string;
+    gameServers: GameServerCatalogEntry[];
+    joinDirect: GameServerJoinDirectConfig;
   };
   links: {
     wikiUrl: string;
@@ -99,6 +117,45 @@ function normalizeBaseUrl(url: string, name: string): string {
   // API ベースURLは末尾スラッシュありに正規化する。
   const normalized = ensureNonEmpty(url, name);
   return normalized.endsWith("/") ? normalized : `${normalized}/`;
+}
+
+function normalizeUrlWithoutTrailingSlash(url: string, name: string): string {
+  // ドメイン用途のURLは末尾スラッシュなしへ寄せる。
+  const normalized = ensureNonEmpty(url, name);
+  return normalized.replace(/\/+$/u, "");
+}
+
+function normalizeJoinPath(value: string, name: string): string {
+  // joinPath は先頭スラッシュありに正規化する。
+  const normalized = ensureNonEmpty(value, name);
+  return normalized.startsWith("/") ? normalized : `/${normalized}`;
+}
+
+function ensureInteger(value: number, name: string): number {
+  if (!Number.isInteger(value)) {
+    throw new Error(`Invalid mod config: '${name}' must be an integer.`);
+  }
+  return value;
+}
+
+function ensurePositiveInteger(value: number, name: string): number {
+  const normalized = ensureInteger(value, name);
+  if (normalized <= 0) {
+    throw new Error(`Invalid mod config: '${name}' must be greater than 0.`);
+  }
+  return normalized;
+}
+
+function ensureFixedUtf8Length(value: string, name: string, expectedLength: number): string {
+  // Join暗号の鍵/IVは UTF-8 16byte 固定で扱う。
+  const normalized = ensureNonEmpty(value, name);
+  const utf8Length = new TextEncoder().encode(normalized).byteLength;
+  if (utf8Length !== expectedLength) {
+    throw new Error(
+      `Invalid mod config: '${name}' must be exactly ${expectedLength} bytes in UTF-8.`,
+    );
+  }
+  return normalized;
 }
 
 function ensureHexColor(value: string, name: string): string {
@@ -170,6 +227,49 @@ function assertModConfig(input: ModConfig): ModConfig {
     input.apis.reportingTermsUrl,
     "apis.reportingTermsUrl",
   );
+  if (!Array.isArray(input.apis.gameServers) || input.apis.gameServers.length === 0) {
+    throw new Error("Invalid mod config: 'apis.gameServers' must contain at least one server.");
+  }
+  const seenServerIds = new Set<string>();
+  for (const [index, server] of input.apis.gameServers.entries()) {
+    const id = ensureNonEmpty(server.id, `apis.gameServers[${index}].id`);
+    if (seenServerIds.has(id)) {
+      throw new Error(`Invalid mod config: duplicate game server id '${id}'.`);
+    }
+    seenServerIds.add(id);
+    server.id = id;
+    server.label = ensureNonEmpty(server.label, `apis.gameServers[${index}].label`);
+    server.roomsApiDomain = normalizeUrlWithoutTrailingSlash(
+      server.roomsApiDomain,
+      `apis.gameServers[${index}].roomsApiDomain`,
+    );
+    server.serverType = ensureInteger(server.serverType, `apis.gameServers[${index}].serverType`);
+    if (server.serverType < 0) {
+      throw new Error(`Invalid mod config: 'apis.gameServers[${index}].serverType' must be >= 0.`);
+    }
+  }
+  input.apis.joinDirect.localhostBaseUrl = normalizeUrlWithoutTrailingSlash(
+    input.apis.joinDirect.localhostBaseUrl,
+    "apis.joinDirect.localhostBaseUrl",
+  );
+  input.apis.joinDirect.joinPath = normalizeJoinPath(
+    input.apis.joinDirect.joinPath,
+    "apis.joinDirect.joinPath",
+  );
+  input.apis.joinDirect.aesKey = ensureFixedUtf8Length(
+    input.apis.joinDirect.aesKey,
+    "apis.joinDirect.aesKey",
+    16,
+  );
+  input.apis.joinDirect.aesIv = ensureFixedUtf8Length(
+    input.apis.joinDirect.aesIv,
+    "apis.joinDirect.aesIv",
+    16,
+  );
+  input.apis.joinDirect.timeoutMs = ensurePositiveInteger(
+    input.apis.joinDirect.timeoutMs,
+    "apis.joinDirect.timeoutMs",
+  );
 
   if (
     !Array.isArray(input.paths.profileRequiredFiles) ||
@@ -219,9 +319,12 @@ export const PRESETS_ENABLED = modConfig.features.presets;
 export const MIGRATION_ENABLED = modConfig.features.migration;
 export const EPIC_LOGIN_ENABLED = modConfig.features.epicLogin;
 export const CONNECT_LINKS_ENABLED = modConfig.features.connectLinks;
+export const GAME_SERVERS_ENABLED = modConfig.features.gameServers;
 
 export const ANNOUNCE_API_BASE_URL = modConfig.apis.announceBaseUrl;
 export const REPORTING_TERMS_URL = modConfig.apis.reportingTermsUrl;
+export const GAME_SERVER_CATALOG = modConfig.apis.gameServers;
+export const GAME_SERVER_JOIN_DIRECT_CONFIG = modConfig.apis.joinDirect;
 export const BODY_AURA_COLORS = modConfig.theme.bodyAuraColors;
 export const BODY_AURA_RGB = {
   colorLeft: hexToRgbTuple(BODY_AURA_COLORS.colorLeft),

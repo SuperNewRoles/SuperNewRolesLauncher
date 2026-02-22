@@ -22,6 +22,17 @@ describe("renderAppTemplate (settings general)", () => {
     expect(html).toContain('id="tab-announce"');
     expect(html).toContain('id="announce-center-root"');
     expect(html).toContain('data-tab="announce"');
+    expect(html).toContain('id="tab-servers"');
+    expect(html).toContain('id="game-servers-root"');
+    expect(html).toContain('data-tab="servers"');
+  });
+
+  it("renders tab order as preset, announce, home, matchmaking, report, settings", () => {
+    const document = new DOMParser().parseFromString(html, "text/html");
+    const tabBarItems = Array.from(document.querySelectorAll(".tab-bar .tab-bar-item"));
+    const tabOrder = tabBarItems.map((item) => item.getAttribute("data-tab"));
+
+    expect(tabOrder).toEqual(["preset", "announce", "home", "servers", "report", "settings"]);
   });
 
   it("includes among us reselect and uninstall overlays", () => {
