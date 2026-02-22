@@ -10,6 +10,7 @@ export interface LauncherSettings {
   amongUsPath: string;
   gamePlatform: GamePlatform;
   selectedReleaseTag: string;
+  selectedGameServerId: string;
   profilePath: string;
   closeToTrayOnClose: boolean;
   closeWebviewOnTrayBackground: boolean;
@@ -24,6 +25,7 @@ export interface LauncherSettingsInput {
   amongUsPath?: string;
   gamePlatform?: GamePlatform;
   selectedReleaseTag?: string;
+  selectedGameServerId?: string;
   profilePath?: string;
   closeToTrayOnClose?: boolean;
   closeWebviewOnTrayBackground?: boolean;
@@ -205,6 +207,12 @@ export interface ReportingLogSourceInfo {
   gameCandidate: string;
   selectedPath: string | null;
   exists: boolean;
+}
+
+export interface GameServersJoinDirectResult {
+  status: number;
+  message: string;
+  ok: boolean;
 }
 
 export interface SendReportInput {

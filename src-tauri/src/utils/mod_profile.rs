@@ -3,6 +3,7 @@
 
 use regex::Regex;
 use serde::Deserialize;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
@@ -54,6 +55,7 @@ pub struct FeatureFlags {
     pub migration: bool,
     pub epic_login: bool,
     pub connect_links: bool,
+    pub game_servers: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -114,6 +116,27 @@ pub struct ApiEndpoints {
     pub announce_base_url: String,
     pub reporting_base_url: String,
     pub reporting_terms_url: String,
+    pub game_servers: Vec<GameServerEndpoint>,
+    pub join_direct: JoinDirectEndpoint,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GameServerEndpoint {
+    pub id: String,
+    pub label: String,
+    pub rooms_api_domain: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JoinDirectEndpoint {
+    pub localhost_base_url: String,
+    pub join_path: String,
+    pub server_type: i32,
+    pub aes_key: String,
+    pub aes_iv: String,
+    pub timeout_ms: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -150,6 +173,7 @@ pub enum Feature {
     Migration,
     EpicLogin,
     ConnectLinks,
+    GameServers,
 }
 
 fn non_empty(name: &str, value: &str) -> Result<(), String> {
@@ -304,6 +328,68 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
     }
     non_empty("apis.reportingBaseUrl", &profile.apis.reporting_base_url)?;
     non_empty("apis.reportingTermsUrl", &profile.apis.reporting_terms_url)?;
+    if profile.apis.game_servers.is_empty() {
+        return Err("Invalid mod config: apis.gameServers must contain at least one entry."
+            .to_string());
+    }
+    let mut seen_game_server_ids = HashSet::new();
+    for (idx, server) in profile.apis.game_servers.iter_mut().enumerate() {
+        non_empty(&format!("apis.gameServers[{idx}].id"), &server.id)?;
+        let id = server.id.trim().to_string();
+        if !seen_game_server_ids.insert(id.clone()) {
+            return Err(format!("Invalid mod config: duplicate apis.gameServers id '{id}'"));
+        }
+        server.id = id;
+        non_empty(&format!("apis.gameServers[{idx}].label"), &server.label)?;
+        server.label = server.label.trim().to_string();
+        non_empty(
+            &format!("apis.gameServers[{idx}].roomsApiDomain"),
+            &server.rooms_api_domain,
+        )?;
+        server.rooms_api_domain = server
+            .rooms_api_domain
+            .trim()
+            .trim_end_matches('/')
+            .to_string();
+    }
+
+    non_empty(
+        "apis.joinDirect.localhostBaseUrl",
+        &profile.apis.join_direct.localhost_base_url,
+    )?;
+    profile.apis.join_direct.localhost_base_url = profile
+        .apis
+        .join_direct
+        .localhost_base_url
+        .trim()
+        .trim_end_matches('/')
+        .to_string();
+    non_empty("apis.joinDirect.joinPath", &profile.apis.join_direct.join_path)?;
+    let join_path = profile.apis.join_direct.join_path.trim().to_string();
+    profile.apis.join_direct.join_path = if join_path.starts_with('/') {
+        join_path
+    } else {
+        format!("/{join_path}")
+    };
+    if profile.apis.join_direct.server_type < 0 {
+        return Err("Invalid mod config: apis.joinDirect.serverType must be >= 0.".to_string());
+    }
+    non_empty("apis.joinDirect.aesKey", &profile.apis.join_direct.aes_key)?;
+    profile.apis.join_direct.aes_key = profile.apis.join_direct.aes_key.trim().to_string();
+    if profile.apis.join_direct.aes_key.as_bytes().len() != 16 {
+        return Err("Invalid mod config: apis.joinDirect.aesKey must be exactly 16 bytes."
+            .to_string());
+    }
+    non_empty("apis.joinDirect.aesIv", &profile.apis.join_direct.aes_iv)?;
+    profile.apis.join_direct.aes_iv = profile.apis.join_direct.aes_iv.trim().to_string();
+    if profile.apis.join_direct.aes_iv.as_bytes().len() != 16 {
+        return Err("Invalid mod config: apis.joinDirect.aesIv must be exactly 16 bytes."
+            .to_string());
+    }
+    if profile.apis.join_direct.timeout_ms == 0 {
+        return Err("Invalid mod config: apis.joinDirect.timeoutMs must be greater than 0."
+            .to_string());
+    }
 
     non_empty("links.wikiUrl", &profile.links.wiki_url)?;
     non_empty(
@@ -358,6 +444,7 @@ pub fn feature_enabled(feature: Feature) -> bool {
         Feature::Migration => features.migration,
         Feature::EpicLogin => features.epic_login,
         Feature::ConnectLinks => features.connect_links,
+        Feature::GameServers => features.game_servers,
     }
 }
 
@@ -374,6 +461,7 @@ pub fn ensure_feature_enabled(feature: Feature) -> Result<(), String> {
         Feature::Migration => "migration",
         Feature::EpicLogin => "epicLogin",
         Feature::ConnectLinks => "connectLinks",
+        Feature::GameServers => "gameServers",
     };
     Err(format!("Feature '{name}' is disabled by mod.config.json."))
 }
@@ -413,4 +501,8 @@ pub fn save_data_root_path() -> PathBuf {
 
 pub fn local_low_root_path() -> PathBuf {
     to_relative_path(&get().paths.local_low_root)
+}
+
+pub fn default_game_server_id() -> Option<&'static str> {
+    get().apis.game_servers.first().map(|server| server.id.as_str())
 }

@@ -529,6 +529,7 @@ pub fn run() {
             commands::reporting::reporting_notification_flag_get,
             commands::reporting::reporting_log_source_get,
             commands::notifications::notifications_take_open_target,
+            commands::game_servers::game_servers_join_direct,
             commands::launch::launch_modded,
             commands::launch::launch_vanilla,
             commands::launch::launch_shortcut_create,

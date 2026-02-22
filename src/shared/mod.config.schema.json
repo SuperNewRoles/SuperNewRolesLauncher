@@ -81,7 +81,15 @@
     "features": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["announce", "reporting", "presets", "migration", "epicLogin", "connectLinks"],
+      "required": [
+        "announce",
+        "reporting",
+        "presets",
+        "migration",
+        "epicLogin",
+        "connectLinks",
+        "gameServers"
+      ],
       "properties": {
         "announce": {
           "type": "boolean"
@@ -99,6 +107,9 @@
           "type": "boolean"
         },
         "connectLinks": {
+          "type": "boolean"
+        },
+        "gameServers": {
           "type": "boolean"
         }
       }
@@ -242,7 +253,13 @@
     "apis": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["announceBaseUrl", "reportingBaseUrl", "reportingTermsUrl"],
+      "required": [
+        "announceBaseUrl",
+        "reportingBaseUrl",
+        "reportingTermsUrl",
+        "gameServers",
+        "joinDirect"
+      ],
       "properties": {
         "announceBaseUrl": {
           "type": "string",
@@ -255,6 +272,66 @@
         "reportingTermsUrl": {
           "type": "string",
           "format": "uri"
+        },
+        "gameServers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label", "roomsApiDomain"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "roomsApiDomain": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          }
+        },
+        "joinDirect": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "localhostBaseUrl",
+            "joinPath",
+            "serverType",
+            "aesKey",
+            "aesIv",
+            "timeoutMs"
+          ],
+          "properties": {
+            "localhostBaseUrl": {
+              "type": "string",
+              "format": "uri"
+            },
+            "joinPath": {
+              "type": "string",
+              "minLength": 1
+            },
+            "serverType": {
+              "type": "integer"
+            },
+            "aesKey": {
+              "type": "string",
+              "minLength": 1
+            },
+            "aesIv": {
+              "type": "string",
+              "minLength": 1
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
         }
       }
     },

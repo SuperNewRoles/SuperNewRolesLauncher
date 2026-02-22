@@ -19,7 +19,8 @@
     "presets": true,
     "migration": true,
     "epicLogin": true,
-    "connectLinks": true
+    "connectLinks": true,
+    "gameServers": true
   },
   "distribution": {
     "source": "github",
@@ -67,7 +68,27 @@
   "apis": {
     "announceBaseUrl": "https://announce.supernewroles.com/api/v1/",
     "reportingBaseUrl": "https://reports-api.supernewroles.com/api/v3",
-    "reportingTermsUrl": "https://wiki.supernewroles.com/reporting-in-game-terms"
+    "reportingTermsUrl": "https://wiki.supernewroles.com/reporting-in-game-terms",
+    "gameServers": [
+      {
+        "id": "snr-jp",
+        "label": "SuperNewRoles Tokyo(JP)",
+        "roomsApiDomain": "https://cs.supernewroles.com"
+      },
+      {
+        "id": "snr-useast",
+        "label": "SuperNewRoles USEast",
+        "roomsApiDomain": "https://cs-useast.supernewroles.com"
+      }
+    ],
+    "joinDirect": {
+      "localhostBaseUrl": "http://localhost:49152",
+      "joinPath": "/joinGame",
+      "serverType": 3,
+      "aesKey": "ThisIsA16ByteKey",
+      "aesIv": "ThisIsA16ByteIV!",
+      "timeoutMs": 5000
+    }
   },
   "links": {
     "wikiUrl": "https://wiki.supernewroles.com",

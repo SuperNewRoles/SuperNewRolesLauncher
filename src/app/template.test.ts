@@ -22,6 +22,9 @@ describe("renderAppTemplate (settings general)", () => {
     expect(html).toContain('id="tab-announce"');
     expect(html).toContain('id="announce-center-root"');
     expect(html).toContain('data-tab="announce"');
+    expect(html).toContain('id="tab-servers"');
+    expect(html).toContain('id="game-servers-root"');
+    expect(html).toContain('data-tab="servers"');
   });
 
   it("includes among us reselect and uninstall overlays", () => {
