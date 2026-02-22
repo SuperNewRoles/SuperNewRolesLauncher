@@ -494,18 +494,32 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
     </div>
 
     <nav class="tab-bar" role="tablist" aria-label="メインナビゲーション">
-      <button type="button" class="tab-bar-item" data-tab="preset" role="tab" aria-selected="false"${presetHiddenAttr}>📦 ${t("preset.tab")}</button>
+      <button type="button" class="tab-bar-item" data-tab="preset" role="tab" aria-selected="false"${presetHiddenAttr}>
+        <span class="tab-bar-item-emoji" aria-hidden="true">📦</span>
+        <span class="tab-bar-item-label">${t("preset.tab")}</span>
+      </button>
       <button type="button" class="tab-bar-item tab-bar-item-announce" data-tab="announce" role="tab" aria-selected="false"${announceHiddenAttr}>
-        📢 ${t("announce.tab")}
+        <span class="tab-bar-item-emoji" aria-hidden="true">📢</span>
+        <span class="tab-bar-item-label">${t("announce.tab")}</span>
         <span id="announce-tab-badge" class="report-center-badge announce-tab-badge" aria-hidden="true"></span>
       </button>
-      <button type="button" class="tab-bar-item tab-bar-item-active" data-tab="home" role="tab" aria-selected="true">🏠 ${t("home.tab")}</button>
-      <button type="button" class="tab-bar-item" data-tab="servers" role="tab" aria-selected="false"${gameServersHiddenAttr}>🌐 ${t("gameServers.tab")}</button>
+      <button type="button" class="tab-bar-item tab-bar-item-active" data-tab="home" role="tab" aria-selected="true">
+        <span class="tab-bar-item-emoji" aria-hidden="true">🏠</span>
+        <span class="tab-bar-item-label">${t("home.tab")}</span>
+      </button>
+      <button type="button" class="tab-bar-item" data-tab="servers" role="tab" aria-selected="false"${gameServersHiddenAttr}>
+        <span class="tab-bar-item-emoji" aria-hidden="true">🌐</span>
+        <span class="tab-bar-item-label">${t("gameServers.tab")}</span>
+      </button>
       <button type="button" class="tab-bar-item tab-bar-item-report" data-tab="report" role="tab" aria-selected="false"${reportHiddenAttr}>
-        📝 ${t("report.title")}
+        <span class="tab-bar-item-emoji" aria-hidden="true">📝</span>
+        <span class="tab-bar-item-label">${t("report.title")}</span>
         <span id="report-tab-badge" class="report-center-badge report-tab-badge" aria-hidden="true"></span>
       </button>
-      <button type="button" class="tab-bar-item" data-tab="settings" role="tab" aria-selected="false">⚙️ ${t("settings.tab")}</button>
+      <button type="button" class="tab-bar-item" data-tab="settings" role="tab" aria-selected="false">
+        <span class="tab-bar-item-emoji" aria-hidden="true">⚙️</span>
+        <span class="tab-bar-item-label">${t("settings.tab")}</span>
+      </button>
     </nav>
   </main>
 `;

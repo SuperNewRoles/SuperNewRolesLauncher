@@ -205,11 +205,17 @@ fn load_persisted_running_game_pid<R: Runtime>(app: &AppHandle<R>) -> Result<Opt
 
 #[cfg(windows)]
 fn is_pid_running(pid: u32) -> bool {
+    use std::os::windows::process::CommandExt;
+
+    // GUIプロセスからの tasklist 実行でコンソールが点滅しないよう抑止する。
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
     let filter = format!("PID eq {pid}");
-    let output = match Command::new("tasklist")
-        .args(["/FI", &filter, "/FO", "CSV", "/NH"])
-        .output()
-    {
+    let mut command = Command::new("tasklist");
+    command
+        .creation_flags(CREATE_NO_WINDOW)
+        .args(["/FI", &filter, "/FO", "CSV", "/NH"]);
+    let output = match command.output() {
         Ok(output) => output,
         Err(_) => return false,
     };
