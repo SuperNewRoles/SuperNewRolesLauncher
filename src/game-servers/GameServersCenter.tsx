@@ -75,6 +75,9 @@ export function GameServersCenter({
   const [selectedServerId, setSelectedServerId] = useState(() =>
     resolveGameServerById(initialSelectedServerId).id,
   );
+  const [roomsServerId, setRoomsServerId] = useState(() =>
+    resolveGameServerById(initialSelectedServerId).id,
+  );
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const [rooms, setRooms] = useState<GameServerRoom[]>([]);
   const [totalRooms, setTotalRooms] = useState(0);
@@ -122,6 +125,7 @@ export function GameServersCenter({
         }
         hasFetchedRef.current = true;
         setRooms(snapshot.rooms);
+        setRoomsServerId(snapshot.serverId);
         setTotalRooms(snapshot.totalRooms);
         setPublicRooms(snapshot.publicRooms);
         setLastUpdatedAt(snapshot.fetchedAt);
@@ -186,8 +190,8 @@ export function GameServersCenter({
       setJoinMessageTone("info");
       setJoinMessage(t("gameServers.joinJoining"));
       try {
-        const selectedServer = resolveGameServerById(selectedServerId);
-        const query = await buildJoinQuery(joinPayloadFromRoom(room, selectedServer.serverType));
+        const roomSourceServer = resolveGameServerById(roomsServerId);
+        const query = await buildJoinQuery(joinPayloadFromRoom(room, roomSourceServer.serverType));
         const result = await gameServersJoinDirect(query);
         if (result.ok) {
           setJoinMessageTone("success");
@@ -211,7 +215,7 @@ export function GameServersCenter({
         setJoiningRoomKey(null);
       }
     },
-    [selectedServerId, t],
+    [roomsServerId, t],
   );
 
   const joinMessageClassName =
@@ -303,6 +307,10 @@ export function GameServersCenter({
           </p>
         ) : (
           visibleRooms.map((room) => {
+            const isStartedRoom = room.gameState === 2;
+            const isFullRoom = room.maxPlayers > 0 && room.playerCount >= room.maxPlayers;
+            const isJoinUnavailable = isStartedRoom || isFullRoom;
+            const joinButtonDisabled = joiningRoomKey !== null || isJoinUnavailable;
             return (
               <article key={room.key} className="game-servers-room-card">
                 <header className="game-servers-room-header">
@@ -351,8 +359,10 @@ export function GameServersCenter({
                   </div>
                   <button
                     type="button"
-                    className="game-servers-room-join"
-                    disabled={joiningRoomKey !== null}
+                    className={`game-servers-room-join${
+                      isJoinUnavailable ? " game-servers-room-join-unavailable" : ""
+                    }`}
+                    disabled={joinButtonDisabled}
                     onClick={() => {
                       void handleJoin(room);
                     }}

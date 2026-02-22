@@ -6841,6 +6841,7 @@ body.locale-switch-animating {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 10px;
   align-content: flex-start;
+  align-items: start;
 }
 
 .game-servers-empty {
@@ -7017,6 +7018,14 @@ body.locale-switch-animating {
   flex: 0 0 auto;
 }
 
+.game-servers-room-join.game-servers-room-join-unavailable:disabled {
+  background: color-mix(in srgb, var(--muted) 24%, var(--card-strong));
+  border-color: color-mix(in srgb, var(--muted) 48%, var(--line));
+  color: color-mix(in srgb, var(--text) 56%, var(--muted));
+  opacity: 1;
+  filter: none;
+}
+
 .game-servers-room-details {
   border-top: 1px solid var(--line);
   padding-top: 8px;
@@ -7041,6 +7050,21 @@ body.locale-switch-animating {
 
 .game-servers-room-details-content-inner {
   overflow: hidden;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 180ms ease, transform 220ms ease;
+}
+
+.game-servers-room-details[open] .game-servers-room-details-content-inner {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-servers-room-details-content,
+  .game-servers-room-details-content-inner {
+    transition: none;
+  }
 }
 
 .game-servers-room-detail-grid {
