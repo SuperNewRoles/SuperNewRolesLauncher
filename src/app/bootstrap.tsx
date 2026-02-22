@@ -130,6 +130,10 @@ const BACKGROUND_NOTIFICATION_OPEN_EVENT = "background-notification-open";
 const ONBOARDING_SPOTLIGHT_CLASS = "onboarding-spotlight-target";
 const ONBOARDING_SPOTLIGHT_FOCUS_CLASS = "onboarding-spotlight-target-focus";
 const ONBOARDING_EXIT_ANIMATION_MS = 340;
+const LOCALE_PREFERRED_GAME_SERVER_IDS: Record<LocaleCode, string> = {
+  ja: "snr-jp",
+  en: "snr-useast",
+};
 type MainTabId = "home" | "report" | "announce" | "preset" | "servers" | "settings";
 type AvailableUpdate = NonNullable<Awaited<ReturnType<typeof check>>>;
 type SettingsCategoryId =
@@ -144,6 +148,15 @@ type MigrationOverlayStep = "select" | "password" | "processing" | "result";
 type PresetOverlayMode = "import" | "export";
 type PresetFeedbackMode = "none" | "confirmImport" | "result";
 const DEFAULT_SETTINGS_CATEGORY: SettingsCategoryId = "general";
+
+function resolveLocalePreferredGameServerId(locale: LocaleCode): string {
+  const preferredId = LOCALE_PREFERRED_GAME_SERVER_IDS[locale];
+  const preferredServer = modConfig.apis.gameServers.find((server) => server.id === preferredId);
+  if (preferredServer) {
+    return preferredServer.id;
+  }
+  return modConfig.apis.gameServers[0]?.id ?? "";
+}
 
 function isMainTabEnabled(tabId: MainTabId): boolean {
   // 機能フラグで非表示になるタブはここで一元判定する。
@@ -3461,7 +3474,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
   });
 
-  void settingsUpdate({ uiLocale: currentLocale }).catch(() => undefined);
+  void settingsUpdate({
+    uiLocale: currentLocale,
+    selectedGameServerId: resolveLocalePreferredGameServerId(currentLocale),
+  }).catch(() => undefined);
 
   replayOnboardingButton.addEventListener("click", () => {
     mountOnboarding();
@@ -3495,7 +3511,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     try {
       saveLocale(nextLocale);
 
-      await settingsUpdate({ uiLocale: nextLocale });
+      await settingsUpdate({
+        uiLocale: nextLocale,
+        selectedGameServerId: resolveLocalePreferredGameServerId(nextLocale),
+      });
     } catch {
       // ignore backend locale sync failures
     }

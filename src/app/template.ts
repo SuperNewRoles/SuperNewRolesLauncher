@@ -499,12 +499,12 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
         ${t("report.title")}
         <span id="report-tab-badge" class="report-center-badge report-tab-badge" aria-hidden="true"></span>
       </button>
+      <button type="button" class="tab-bar-item" data-tab="servers" role="tab" aria-selected="false"${gameServersHiddenAttr}>${t("gameServers.tab")}</button>
       <button type="button" class="tab-bar-item tab-bar-item-announce" data-tab="announce" role="tab" aria-selected="false"${announceHiddenAttr}>
         ${t("announce.tab")}
         <span id="announce-tab-badge" class="report-center-badge announce-tab-badge" aria-hidden="true"></span>
       </button>
       <button type="button" class="tab-bar-item" data-tab="preset" role="tab" aria-selected="false"${presetHiddenAttr}>${t("preset.tab")}</button>
-      <button type="button" class="tab-bar-item" data-tab="servers" role="tab" aria-selected="false"${gameServersHiddenAttr}>${t("gameServers.tab")}</button>
       <button type="button" class="tab-bar-item" data-tab="settings" role="tab" aria-selected="false">${t("settings.tab")}</button>
     </nav>
   </main>

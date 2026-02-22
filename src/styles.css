@@ -379,6 +379,12 @@ body {
   color: var(--warning);
 }
 
+.badge.danger {
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--line) 58%);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+}
+
 input,
 textarea,
 select,
@@ -3276,6 +3282,10 @@ progress {
   gap: 20px;
 }
 
+#tab-servers .tab-inner {
+  padding: 10px 0 36px;
+}
+
 #tab-report .tab-inner {
   flex: 1 1 auto;
   height: 100%;
@@ -3307,7 +3317,7 @@ progress {
   display: block;
   overflow: auto;
   box-sizing: border-box;
-  padding: 0 0 calc(128px + env(safe-area-inset-bottom));
+  padding: 0 0 calc(96px + env(safe-area-inset-bottom));
 }
 
 .tab-settings-scroll {
@@ -6728,7 +6738,7 @@ body.locale-switch-animating {
   display: grid;
   gap: 14px;
   min-height: 0;
-  padding: 24px 2px 0;
+  padding: 10px 2px 0;
 }
 
 .game-servers-toolbar {
@@ -6866,18 +6876,93 @@ body.locale-switch-animating {
   overflow-wrap: anywhere;
 }
 
-.game-servers-room-subtitle {
-  margin: 2px 0 0;
-  color: var(--muted);
-  font-size: 12px;
-  overflow-wrap: anywhere;
+.game-servers-room-badges {
+  display: grid;
+  gap: 6px;
+  justify-items: flex-end;
 }
 
-.game-servers-room-badges {
+.game-servers-room-players {
+  min-width: 0;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--accent) 28%);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-soft) 30%, var(--card-strong));
+  padding: 6px 10px;
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.game-servers-room-players-meta {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  justify-content: flex-end;
+  min-width: 0;
+}
+
+.game-servers-room-state-badge {
+  padding: 1px 7px;
+  font-size: 11px;
+}
+
+.game-servers-room-players-label {
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.game-servers-room-players-value-wrap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.game-servers-room-players-value {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text);
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.game-servers-room-players-value > span {
+  margin-left: 1px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.game-servers-room-priority-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.game-servers-room-priority-item {
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
+  background: color-mix(in srgb, var(--accent-soft) 48%, var(--card-strong));
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 2px;
+}
+
+.game-servers-room-priority-label {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+.game-servers-room-priority-value {
+  font-size: 17px;
+  line-height: 1.2;
+  color: var(--text);
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
 }
 
 .game-servers-room-join-row {
@@ -6887,22 +6972,46 @@ body.locale-switch-animating {
   gap: 10px;
 }
 
+.game-servers-room-join-meta {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.game-servers-room-code-wrap {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.game-servers-room-code-label {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .game-servers-room-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
-  font-size: 13px;
-  letter-spacing: 0.06em;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--text) 80%, var(--muted));
+  overflow-wrap: anywhere;
+}
+
+.game-servers-room-language {
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--text) 80%, var(--muted));
+  overflow-wrap: anywhere;
 }
 
 .game-servers-room-join {
   flex: 0 0 auto;
-}
-
-.game-servers-room-meta {
-  display: grid;
-  gap: 2px;
-  font-size: 12px;
-  color: var(--muted);
 }
 
 .game-servers-room-details {
@@ -7121,7 +7230,12 @@ body.locale-switch-animating {
   }
 
   .game-servers-room-badges {
-    justify-content: flex-start;
+    justify-items: flex-start;
+    width: 100%;
+  }
+
+  .game-servers-room-priority-meta {
+    grid-template-columns: 1fr;
   }
 
   .game-servers-room-detail-grid {

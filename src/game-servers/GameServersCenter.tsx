@@ -298,78 +298,110 @@ export function GameServersCenter({
             {isLoading ? t("gameServers.statusLoading") : t("gameServers.empty")}
           </p>
         ) : (
-          visibleRooms.map((room) => (
-            <article key={room.key} className="game-servers-room-card">
-              <header className="game-servers-room-header">
-                <div className="game-servers-room-heading">
-                  <h3 className="game-servers-room-title">{room.trueHostName}</h3>
-                  <p className="game-servers-room-subtitle">
-                    {t("gameServers.hostName", { host: room.hostName })}
-                  </p>
-                </div>
+          visibleRooms.map((room) => {
+            return (
+              <article key={room.key} className="game-servers-room-card">
+                <header className="game-servers-room-header">
+                  <div className="game-servers-room-heading">
+                    <h3 className="game-servers-room-title">{room.trueHostName}</h3>
+                  </div>
                 <div className="game-servers-room-badges">
-                  <span className={`badge${room.gameState === 0 ? " success" : ""}`}>
-                    {formatGameState(room.gameState, t)}
-                  </span>
-                  <span className="badge">
-                    {t("gameServers.players", { current: room.playerCount, max: room.maxPlayers })}
-                  </span>
+                  <div
+                    className="game-servers-room-players"
+                    role="img"
+                    aria-label={t("gameServers.players", {
+                      current: room.playerCount,
+                      max: room.maxPlayers,
+                    })}
+                  >
+                    <div className="game-servers-room-players-meta">
+                      <span
+                        className={`badge game-servers-room-state-badge${
+                          room.gameState === 0 ? " success" : room.gameState === 2 ? " danger" : ""
+                        }`}
+                      >
+                        {formatGameState(room.gameState, t)}
+                      </span>
+                    </div>
+                    <span className="game-servers-room-players-value-wrap">
+                      <span className="game-servers-room-players-label">{t("gameServers.playersLabel")}</span>
+                      <strong className="game-servers-room-players-value">
+                        {room.playerCount}
+                        <span>/{room.maxPlayers}</span>
+                      </strong>
+                    </span>
+                  </div>
                 </div>
               </header>
 
-              <div className="game-servers-room-join-row">
-                <code className="game-servers-room-code">{formatGameId(room.gameId)}</code>
-                <button
-                  type="button"
-                  className="game-servers-room-join"
-                  disabled={joiningRoomKey !== null}
-                  onClick={() => {
-                    void handleJoin(room);
-                  }}
-                >
-                  {joiningRoomKey === room.key ? t("gameServers.joinJoining") : t("gameServers.join")}
-                </button>
-              </div>
+                <div className="game-servers-room-join-row">
+                  <div className="game-servers-room-join-meta">
+                    <div className="game-servers-room-code-wrap">
+                      <span className="game-servers-room-code-label">{t("gameServers.roomCodeLabel")}</span>
+                      <code className="game-servers-room-code">{formatGameId(room.gameId)}</code>
+                    </div>
+                    <div className="game-servers-room-code-wrap">
+                      <span className="game-servers-room-code-label">{t("gameServers.languageLabel")}</span>
+                      <span className="game-servers-room-language">{room.language}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="game-servers-room-join"
+                    disabled={joiningRoomKey !== null}
+                    onClick={() => {
+                      void handleJoin(room);
+                    }}
+                  >
+                    {joiningRoomKey === room.key ? t("gameServers.joinJoining") : t("gameServers.join")}
+                  </button>
+                </div>
 
-              <div className="game-servers-room-meta">
-                <span>{t("gameServers.mapId", { map: room.mapId })}</span>
-                <span>
-                  {t("gameServers.impostors", {
-                    count: room.numImpostors ?? t("common.unset"),
-                  })}
-                </span>
-                <span>{t("gameServers.language", { language: room.language })}</span>
-              </div>
-
-              <details className="game-servers-room-details">
-                <summary>{t("gameServers.details")}</summary>
-                <div className="game-servers-room-details-content">
-                  <div className="game-servers-room-details-content-inner">
-                    <dl className="game-servers-room-detail-grid">
-                      <div>
-                        <dt>{t("gameServers.detail.ipPort")}</dt>
-                        <dd>
-                          {room.ipBigEndian}:{room.port}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>{t("gameServers.detail.platform")}</dt>
-                        <dd>{room.platform}</dd>
-                      </div>
-                      <div>
-                        <dt>{t("gameServers.detail.gameState")}</dt>
-                        <dd>{formatGameState(room.gameState, t)}</dd>
-                      </div>
-                      <div>
-                        <dt>{t("gameServers.detail.quickChat")}</dt>
-                        <dd>{formatQuickChat(room.quickChat, t)}</dd>
-                      </div>
-                    </dl>
+                <div className="game-servers-room-priority-meta">
+                  <div className="game-servers-room-priority-item">
+                    <span className="game-servers-room-priority-label">{t("gameServers.mapShort")}</span>
+                    <strong className="game-servers-room-priority-value">{room.mapId}</strong>
+                  </div>
+                  <div className="game-servers-room-priority-item">
+                    <span className="game-servers-room-priority-label">
+                      {t("gameServers.impostorsShort")}
+                    </span>
+                    <strong className="game-servers-room-priority-value">
+                      {room.numImpostors ?? t("common.unset")}
+                    </strong>
                   </div>
                 </div>
-              </details>
-            </article>
-          ))
+
+                <details className="game-servers-room-details">
+                  <summary>{t("gameServers.details")}</summary>
+                  <div className="game-servers-room-details-content">
+                    <div className="game-servers-room-details-content-inner">
+                      <dl className="game-servers-room-detail-grid">
+                        <div>
+                          <dt>{t("gameServers.detail.ipPort")}</dt>
+                          <dd>
+                            {room.ipBigEndian}:{room.port}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>{t("gameServers.detail.platform")}</dt>
+                          <dd>{room.platform}</dd>
+                        </div>
+                        <div>
+                          <dt>{t("gameServers.detail.gameState")}</dt>
+                          <dd>{formatGameState(room.gameState, t)}</dd>
+                        </div>
+                        <div>
+                          <dt>{t("gameServers.detail.quickChat")}</dt>
+                          <dd>{formatQuickChat(room.quickChat, t)}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+                </details>
+              </article>
+            );
+          })
         )}
       </section>
     </div>

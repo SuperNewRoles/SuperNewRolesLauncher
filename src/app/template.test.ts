@@ -27,6 +27,14 @@ describe("renderAppTemplate (settings general)", () => {
     expect(html).toContain('data-tab="servers"');
   });
 
+  it("places matchmaking tab to the right of report tab", () => {
+    const document = new DOMParser().parseFromString(html, "text/html");
+    const tabBarItems = Array.from(document.querySelectorAll(".tab-bar .tab-bar-item"));
+    const tabOrder = tabBarItems.map((item) => item.getAttribute("data-tab"));
+
+    expect(tabOrder).toEqual(["home", "report", "servers", "announce", "preset", "settings"]);
+  });
+
   it("includes among us reselect and uninstall overlays", () => {
     expect(html).toContain('id="settings-among-us-overlay"');
     expect(html).toContain('id="settings-among-us-candidate-list"');
