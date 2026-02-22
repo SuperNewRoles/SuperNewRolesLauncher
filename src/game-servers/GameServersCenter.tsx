@@ -80,8 +80,8 @@ export function GameServersCenter({
   );
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const [rooms, setRooms] = useState<GameServerRoom[]>([]);
-  const [totalRooms, setTotalRooms] = useState(0);
-  const [publicRooms, setPublicRooms] = useState(0);
+  const [totalRooms, setTotalRooms] = useState<number | null>(null);
+  const [publicRooms, setPublicRooms] = useState<number | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -118,6 +118,8 @@ export function GameServersCenter({
       setErrorMessage("");
       setIsLoading(true);
       setRooms([]);
+      setTotalRooms(null);
+      setPublicRooms(null);
 
       try {
         const snapshot = await fetchGameServerRooms(selectedServerId);
@@ -136,6 +138,8 @@ export function GameServersCenter({
           return;
         }
         setErrorMessage(t("gameServers.statusLoadFailed", { error: formatActionError(error) }));
+        setTotalRooms(null);
+        setPublicRooms(null);
       } finally {
         if (isMountedRef.current && requestId === latestRefreshRequestIdRef.current) {
           setIsLoading(false);
@@ -174,6 +178,9 @@ export function GameServersCenter({
         return;
       }
       setSelectedServerId(resolvedServerId);
+      setTotalRooms(null);
+      setPublicRooms(null);
+      setLastUpdatedAt(null);
       setJoinMessage("");
       if (!onSelectedServerIdChange) {
         return;
@@ -286,11 +293,11 @@ export function GameServersCenter({
       <section className="game-servers-stats">
         <article className="game-servers-stat-card">
           <span className="game-servers-stat-label">{t("gameServers.stats.total")}</span>
-          <strong className="game-servers-stat-value">{totalRooms}</strong>
+          <strong className="game-servers-stat-value">{totalRooms ?? "-"}</strong>
         </article>
         <article className="game-servers-stat-card">
           <span className="game-servers-stat-label">{t("gameServers.stats.public")}</span>
-          <strong className="game-servers-stat-value">{publicRooms}</strong>
+          <strong className="game-servers-stat-value">{publicRooms ?? "-"}</strong>
         </article>
       </section>
 
