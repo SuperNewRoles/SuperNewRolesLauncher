@@ -1085,17 +1085,16 @@ pub fn merge_preserved_savedata_presets_into_profile<R: Runtime>(
     let source_save_data_path = preserved_save_data_path(app)?.join(save_data_root());
     let source_options_path = source_save_data_path.join(OPTIONS_DATA_FILE_NAME);
 
-    let imported_presets = if path_is_missing(&source_save_data_path)?
-        || path_is_missing(&source_options_path)?
-    {
-        0
-    } else {
-        match presets::import_presets_from_save_data_dir(app, &source_save_data_path) {
-            Ok(imported) => imported.imported_presets,
-            Err(error) if error == NO_IMPORTABLE_PRESETS_ERROR => 0,
-            Err(error) => return Err(error),
-        }
-    };
+    let imported_presets =
+        if path_is_missing(&source_save_data_path)? || path_is_missing(&source_options_path)? {
+            0
+        } else {
+            match presets::import_presets_from_save_data_dir(app, &source_save_data_path) {
+                Ok(imported) => imported.imported_presets,
+                Err(error) if error == NO_IMPORTABLE_PRESETS_ERROR => 0,
+                Err(error) => return Err(error),
+            }
+        };
 
     Ok(SaveDataPresetMergeResult {
         source_save_data_path: source_save_data_path.to_string_lossy().to_string(),
@@ -1474,7 +1473,9 @@ mod tests {
 
     #[test]
     fn not_found_io_error_is_classified() {
-        assert!(is_not_found_io_error(&io::Error::from(io::ErrorKind::NotFound)));
+        assert!(is_not_found_io_error(&io::Error::from(
+            io::ErrorKind::NotFound
+        )));
         assert!(!is_not_found_io_error(&io::Error::from(
             io::ErrorKind::PermissionDenied
         )));
@@ -1487,10 +1488,8 @@ mod tests {
         fs::create_dir_all(&path).expect("failed to create temp dir");
 
         assert!(!path_is_missing(&path).expect("existing path should be readable"));
-        assert!(
-            path_is_missing(&path.join("does-not-exist"))
-                .expect("missing path should return skippable true")
-        );
+        assert!(path_is_missing(&path.join("does-not-exist"))
+            .expect("missing path should return skippable true"));
 
         let _ = fs::remove_dir_all(&path);
     }

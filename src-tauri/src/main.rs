@@ -342,40 +342,38 @@ fn setup_tray<R: tauri::Runtime>(
     let tray_webview_destroy_state_for_tray = tray_webview_destroy_state.clone();
     let mut tray_builder = TrayIconBuilder::with_id(TRAY_ID)
         .tooltip(mod_profile.branding.tray_tooltip.clone())
-        .on_tray_icon_event(move |tray, event| {
-            match event {
-                TrayIconEvent::Click {
-                    button: MouseButton::Left,
-                    button_state: MouseButtonState::Down,
-                    ..
-                } => {
-                    hide_tray_menu_window(tray.app_handle());
-                    tray_webview_destroy_state_for_tray.cancel_pending();
-                    let _ = get_or_create_main_window(tray.app_handle());
-                }
-                TrayIconEvent::Click {
-                    button: MouseButton::Left,
-                    button_state: MouseButtonState::Up,
-                    ..
-                } => {
-                    hide_tray_menu_window(tray.app_handle());
-                    show_main_window(tray.app_handle(), &tray_webview_destroy_state_for_tray);
-                }
-                TrayIconEvent::Click {
-                    button: MouseButton::Right,
-                    button_state: MouseButtonState::Up,
-                    position,
-                    ..
-                } => {
-                    tray_webview_destroy_state_for_tray.cancel_pending();
-                    if is_tray_menu_visible(tray.app_handle()) {
-                        hide_tray_menu_window(tray.app_handle());
-                    } else {
-                        show_tray_menu_window(tray.app_handle(), position);
-                    }
-                }
-                _ => {}
+        .on_tray_icon_event(move |tray, event| match event {
+            TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Down,
+                ..
+            } => {
+                hide_tray_menu_window(tray.app_handle());
+                tray_webview_destroy_state_for_tray.cancel_pending();
+                let _ = get_or_create_main_window(tray.app_handle());
             }
+            TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } => {
+                hide_tray_menu_window(tray.app_handle());
+                show_main_window(tray.app_handle(), &tray_webview_destroy_state_for_tray);
+            }
+            TrayIconEvent::Click {
+                button: MouseButton::Right,
+                button_state: MouseButtonState::Up,
+                position,
+                ..
+            } => {
+                tray_webview_destroy_state_for_tray.cancel_pending();
+                if is_tray_menu_visible(tray.app_handle()) {
+                    hide_tray_menu_window(tray.app_handle());
+                } else {
+                    show_tray_menu_window(tray.app_handle(), position);
+                }
+            }
+            _ => {}
         });
 
     if let Some(icon) = app.default_window_icon() {

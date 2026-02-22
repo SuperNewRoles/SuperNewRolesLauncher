@@ -51,17 +51,13 @@ pub async fn join_direct(query: String) -> Result<GameServerJoinDirectResult, St
         .map_err(|_| JOIN_LOCALHOST_ERROR.to_string())?;
 
     let url = direct_join_url(&query);
-    let response = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|error| {
-            if error.is_connect() || error.is_timeout() {
-                JOIN_LOCALHOST_UNREACHABLE_ERROR.to_string()
-            } else {
-                JOIN_LOCALHOST_ERROR.to_string()
-            }
-        })?;
+    let response = client.get(&url).send().await.map_err(|error| {
+        if error.is_connect() || error.is_timeout() {
+            JOIN_LOCALHOST_UNREACHABLE_ERROR.to_string()
+        } else {
+            JOIN_LOCALHOST_ERROR.to_string()
+        }
+    })?;
 
     let status = response.status().as_u16();
     let message = response

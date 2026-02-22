@@ -329,15 +329,18 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
     non_empty("apis.reportingBaseUrl", &profile.apis.reporting_base_url)?;
     non_empty("apis.reportingTermsUrl", &profile.apis.reporting_terms_url)?;
     if profile.apis.game_servers.is_empty() {
-        return Err("Invalid mod config: apis.gameServers must contain at least one entry."
-            .to_string());
+        return Err(
+            "Invalid mod config: apis.gameServers must contain at least one entry.".to_string(),
+        );
     }
     let mut seen_game_server_ids = HashSet::new();
     for (idx, server) in profile.apis.game_servers.iter_mut().enumerate() {
         non_empty(&format!("apis.gameServers[{idx}].id"), &server.id)?;
         let id = server.id.trim().to_string();
         if !seen_game_server_ids.insert(id.clone()) {
-            return Err(format!("Invalid mod config: duplicate apis.gameServers id '{id}'"));
+            return Err(format!(
+                "Invalid mod config: duplicate apis.gameServers id '{id}'"
+            ));
         }
         server.id = id;
         non_empty(&format!("apis.gameServers[{idx}].label"), &server.label)?;
@@ -369,7 +372,10 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
         .trim()
         .trim_end_matches('/')
         .to_string();
-    non_empty("apis.joinDirect.joinPath", &profile.apis.join_direct.join_path)?;
+    non_empty(
+        "apis.joinDirect.joinPath",
+        &profile.apis.join_direct.join_path,
+    )?;
     let join_path = profile.apis.join_direct.join_path.trim().to_string();
     profile.apis.join_direct.join_path = if join_path.starts_with('/') {
         join_path
@@ -379,18 +385,21 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
     non_empty("apis.joinDirect.aesKey", &profile.apis.join_direct.aes_key)?;
     profile.apis.join_direct.aes_key = profile.apis.join_direct.aes_key.trim().to_string();
     if profile.apis.join_direct.aes_key.as_bytes().len() != 16 {
-        return Err("Invalid mod config: apis.joinDirect.aesKey must be exactly 16 bytes."
-            .to_string());
+        return Err(
+            "Invalid mod config: apis.joinDirect.aesKey must be exactly 16 bytes.".to_string(),
+        );
     }
     non_empty("apis.joinDirect.aesIv", &profile.apis.join_direct.aes_iv)?;
     profile.apis.join_direct.aes_iv = profile.apis.join_direct.aes_iv.trim().to_string();
     if profile.apis.join_direct.aes_iv.as_bytes().len() != 16 {
-        return Err("Invalid mod config: apis.joinDirect.aesIv must be exactly 16 bytes."
-            .to_string());
+        return Err(
+            "Invalid mod config: apis.joinDirect.aesIv must be exactly 16 bytes.".to_string(),
+        );
     }
     if profile.apis.join_direct.timeout_ms == 0 {
-        return Err("Invalid mod config: apis.joinDirect.timeoutMs must be greater than 0."
-            .to_string());
+        return Err(
+            "Invalid mod config: apis.joinDirect.timeoutMs must be greater than 0.".to_string(),
+        );
     }
 
     non_empty("links.wikiUrl", &profile.links.wiki_url)?;
@@ -506,5 +515,9 @@ pub fn local_low_root_path() -> PathBuf {
 }
 
 pub fn default_game_server_id() -> Option<&'static str> {
-    get().apis.game_servers.first().map(|server| server.id.as_str())
+    get()
+        .apis
+        .game_servers
+        .first()
+        .map(|server| server.id.as_str())
 }
