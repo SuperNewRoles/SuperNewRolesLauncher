@@ -303,13 +303,7 @@
         "joinDirect": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "localhostBaseUrl",
-            "joinPath",
-            "aesKey",
-            "aesIv",
-            "timeoutMs"
-          ],
+          "required": ["localhostBaseUrl", "joinPath", "aesKey", "aesIv", "timeoutMs"],
           "properties": {
             "localhostBaseUrl": {
               "type": "string",

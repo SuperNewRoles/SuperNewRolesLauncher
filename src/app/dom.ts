@@ -204,7 +204,9 @@ export function collectAppDom(): AppDom {
     settingsUpdateConfirmAcceptButton: mustElement<HTMLButtonElement>(
       "#settings-update-confirm-accept",
     ),
-    settingsUpdateConfirmMessage: mustElement<HTMLParagraphElement>("#settings-update-confirm-message"),
+    settingsUpdateConfirmMessage: mustElement<HTMLParagraphElement>(
+      "#settings-update-confirm-message",
+    ),
     settingsMigrationOverlay: optionalElement("#settings-migration-overlay", "div"),
     settingsMigrationOverlayBackdrop: optionalElement(
       "#settings-migration-overlay-backdrop",

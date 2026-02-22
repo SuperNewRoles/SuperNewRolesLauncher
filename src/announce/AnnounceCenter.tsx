@@ -536,7 +536,15 @@ export function AnnounceCenter({
                             preload="metadata"
                             playsInline
                             aria-label={alt || undefined}
-                          />
+                          >
+                            <track
+                              kind="captions"
+                              src="data:text/vtt;charset=utf-8,WEBVTT"
+                              srcLang="en"
+                              label={alt ?? "Captions"}
+                              default
+                            />
+                          </video>
                         );
                       }
                       return <img src={src} alt={alt ?? ""} title={title} loading="lazy" />;

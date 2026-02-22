@@ -438,7 +438,8 @@ const ja = {
   "update.checking": "更新を確認中...",
   "update.latest": "最新バージョンです。",
   "update.confirmTitle": "アップデート確認",
-  "update.confirmPrompt": "Launcher v{version} が利用可能です。今すぐダウンロードして適用しますか？",
+  "update.confirmPrompt":
+    "Launcher v{version} が利用可能です。今すぐダウンロードして適用しますか？",
   "update.confirmInstall": "アップデートする",
   "update.skipped": "更新 v{version} は未適用です。",
   "update.downloading": "更新をダウンロード中...",

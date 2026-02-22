@@ -72,11 +72,11 @@ export function GameServersCenter({
   initialSelectedServerId,
   onSelectedServerIdChange,
 }: GameServersCenterProps) {
-  const [selectedServerId, setSelectedServerId] = useState(() =>
-    resolveGameServerById(initialSelectedServerId).id,
+  const [selectedServerId, setSelectedServerId] = useState(
+    () => resolveGameServerById(initialSelectedServerId).id,
   );
-  const [roomsServerId, setRoomsServerId] = useState(() =>
-    resolveGameServerById(initialSelectedServerId).id,
+  const [roomsServerId, setRoomsServerId] = useState(
+    () => resolveGameServerById(initialSelectedServerId).id,
   );
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const [rooms, setRooms] = useState<GameServerRoom[]>([]);
@@ -306,13 +306,11 @@ export function GameServersCenter({
 
       <section className="game-servers-room-list" aria-live="polite">
         {isLoading ? (
-          <div className="game-servers-loading" role="status" aria-live="polite">
+          <output className="game-servers-loading" aria-live="polite">
             <span className="game-servers-loading-spinner" aria-hidden="true" />
-          </div>
+          </output>
         ) : visibleRooms.length === 0 ? (
-          <p className="game-servers-empty muted">
-            {t("gameServers.empty")}
-          </p>
+          <p className="game-servers-empty muted">{t("gameServers.empty")}</p>
         ) : (
           visibleRooms.map((room) => {
             const isStartedRoom = room.gameState === 2;

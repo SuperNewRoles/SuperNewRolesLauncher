@@ -66,9 +66,7 @@ describe("game-servers/join", () => {
 
     expect(await decryptJoinValue(params.get("serverIP") ?? "")).toBe("4.3.2.1");
     expect(await decryptJoinValue(params.get("serverPort") ?? "")).toBe("22023");
-    expect(await decryptJoinValue(params.get("serverType") ?? "")).toBe(
-      String(defaultServerType),
-    );
+    expect(await decryptJoinValue(params.get("serverType") ?? "")).toBe(String(defaultServerType));
     expect(await decryptJoinValue(params.get("gameID") ?? "")).toBe("-1819931171");
   });
 

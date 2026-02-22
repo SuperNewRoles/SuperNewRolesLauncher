@@ -1,14 +1,14 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { applyTheme, getStoredTheme, initTheme } from "../app/theme";
-import snrLogo from "../assets/snr_logo.png";
 import {
   settingsGet,
   trayExitApp,
   trayLaunchModded,
   trayShowMainWindow,
 } from "../app/services/tauriClient";
+import { applyTheme, getStoredTheme, initTheme } from "../app/theme";
+import snrLogo from "../assets/snr_logo.png";
 
 type TrayLocale = "ja" | "en";
 
@@ -86,7 +86,9 @@ function TrayMenuApp() {
 
   useEffect(() => {
     const hideSelf = () => {
-      void getCurrentWindow().hide().catch(() => undefined);
+      void getCurrentWindow()
+        .hide()
+        .catch(() => undefined);
     };
     const handleKeydown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") {
@@ -116,7 +118,9 @@ function TrayMenuApp() {
     } catch {
       // command 側で失敗時に処理されるため、UIは静かに閉じる。
     } finally {
-      await getCurrentWindow().hide().catch(() => undefined);
+      await getCurrentWindow()
+        .hide()
+        .catch(() => undefined);
       setRunningAction(false);
     }
   };
@@ -128,7 +132,9 @@ function TrayMenuApp() {
         if (event.target !== event.currentTarget) {
           return;
         }
-        void getCurrentWindow().hide().catch(() => undefined);
+        void getCurrentWindow()
+          .hide()
+          .catch(() => undefined);
       }}
     >
       <div

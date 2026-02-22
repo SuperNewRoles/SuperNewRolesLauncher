@@ -133,9 +133,7 @@ async function requestRooms(url: URL): Promise<GameServerRoomsApiResponse> {
   return (await response.json()) as GameServerRoomsApiResponse;
 }
 
-export function resolveGameServerById(
-  serverId: string | null | undefined,
-): GameServerCatalogEntry {
+export function resolveGameServerById(serverId: string | null | undefined): GameServerCatalogEntry {
   const catalog = ensureCatalogNotEmpty();
   const fallback = catalog[0];
   const normalizedId = serverId?.trim();

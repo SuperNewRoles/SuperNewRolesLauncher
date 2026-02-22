@@ -1,7 +1,4 @@
-import {
-  GAME_SERVER_JOIN_DIRECT_CONFIG,
-  type GameServerJoinDirectConfig,
-} from "../app/modConfig";
+import { GAME_SERVER_JOIN_DIRECT_CONFIG, type GameServerJoinDirectConfig } from "../app/modConfig";
 import type { GameServerRoom } from "./types";
 
 const GAME_NAME_ALPHABET_V2 = "QWXRTYLPESDFGHUJKZOCVBINMA";
@@ -96,7 +93,11 @@ function decodeGameIdBytes(value: number): string {
     (value >>> 24) & 0xff,
   ]);
   const decoded = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
-  const trimmed = decoded.replace(/\u0000+$/gu, "");
+  let end = decoded.length;
+  while (end > 0 && decoded.charCodeAt(end - 1) === 0) {
+    end--;
+  }
+  const trimmed = decoded.slice(0, end);
   return trimmed.length > 0 ? trimmed : String(value);
 }
 
