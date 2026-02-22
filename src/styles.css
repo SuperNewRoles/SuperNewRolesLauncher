@@ -6844,6 +6844,23 @@ body.locale-switch-animating {
   align-items: start;
 }
 
+.game-servers-loading {
+  grid-column: 1 / -1;
+  min-height: clamp(220px, 36vh, 420px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-servers-loading-spinner {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--line) 74%, #a7adb7);
+  border-top-color: var(--accent);
+  animation: spin 0.88s linear infinite;
+}
+
 .game-servers-empty {
   margin: 0;
   border: 1px dashed var(--line);

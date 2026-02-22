@@ -117,6 +117,7 @@ export function GameServersCenter({
       }
       setErrorMessage("");
       setIsLoading(true);
+      setRooms([]);
 
       try {
         const snapshot = await fetchGameServerRooms(selectedServerId);
@@ -169,6 +170,9 @@ export function GameServersCenter({
   const handleServerSelect = useCallback(
     async (nextServerId: string) => {
       const resolvedServerId = resolveGameServerById(nextServerId).id;
+      if (resolvedServerId === selectedServerId) {
+        return;
+      }
       setSelectedServerId(resolvedServerId);
       setJoinMessage("");
       if (!onSelectedServerIdChange) {
@@ -181,7 +185,7 @@ export function GameServersCenter({
         setJoinMessage(t("gameServers.serverSaveFailed", { error: formatActionError(error) }));
       }
     },
-    [onSelectedServerIdChange, t],
+    [onSelectedServerIdChange, selectedServerId, t],
   );
 
   const handleJoin = useCallback(
@@ -229,11 +233,11 @@ export function GameServersCenter({
     : statusMessage
       ? { text: statusMessage, className: "status-line" }
       : joinMessage
-      ? { text: joinMessage, className: joinMessageClassName }
-      : null;
+        ? { text: joinMessage, className: joinMessageClassName }
+        : null;
 
   return (
-    <div className="game-servers-center">
+    <div className="game-servers-center" aria-busy={isLoading}>
       <header className="game-servers-toolbar">
         <div className="game-servers-controls">
           <label className="game-servers-control-field" htmlFor="game-servers-select">
@@ -301,9 +305,13 @@ export function GameServersCenter({
       </section>
 
       <section className="game-servers-room-list" aria-live="polite">
-        {visibleRooms.length === 0 ? (
+        {isLoading ? (
+          <div className="game-servers-loading" role="status" aria-live="polite">
+            <span className="game-servers-loading-spinner" aria-hidden="true" />
+          </div>
+        ) : visibleRooms.length === 0 ? (
           <p className="game-servers-empty muted">
-            {isLoading ? t("gameServers.statusLoading") : t("gameServers.empty")}
+            {t("gameServers.empty")}
           </p>
         ) : (
           visibleRooms.map((room) => {
@@ -317,43 +325,53 @@ export function GameServersCenter({
                   <div className="game-servers-room-heading">
                     <h3 className="game-servers-room-title">{room.trueHostName}</h3>
                   </div>
-                <div className="game-servers-room-badges">
-                  <div
-                    className="game-servers-room-players"
-                    role="img"
-                    aria-label={t("gameServers.players", {
-                      current: room.playerCount,
-                      max: room.maxPlayers,
-                    })}
-                  >
-                    <div className="game-servers-room-players-meta">
-                      <span
-                        className={`badge game-servers-room-state-badge${
-                          room.gameState === 0 ? " success" : room.gameState === 2 ? " danger" : ""
-                        }`}
-                      >
-                        {formatGameState(room.gameState, t)}
+                  <div className="game-servers-room-badges">
+                    <div
+                      className="game-servers-room-players"
+                      role="img"
+                      aria-label={t("gameServers.players", {
+                        current: room.playerCount,
+                        max: room.maxPlayers,
+                      })}
+                    >
+                      <div className="game-servers-room-players-meta">
+                        <span
+                          className={`badge game-servers-room-state-badge${
+                            room.gameState === 0
+                              ? " success"
+                              : room.gameState === 2
+                                ? " danger"
+                                : ""
+                          }`}
+                        >
+                          {formatGameState(room.gameState, t)}
+                        </span>
+                      </div>
+                      <span className="game-servers-room-players-value-wrap">
+                        <span className="game-servers-room-players-label">
+                          {t("gameServers.playersLabel")}
+                        </span>
+                        <strong className="game-servers-room-players-value">
+                          {room.playerCount}
+                          <span>/{room.maxPlayers}</span>
+                        </strong>
                       </span>
                     </div>
-                    <span className="game-servers-room-players-value-wrap">
-                      <span className="game-servers-room-players-label">{t("gameServers.playersLabel")}</span>
-                      <strong className="game-servers-room-players-value">
-                        {room.playerCount}
-                        <span>/{room.maxPlayers}</span>
-                      </strong>
-                    </span>
                   </div>
-                </div>
-              </header>
+                </header>
 
                 <div className="game-servers-room-join-row">
                   <div className="game-servers-room-join-meta">
                     <div className="game-servers-room-code-wrap">
-                      <span className="game-servers-room-code-label">{t("gameServers.roomCodeLabel")}</span>
+                      <span className="game-servers-room-code-label">
+                        {t("gameServers.roomCodeLabel")}
+                      </span>
                       <code className="game-servers-room-code">{formatGameId(room.gameId)}</code>
                     </div>
                     <div className="game-servers-room-code-wrap">
-                      <span className="game-servers-room-code-label">{t("gameServers.languageLabel")}</span>
+                      <span className="game-servers-room-code-label">
+                        {t("gameServers.languageLabel")}
+                      </span>
                       <span className="game-servers-room-language">{room.language}</span>
                     </div>
                   </div>
@@ -367,13 +385,17 @@ export function GameServersCenter({
                       void handleJoin(room);
                     }}
                   >
-                    {joiningRoomKey === room.key ? t("gameServers.joinJoining") : t("gameServers.join")}
+                    {joiningRoomKey === room.key
+                      ? t("gameServers.joinJoining")
+                      : t("gameServers.join")}
                   </button>
                 </div>
 
                 <div className="game-servers-room-priority-meta">
                   <div className="game-servers-room-priority-item">
-                    <span className="game-servers-room-priority-label">{t("gameServers.mapShort")}</span>
+                    <span className="game-servers-room-priority-label">
+                      {t("gameServers.mapShort")}
+                    </span>
                     <strong className="game-servers-room-priority-value">{room.mapId}</strong>
                   </div>
                   <div className="game-servers-room-priority-item">
