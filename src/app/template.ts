@@ -428,6 +428,27 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
         </section>
       </div>
 
+      <div id="settings-elevation-confirm-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
+        <div id="settings-elevation-confirm-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
+        <section
+          class="settings-fullscreen-overlay-panel settings-update-confirm-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-elevation-confirm-title"
+          aria-describedby="settings-elevation-confirm-message"
+        >
+          <header class="settings-fullscreen-overlay-header">
+            <h2 id="settings-elevation-confirm-title">${t("launch.elevationConfirmTitle")}</h2>
+            <button id="settings-elevation-confirm-close" type="button" class="settings-fullscreen-overlay-close" aria-label="${t("common.close")}">×</button>
+          </header>
+          <p id="settings-elevation-confirm-message" class="settings-update-confirm-message">${t("launch.elevationConfirmMessage")}</p>
+          <footer class="settings-fullscreen-overlay-actions">
+            <button id="settings-elevation-confirm-cancel" type="button" class="ghost">${t("launch.elevationConfirmCancel")}</button>
+            <button id="settings-elevation-confirm-accept" type="button">${t("launch.elevationConfirmAccept")}</button>
+          </footer>
+        </section>
+      </div>
+
       <div id="settings-migration-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
         <div id="settings-migration-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
         <section class="settings-fullscreen-overlay-panel settings-migration-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="settings-migration-overlay-title">

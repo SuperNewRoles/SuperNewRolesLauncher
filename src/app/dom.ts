@@ -39,6 +39,11 @@ export interface AppDom {
   settingsUpdateConfirmCancelButton: HTMLButtonElement;
   settingsUpdateConfirmAcceptButton: HTMLButtonElement;
   settingsUpdateConfirmMessage: HTMLParagraphElement;
+  settingsElevationConfirmOverlay: HTMLDivElement;
+  settingsElevationConfirmOverlayBackdrop: HTMLDivElement;
+  settingsElevationConfirmCloseButton: HTMLButtonElement;
+  settingsElevationConfirmCancelButton: HTMLButtonElement;
+  settingsElevationConfirmAcceptButton: HTMLButtonElement;
   settingsMigrationOverlay: HTMLDivElement;
   settingsMigrationOverlayBackdrop: HTMLDivElement;
   settingsMigrationOverlayCloseButton: HTMLButtonElement;
@@ -206,6 +211,21 @@ export function collectAppDom(): AppDom {
     ),
     settingsUpdateConfirmMessage: mustElement<HTMLParagraphElement>(
       "#settings-update-confirm-message",
+    ),
+    settingsElevationConfirmOverlay: mustElement<HTMLDivElement>(
+      "#settings-elevation-confirm-overlay",
+    ),
+    settingsElevationConfirmOverlayBackdrop: mustElement<HTMLDivElement>(
+      "#settings-elevation-confirm-overlay-backdrop",
+    ),
+    settingsElevationConfirmCloseButton: mustElement<HTMLButtonElement>(
+      "#settings-elevation-confirm-close",
+    ),
+    settingsElevationConfirmCancelButton: mustElement<HTMLButtonElement>(
+      "#settings-elevation-confirm-cancel",
+    ),
+    settingsElevationConfirmAcceptButton: mustElement<HTMLButtonElement>(
+      "#settings-elevation-confirm-accept",
     ),
     settingsMigrationOverlay: optionalElement("#settings-migration-overlay", "div"),
     settingsMigrationOverlayBackdrop: optionalElement(

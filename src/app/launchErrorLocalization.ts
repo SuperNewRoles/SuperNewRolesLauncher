@@ -6,7 +6,10 @@ export type LaunchErrorMessageKey =
   | "launch.errorEpicFeatureDisabled"
   | "launch.errorEpicAuthInitFailed"
   | "launch.errorEpicAuthInitFailedWithDetail"
-  | "launch.errorBepInExIl2CppDllMissing";
+  | "launch.errorBepInExIl2CppDllMissing"
+  | "launch.errorElevationRequired"
+  | "launch.errorElevationCancelled"
+  | "launch.errorElevatedLaunchFailed";
 
 type Translator = (key: LaunchErrorMessageKey, params?: Record<string, string | number>) => string;
 
@@ -18,11 +21,19 @@ const EPIC_FEATURE_DISABLED_ERROR_PREFIX = "Epic launch is disabled by mod.confi
 const BEPINEX_IL2CPP_DLL_NOT_FOUND_ERROR_PREFIX = "BepInEx IL2CPP DLL not found:";
 const INVALID_AMONG_US_FOLDER_ERROR_PREFIX =
   "The selected folder is not an Among Us installation directory:";
+const ELEVATION_REQUIRED_ERROR_PREFIX = "ELEVATION_REQUIRED:";
+const ELEVATION_CANCELLED_ERROR_PREFIX = "ELEVATION_CANCELLED:";
+const ELEVATED_LAUNCH_FAILED_ERROR_PREFIX = "ELEVATED_LAUNCH_FAILED:";
 
 export function normalizeInvokeErrorMessage(error: unknown): string {
   // Tauri の invoke ラッパーで付与される接頭辞を除去して判定しやすくする。
   const message = String(error ?? "").trim();
   return message.replace(/^Error invoking '[^']+':\s*/u, "").trim();
+}
+
+export function isElevationRequiredLaunchError(error: unknown): boolean {
+  const message = normalizeInvokeErrorMessage(error);
+  return message.startsWith(ELEVATION_REQUIRED_ERROR_PREFIX);
 }
 
 export function localizeLaunchErrorMessage(
@@ -62,6 +73,19 @@ export function localizeLaunchErrorMessage(
 
   if (message.startsWith(BEPINEX_IL2CPP_DLL_NOT_FOUND_ERROR_PREFIX)) {
     return t("launch.errorBepInExIl2CppDllMissing");
+  }
+
+  if (message.startsWith(ELEVATION_REQUIRED_ERROR_PREFIX)) {
+    return t("launch.errorElevationRequired");
+  }
+
+  if (message.startsWith(ELEVATION_CANCELLED_ERROR_PREFIX)) {
+    return t("launch.errorElevationCancelled");
+  }
+
+  if (message.startsWith(ELEVATED_LAUNCH_FAILED_ERROR_PREFIX)) {
+    const detail = message.slice(ELEVATED_LAUNCH_FAILED_ERROR_PREFIX.length).trim();
+    return t("launch.errorElevatedLaunchFailed", { error: detail || "unknown error" });
   }
 
   if (

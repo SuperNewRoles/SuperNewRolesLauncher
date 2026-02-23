@@ -432,6 +432,16 @@ const ja = {
     "このビルドではEpic起動は無効です。Among Usの再選択でSteamを選んでください。",
   "launch.errorBepInExIl2CppDllMissing":
     "プロファイルが破損しています。設定からアンインストールして再インストールしてください。",
+  "launch.errorElevationRequired":
+    "ゲームの起動には管理者権限が必要です。管理者として再実行しますか？",
+  "launch.errorElevationCancelled":
+    "管理者権限の要求がキャンセルされました。ゲームは起動していません。",
+  "launch.errorElevatedLaunchFailed": "管理者権限での再実行に失敗しました。詳細: {error}",
+  "launch.elevationConfirmTitle": "管理者権限が必要です",
+  "launch.elevationConfirmMessage":
+    "このゲームは管理者権限での起動が必要です。続行すると Windows の確認ダイアログが表示されます。",
+  "launch.elevationConfirmAccept": "管理者で再実行",
+  "launch.elevationConfirmCancel": "キャンセル",
   "launch.gameRunning": "ゲーム実行中",
   "launch.gameStopped": "ゲーム停止中",
 

@@ -6,20 +6,55 @@ use crate::utils::{
     epic_api::{self, EpicApi},
     mod_profile, settings,
 };
+use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::sync::{LazyLock, Mutex};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Runtime};
 
 static GAME_PROCESS: LazyLock<Mutex<Option<Child>>> = LazyLock::new(|| Mutex::new(None));
 static LAST_AUTOLAUNCH_ERROR: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
 
 pub const AUTOLAUNCH_MODDED_ARGUMENT: &str = "--autolaunch-modded";
+pub const ELEVATED_LAUNCH_PAYLOAD_ARGUMENT: &str = "--elevated-launch-payload";
 const RUNNING_GAME_PID_FILE_NAME: &str = "running-game.pid";
 const STEAM_APP_ID_FILE_NAME: &str = "steam_appid.txt";
 const STEAM_APP_ID_VALUE: &str = "945360";
+const ELEVATED_LAUNCH_DIR_NAME: &str = "elevated-launch";
+const ELEVATION_REQUIRED_ERROR_PREFIX: &str = "ELEVATION_REQUIRED:";
+const ELEVATION_CANCELLED_ERROR_PREFIX: &str = "ELEVATION_CANCELLED:";
+const ELEVATED_LAUNCH_FAILED_ERROR_PREFIX: &str = "ELEVATED_LAUNCH_FAILED:";
+
+#[cfg(windows)]
+const WINDOWS_ERROR_ELEVATION_REQUIRED: i32 = 740;
+#[cfg(windows)]
+const WINDOWS_ERROR_CANCELLED: i32 = 1223;
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum ElevatedLaunchKind {
+    Modded,
+    Vanilla,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ElevatedLaunchPayload {
+    kind: ElevatedLaunchKind,
+    game_exe: String,
+    profile_path: Option<String>,
+    platform: String,
+    result_path: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ElevatedLaunchResult {
+    success: bool,
+    error: Option<String>,
+}
 
 fn among_us_exe_file_name() -> &'static str {
     // 実行ファイル名はmodプロファイル定義を単一の参照元にする。
@@ -99,6 +134,36 @@ pub fn take_autolaunch_error() -> Option<String> {
         Ok(mut guard) => guard.take(),
         Err(_) => Some("Failed to access auto launch error state".to_string()),
     }
+}
+
+pub fn parse_elevated_launch_payload_argument<I, S>(args: I) -> Result<Option<String>, String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let mut iter = args.into_iter();
+    while let Some(arg) = iter.next() {
+        if arg.as_ref() != OsStr::new(ELEVATED_LAUNCH_PAYLOAD_ARGUMENT) {
+            continue;
+        }
+
+        let Some(path_arg) = iter.next() else {
+            return Err(format!(
+                "{ELEVATED_LAUNCH_PAYLOAD_ARGUMENT} requires a file path argument"
+            ));
+        };
+
+        let path = path_arg.as_ref().to_string_lossy().trim().to_string();
+        if path.is_empty() {
+            return Err(format!(
+                "{ELEVATED_LAUNCH_PAYLOAD_ARGUMENT} requires a non-empty file path argument"
+            ));
+        }
+
+        return Ok(Some(path));
+    }
+
+    Ok(None)
 }
 
 pub fn is_game_running<R: Runtime>(app: AppHandle<R>) -> Result<bool, String> {
@@ -418,6 +483,302 @@ fn reset_dll_directory() -> Result<(), String> {
         .map_err(|e| format!("Failed to reset DLL directory: {e}"))
 }
 
+fn map_launch_spawn_error(error: std::io::Error) -> String {
+    #[cfg(windows)]
+    {
+        if error.raw_os_error() == Some(WINDOWS_ERROR_ELEVATION_REQUIRED) {
+            return format!(
+                "{ELEVATION_REQUIRED_ERROR_PREFIX} The requested operation requires elevation."
+            );
+        }
+    }
+
+    format!("Failed to launch game process: {error}")
+}
+
+fn elevated_launch_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    Ok(settings::app_data_dir(app)?.join(ELEVATED_LAUNCH_DIR_NAME))
+}
+
+fn new_elevated_launch_file_stem() -> String {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    format!(
+        "{}-{timestamp}-{}",
+        std::process::id(),
+        rand::random::<u64>()
+    )
+}
+
+fn create_elevated_launch_paths<R: Runtime>(
+    app: &AppHandle<R>,
+) -> Result<(PathBuf, PathBuf), String> {
+    let dir = elevated_launch_dir(app)?;
+    fs::create_dir_all(&dir).map_err(|error| {
+        format!(
+            "{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Failed to prepare elevated launch directory: {error}"
+        )
+    })?;
+
+    let stem = new_elevated_launch_file_stem();
+    let payload_path = dir.join(format!("{stem}.payload.json"));
+    let result_path = dir.join(format!("{stem}.result.json"));
+    Ok((payload_path, result_path))
+}
+
+fn write_elevated_launch_payload(
+    path: &Path,
+    payload: &ElevatedLaunchPayload,
+) -> Result<(), String> {
+    let json = serde_json::to_string(payload).map_err(|error| {
+        format!("{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Failed to serialize elevated launch payload: {error}")
+    })?;
+    fs::write(path, json).map_err(|error| {
+        format!(
+            "{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Failed to write elevated launch payload file: {error}"
+        )
+    })
+}
+
+fn read_elevated_launch_payload(path: &Path) -> Result<ElevatedLaunchPayload, String> {
+    let content = fs::read_to_string(path).map_err(|error| {
+        format!(
+            "{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Failed to read elevated launch payload file: {error}"
+        )
+    })?;
+    serde_json::from_str(&content).map_err(|error| {
+        format!("{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Failed to parse elevated launch payload: {error}")
+    })
+}
+
+fn write_elevated_launch_result(path: &Path, result: &ElevatedLaunchResult) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| {
+            format!(
+                "{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Failed to create elevated launch result directory: {error}"
+            )
+        })?;
+    }
+
+    let json = serde_json::to_string(result).map_err(|error| {
+        format!("{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Failed to serialize elevated launch result: {error}")
+    })?;
+    fs::write(path, json).map_err(|error| {
+        format!("{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Failed to write elevated launch result file: {error}")
+    })
+}
+
+fn read_elevated_launch_result(path: &Path) -> Result<ElevatedLaunchResult, String> {
+    let content = fs::read_to_string(path).map_err(|error| {
+        format!(
+            "{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Failed to read elevated launch result file: {error}"
+        )
+    })?;
+    serde_json::from_str(&content).map_err(|error| {
+        format!(
+            "{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Failed to parse elevated launch result: {error}"
+        )
+    })
+}
+
+fn cleanup_elevated_launch_files(paths: &[&Path]) {
+    for path in paths {
+        if let Err(error) = fs::remove_file(path) {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                eprintln!("Failed to remove elevated launch temporary file: {error}");
+            }
+        }
+    }
+}
+
+#[cfg(windows)]
+fn quote_windows_argument(value: &str) -> String {
+    let escaped = value.replace('"', "\\\"");
+    format!("\"{escaped}\"")
+}
+
+#[cfg(windows)]
+fn start_elevated_launcher_and_wait(payload_path: &Path) -> Result<(), String> {
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::{CloseHandle, WAIT_OBJECT_0};
+    use windows::Win32::System::Threading::{WaitForSingleObject, INFINITE};
+    use windows::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW};
+
+    let launcher_exe = std::env::current_exe().map_err(|error| {
+        format!(
+            "{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Failed to resolve launcher executable path: {error}"
+        )
+    })?;
+    let working_dir = launcher_exe.parent().ok_or_else(|| {
+        format!("{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Launcher executable directory is invalid")
+    })?;
+
+    let payload_arg = quote_windows_argument(&payload_path.to_string_lossy());
+    let parameters = format!("{ELEVATED_LAUNCH_PAYLOAD_ARGUMENT} {payload_arg}");
+
+    let verb_utf16 = str_to_utf16("runas");
+    let file_utf16 = path_to_utf16(&launcher_exe);
+    let params_utf16 = str_to_utf16(&parameters);
+    let working_dir_utf16 = path_to_utf16(working_dir);
+
+    let mut execute_info = SHELLEXECUTEINFOW {
+        cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
+        fMask: SEE_MASK_NOCLOSEPROCESS,
+        lpVerb: PCWSTR(verb_utf16.as_ptr()),
+        lpFile: PCWSTR(file_utf16.as_ptr()),
+        lpParameters: PCWSTR(params_utf16.as_ptr()),
+        lpDirectory: PCWSTR(working_dir_utf16.as_ptr()),
+        nShow: 0,
+        ..Default::default()
+    };
+
+    // SAFETY: SHELLEXECUTEINFOW は初期化済みで、UTF-16バッファは呼び出し中に生存している。
+    let launched = unsafe { ShellExecuteExW(&mut execute_info) };
+    if let Err(shell_error) = launched {
+        let error = std::io::Error::last_os_error();
+        if error.raw_os_error() == Some(WINDOWS_ERROR_CANCELLED) {
+            return Err(format!(
+                "{ELEVATION_CANCELLED_ERROR_PREFIX} The elevation request was cancelled."
+            ));
+        }
+        return Err(format!(
+            "{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Failed to start elevated launcher process: {shell_error}; os error: {error}"
+        ));
+    }
+
+    let process_handle = execute_info.hProcess;
+    if process_handle.is_invalid() {
+        return Err(format!(
+            "{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Elevated launcher process handle is invalid"
+        ));
+    }
+
+    // SAFETY: 有効なプロセスハンドルに対する待機。
+    let wait_result = unsafe { WaitForSingleObject(process_handle, INFINITE) };
+    // SAFETY: ShellExecuteExW で取得したハンドルを閉じる。
+    let _ = unsafe { CloseHandle(process_handle) };
+
+    if wait_result == WAIT_OBJECT_0 {
+        return Ok(());
+    }
+
+    Err(format!(
+        "{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Failed while waiting for elevated launcher process."
+    ))
+}
+
+#[cfg(not(windows))]
+fn start_elevated_launcher_and_wait(_payload_path: &Path) -> Result<(), String> {
+    Err(format!(
+        "{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Elevation retry is only supported on Windows."
+    ))
+}
+
+async fn launch_with_elevated_helper<R: Runtime>(
+    app: AppHandle<R>,
+    mut payload: ElevatedLaunchPayload,
+) -> Result<(), String> {
+    let (payload_path, result_path) = create_elevated_launch_paths(&app)?;
+    payload.result_path = result_path.to_string_lossy().to_string();
+    write_elevated_launch_payload(&payload_path, &payload)?;
+
+    let launch_result = start_elevated_launcher_and_wait(&payload_path);
+    if let Err(error) = launch_result {
+        cleanup_elevated_launch_files(&[&payload_path, &result_path]);
+        return Err(error);
+    }
+
+    let result = read_elevated_launch_result(&result_path);
+    cleanup_elevated_launch_files(&[&payload_path, &result_path]);
+    let result = result?;
+
+    if result.success {
+        Ok(())
+    } else {
+        Err(result.error.unwrap_or_else(|| {
+            format!("{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Elevated launcher exited without error details.")
+        }))
+    }
+}
+
+pub async fn launch_modded_elevated<R: Runtime>(
+    app: AppHandle<R>,
+    game_exe: String,
+    profile_path: String,
+    platform: String,
+) -> Result<(), String> {
+    launch_with_elevated_helper(
+        app,
+        ElevatedLaunchPayload {
+            kind: ElevatedLaunchKind::Modded,
+            game_exe,
+            profile_path: Some(profile_path),
+            platform,
+            result_path: String::new(),
+        },
+    )
+    .await
+}
+
+pub async fn launch_vanilla_elevated<R: Runtime>(
+    app: AppHandle<R>,
+    game_exe: String,
+    platform: String,
+) -> Result<(), String> {
+    launch_with_elevated_helper(
+        app,
+        ElevatedLaunchPayload {
+            kind: ElevatedLaunchKind::Vanilla,
+            game_exe,
+            profile_path: None,
+            platform,
+            result_path: String::new(),
+        },
+    )
+    .await
+}
+
+pub async fn execute_elevated_launch_payload<R: Runtime>(
+    app: AppHandle<R>,
+    payload_path: String,
+) -> Result<(), String> {
+    let payload_path = PathBuf::from(payload_path);
+    let payload = read_elevated_launch_payload(&payload_path)?;
+    let result_path = PathBuf::from(&payload.result_path);
+
+    let launch_result = match is_game_running(app.clone()) {
+        Ok(true) => Err("Game is already running".to_string()),
+        Ok(false) => match payload.kind {
+            ElevatedLaunchKind::Modded => {
+                let profile_path = payload.profile_path.ok_or_else(|| {
+                    format!("{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Missing profile path for modded elevated launch.")
+                })?;
+                launch_modded(app, payload.game_exe, profile_path, payload.platform).await
+            }
+            ElevatedLaunchKind::Vanilla => {
+                launch_vanilla(app, payload.game_exe, payload.platform).await
+            }
+        },
+        Err(error) => Err(error),
+    };
+
+    let result_record = match &launch_result {
+        Ok(()) => ElevatedLaunchResult {
+            success: true,
+            error: None,
+        },
+        Err(error) => ElevatedLaunchResult {
+            success: false,
+            error: Some(error.clone()),
+        }
+    };
+
+    write_elevated_launch_result(&result_path, &result_record)?;
+    launch_result
+}
+
 fn launch_process<R: Runtime>(app: AppHandle<R>, mut command: Command) -> Result<(), String> {
     {
         let mut guard = GAME_PROCESS
@@ -432,9 +793,7 @@ fn launch_process<R: Runtime>(app: AppHandle<R>, mut command: Command) -> Result
             return Err("Game is already running".to_string());
         }
 
-        let child = command
-            .spawn()
-            .map_err(|e| format!("Failed to launch game process: {e}"))?;
+        let child = command.spawn().map_err(map_launch_spawn_error)?;
         persist_running_game_pid(&app, child.id());
         *guard = Some(child);
     }
@@ -660,4 +1019,97 @@ pub async fn launch_vanilla<R: Runtime>(
     add_epic_auth_argument_if_needed(&mut command, &platform).await?;
 
     launch_process(app, command)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::OsString;
+    use std::fs;
+
+    fn temp_test_file_path(file_name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "snr-launch-test-{}-{}",
+            std::process::id(),
+            rand::random::<u64>()
+        ));
+        fs::create_dir_all(&dir).expect("failed to create temp test directory");
+        dir.join(file_name)
+    }
+
+    #[test]
+    fn parse_elevated_launch_payload_argument_returns_path() {
+        let args = vec![
+            OsString::from("launcher.exe"),
+            OsString::from(ELEVATED_LAUNCH_PAYLOAD_ARGUMENT),
+            OsString::from("C:\\temp\\payload.json"),
+        ];
+        let parsed =
+            parse_elevated_launch_payload_argument(args).expect("failed to parse argument");
+        assert_eq!(parsed.as_deref(), Some("C:\\temp\\payload.json"));
+    }
+
+    #[test]
+    fn parse_elevated_launch_payload_argument_reports_missing_path() {
+        let args = vec![
+            OsString::from("launcher.exe"),
+            OsString::from(ELEVATED_LAUNCH_PAYLOAD_ARGUMENT),
+        ];
+        let error =
+            parse_elevated_launch_payload_argument(args).expect_err("missing path should fail");
+        assert!(error.contains("requires a file path argument"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn map_launch_spawn_error_marks_elevation_required() {
+        let message = map_launch_spawn_error(std::io::Error::from_raw_os_error(
+            WINDOWS_ERROR_ELEVATION_REQUIRED,
+        ));
+        assert!(message.starts_with(ELEVATION_REQUIRED_ERROR_PREFIX));
+    }
+
+    #[test]
+    fn elevated_launch_payload_round_trip() {
+        let payload_path = temp_test_file_path("payload.json");
+        let payload = ElevatedLaunchPayload {
+            kind: ElevatedLaunchKind::Modded,
+            game_exe: "C:\\Games\\Among Us.exe".to_string(),
+            profile_path: Some("C:\\Profile".to_string()),
+            platform: "steam".to_string(),
+            result_path: "C:\\Temp\\result.json".to_string(),
+        };
+
+        write_elevated_launch_payload(&payload_path, &payload).expect("failed to write payload");
+        let restored = read_elevated_launch_payload(&payload_path).expect("failed to read payload");
+        assert!(matches!(restored.kind, ElevatedLaunchKind::Modded));
+        assert_eq!(restored.game_exe, payload.game_exe);
+        assert_eq!(restored.profile_path, payload.profile_path);
+        assert_eq!(restored.platform, payload.platform);
+        assert_eq!(restored.result_path, payload.result_path);
+
+        cleanup_elevated_launch_files(&[&payload_path]);
+        if let Some(parent) = payload_path.parent() {
+            let _ = fs::remove_dir(parent);
+        }
+    }
+
+    #[test]
+    fn elevated_launch_result_round_trip() {
+        let result_path = temp_test_file_path("result.json");
+        let result = ElevatedLaunchResult {
+            success: false,
+            error: Some("sample error".to_string()),
+        };
+
+        write_elevated_launch_result(&result_path, &result).expect("failed to write result");
+        let restored = read_elevated_launch_result(&result_path).expect("failed to read result");
+        assert!(!restored.success);
+        assert_eq!(restored.error.as_deref(), Some("sample error"));
+
+        cleanup_elevated_launch_files(&[&result_path]);
+        if let Some(parent) = result_path.parent() {
+            let _ = fs::remove_dir(parent);
+        }
+    }
 }

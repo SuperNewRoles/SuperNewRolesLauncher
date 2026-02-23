@@ -440,6 +440,17 @@ const en: Record<keyof typeof ja, string> = {
     "Epic launch is disabled in this build. Reselect Among Us and choose Steam.",
   "launch.errorBepInExIl2CppDllMissing":
     "The profile is corrupted. Please uninstall and reinstall it from the settings.",
+  "launch.errorElevationRequired":
+    "Launching this game requires administrator privileges. Retry with elevation?",
+  "launch.errorElevationCancelled":
+    "The elevation request was cancelled. The game was not launched.",
+  "launch.errorElevatedLaunchFailed":
+    "Failed to retry launch with administrator privileges. Detail: {error}",
+  "launch.elevationConfirmTitle": "Administrator Privileges Required",
+  "launch.elevationConfirmMessage":
+    "This game must be launched with administrator privileges. Continuing will show a Windows elevation prompt.",
+  "launch.elevationConfirmAccept": "Retry as Administrator",
+  "launch.elevationConfirmCancel": "Cancel",
   "launch.gameRunning": "Game is running",
   "launch.gameStopped": "Game is stopped",
 

@@ -251,11 +251,26 @@ export function launchModded(input: {
   return invoke<void>("launch_modded", input);
 }
 
+export function launchModdedElevated(input: {
+  gameExe: string;
+  profilePath: string;
+  platform: GamePlatform;
+}): Promise<void> {
+  return invoke<void>("launch_modded_elevated", input);
+}
+
 export function launchVanilla(input: {
   gameExe: string;
   platform: GamePlatform;
 }): Promise<void> {
   return invoke<void>("launch_vanilla", input);
+}
+
+export function launchVanillaElevated(input: {
+  gameExe: string;
+  platform: GamePlatform;
+}): Promise<void> {
+  return invoke<void>("launch_vanilla_elevated", input);
 }
 
 export function launchShortcutCreate(): Promise<string> {

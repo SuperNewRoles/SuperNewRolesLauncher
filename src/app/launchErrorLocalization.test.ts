@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   type LaunchErrorMessageKey,
+  isElevationRequiredLaunchError,
   localizeLaunchErrorMessage,
   normalizeInvokeErrorMessage,
 } from "./launchErrorLocalization";
@@ -56,6 +57,27 @@ describe("launch error localization", () => {
       "Error invoking 'launch_modded': Launch target is not Among Us.exe: C:/Games/AU.exe";
     expect(localizeLaunchErrorMessage(raw, "Among Us.exe", t)).toBe(
       "installFlow.invalidAmongUsFolder",
+    );
+  });
+
+  it("detects elevation required launch error", () => {
+    const raw = "Error invoking 'launch_modded': ELEVATION_REQUIRED: The requested operation";
+    expect(isElevationRequiredLaunchError(raw)).toBe(true);
+  });
+
+  it("localizes elevation cancelled error", () => {
+    const raw =
+      "Error invoking 'launch_modded_elevated': ELEVATION_CANCELLED: The elevation request was cancelled.";
+    expect(localizeLaunchErrorMessage(raw, "Among Us.exe", t)).toBe(
+      "launch.errorElevationCancelled",
+    );
+  });
+
+  it("localizes elevated launch helper failure with detail", () => {
+    const raw =
+      "Error invoking 'launch_modded_elevated': ELEVATED_LAUNCH_FAILED: helper timed out";
+    expect(localizeLaunchErrorMessage(raw, "Among Us.exe", t)).toBe(
+      "launch.errorElevatedLaunchFailed:helper timed out",
     );
   });
 });

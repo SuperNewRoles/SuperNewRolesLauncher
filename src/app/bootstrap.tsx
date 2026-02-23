@@ -27,7 +27,7 @@ import {
   REPORTING_NOTIFICATION_STORAGE_KEY,
 } from "./constants";
 import { collectAppDom } from "./dom";
-import { localizeLaunchErrorMessage } from "./launchErrorLocalization";
+import { isElevationRequiredLaunchError, localizeLaunchErrorMessage } from "./launchErrorLocalization";
 import {
   ANNOUNCE_ENABLED,
   CONNECT_LINKS_ENABLED,
@@ -55,9 +55,11 @@ import {
   launchAutolaunchErrorTake,
   launchGameRunningGet,
   launchModded,
+  launchModdedElevated,
   launchModdedFirstSetupPending,
   launchShortcutCreate,
   launchVanilla,
+  launchVanillaElevated,
   migrationExport,
   migrationImport,
   modPreservedSaveDataStatus,
@@ -147,6 +149,19 @@ type MigrationMode = "export" | "import";
 type MigrationOverlayStep = "select" | "password" | "processing" | "result";
 type PresetOverlayMode = "import" | "export";
 type PresetFeedbackMode = "none" | "confirmImport" | "result";
+type ElevationLaunchRetryInput =
+  | {
+      kind: "modded";
+      gameExe: string;
+      profilePath: string;
+      platform: GamePlatform;
+      firstSetupPending: boolean;
+    }
+  | {
+      kind: "vanilla";
+      gameExe: string;
+      platform: GamePlatform;
+    };
 const DEFAULT_SETTINGS_CATEGORY: SettingsCategoryId = "general";
 
 function resolveLocalePreferredGameServerId(locale: LocaleCode): string {
@@ -426,6 +441,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     settingsUpdateConfirmCancelButton,
     settingsUpdateConfirmAcceptButton,
     settingsUpdateConfirmMessage,
+    settingsElevationConfirmOverlay,
+    settingsElevationConfirmOverlayBackdrop,
+    settingsElevationConfirmCloseButton,
+    settingsElevationConfirmCancelButton,
+    settingsElevationConfirmAcceptButton,
     settingsMigrationOverlay,
     settingsMigrationOverlayBackdrop,
     settingsMigrationOverlayCloseButton,
@@ -875,6 +895,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let pendingStartupUpdate: AvailableUpdate | null = null;
   let updateConfirmResolver: ((accepted: boolean) => void) | null = null;
   let updateConfirmBackdropUnlockAt = 0;
+  let elevationConfirmResolver: ((accepted: boolean) => void) | null = null;
   const overlayAnimationTimers = new WeakMap<HTMLDivElement, number>();
   const overlayCloseTimers = new WeakMap<HTMLDivElement, number>();
 
@@ -1655,6 +1676,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       uninstallInProgress || control.uninstallButtonDisabled;
     settingsUninstallConfirmCancelButton.disabled = uninstallInProgress;
     settingsUninstallConfirmCloseButton.disabled = uninstallInProgress;
+    settingsElevationConfirmAcceptButton.disabled = false;
+    settingsElevationConfirmCancelButton.disabled = false;
+    settingsElevationConfirmCloseButton.disabled = false;
     launchModdedButton.disabled = epicPlatformBlocked || control.launchModdedButtonDisabled;
     launchVanillaButton.disabled = epicPlatformBlocked || control.launchVanillaButtonDisabled;
     createModdedShortcutButton.disabled = control.createModdedShortcutButtonDisabled;
@@ -2092,6 +2116,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       !settingsAmongUsOverlay.hidden ||
       !settingsUninstallConfirmOverlay.hidden ||
       !settingsUpdateConfirmOverlay.hidden ||
+      !settingsElevationConfirmOverlay.hidden ||
       !settingsMigrationOverlay.hidden ||
       !presetOverlay.hidden ||
       !presetFeedbackOverlay.hidden;
@@ -2507,12 +2532,133 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     resolveUpdateConfirm(true);
   });
 
+  function closeElevationConfirmOverlay(force = false): void {
+    closeSettingsOverlay(settingsElevationConfirmOverlay, force);
+    if (!elevationConfirmResolver) {
+      return;
+    }
+    const resolve = elevationConfirmResolver;
+    elevationConfirmResolver = null;
+    resolve(false);
+  }
+
+  function resolveElevationConfirm(accepted: boolean): void {
+    if (!elevationConfirmResolver) {
+      return;
+    }
+    const resolve = elevationConfirmResolver;
+    elevationConfirmResolver = null;
+    closeSettingsOverlay(settingsElevationConfirmOverlay);
+    resolve(accepted);
+  }
+
+  function openElevationConfirmOverlay(): Promise<boolean> {
+    if (elevationConfirmResolver) {
+      const resolve = elevationConfirmResolver;
+      elevationConfirmResolver = null;
+      resolve(false);
+    }
+    openSettingsOverlay(settingsElevationConfirmOverlay);
+    settingsElevationConfirmAcceptButton.focus();
+    return new Promise<boolean>((resolve) => {
+      elevationConfirmResolver = resolve;
+    });
+  }
+
+  settingsElevationConfirmOverlayBackdrop.addEventListener("click", () => {
+    resolveElevationConfirm(false);
+  });
+  settingsElevationConfirmCloseButton.addEventListener("click", () => {
+    resolveElevationConfirm(false);
+  });
+  settingsElevationConfirmCancelButton.addEventListener("click", () => {
+    resolveElevationConfirm(false);
+  });
+  settingsElevationConfirmAcceptButton.addEventListener("click", () => {
+    resolveElevationConfirm(true);
+  });
+
   function isMigrationProcessing(): boolean {
     return migrationExporting || migrationImporting;
   }
 
   function localizeLaunchError(error: unknown): string {
     return localizeLaunchErrorMessage(error, modConfig.paths.amongUsExe, t);
+  }
+
+  async function retryLaunchWithElevationIfNeeded(
+    error: unknown,
+    input: ElevationLaunchRetryInput,
+  ): Promise<boolean> {
+    if (!isElevationRequiredLaunchError(error)) {
+      return false;
+    }
+
+    clearLauncherAutoMinimizePending();
+    const accepted = await openElevationConfirmOverlay();
+    if (!accepted) {
+      if (input.kind === "modded") {
+        setLaunchStatusWithLock(
+          t("launch.moddedFailed", { error: localizeLaunchError(error) }),
+          LAUNCH_ERROR_DISPLAY_MS,
+        );
+      } else {
+        setLaunchStatusWithLock(
+          t("launch.vanillaFailed", { error: localizeLaunchError(error) }),
+          LAUNCH_ERROR_DISPLAY_MS,
+        );
+      }
+      return true;
+    }
+
+    if (input.kind === "modded") {
+      queueLauncherAutoMinimize(
+        input.firstSetupPending ? null : LAUNCHER_AUTO_MINIMIZE_WINDOW_MS,
+      );
+      if (input.firstSetupPending) {
+        setLaunchStatus(t("launch.moddedFirstSetupStarting"));
+        startFirstSetupCompletionPolling(input.gameExe);
+      } else {
+        setLaunchStatus(t("launch.moddedStarting"));
+      }
+    } else {
+      queueLauncherAutoMinimize();
+      setLaunchStatus(t("launch.vanillaStarting"));
+    }
+
+    try {
+      if (input.kind === "modded") {
+        await launchModdedElevated({
+          gameExe: input.gameExe,
+          profilePath: input.profilePath,
+          platform: input.platform,
+        });
+        if (!input.firstSetupPending) {
+          setLaunchStatus(t("launch.moddedSent"));
+        }
+      } else {
+        await launchVanillaElevated({
+          gameExe: input.gameExe,
+          platform: input.platform,
+        });
+        setLaunchStatus(t("launch.vanillaSent"));
+      }
+      return true;
+    } catch (retryError) {
+      clearLauncherAutoMinimizePending();
+      if (input.kind === "modded") {
+        setLaunchStatusWithLock(
+          t("launch.moddedFailed", { error: localizeLaunchError(retryError) }),
+          LAUNCH_ERROR_DISPLAY_MS,
+        );
+      } else {
+        setLaunchStatusWithLock(
+          t("launch.vanillaFailed", { error: localizeLaunchError(retryError) }),
+          LAUNCH_ERROR_DISPLAY_MS,
+        );
+      }
+      return true;
+    }
   }
 
   function isMigrationPasswordError(message: string): boolean {
@@ -2957,6 +3103,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     closePresetOverlay(force);
     closeUninstallConfirmOverlay(force);
     closeUpdateConfirmOverlay(force);
+    closeElevationConfirmOverlay(force);
     closeMigrationOverlay(force);
     closeAmongUsOverlay(force);
   }
@@ -3102,6 +3249,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
     if (!settingsUpdateConfirmOverlay.hidden) {
       resolveUpdateConfirm(false);
+      return;
+    }
+    if (!settingsElevationConfirmOverlay.hidden) {
+      resolveElevationConfirm(false);
       return;
     }
     if (!settingsMigrationOverlay.hidden) {
@@ -3360,9 +3511,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     setLaunchStatus(t("launch.moddedStarting"));
     updateButtons();
 
+    let gameExe = "";
+    let firstSetupPending = false;
     try {
-      const gameExe = await gameExePathFromSettings();
-      let firstSetupPending = false;
+      gameExe = await gameExePathFromSettings();
       try {
         firstSetupPending = await launchModdedFirstSetupPending(gameExe);
       } catch {
@@ -3382,11 +3534,20 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         setLaunchStatus(t("launch.moddedSent"));
       }
     } catch (error) {
-      clearLauncherAutoMinimizePending();
-      setLaunchStatusWithLock(
-        t("launch.moddedFailed", { error: localizeLaunchError(error) }),
-        LAUNCH_ERROR_DISPLAY_MS,
-      );
+      const retried = await retryLaunchWithElevationIfNeeded(error, {
+        kind: "modded",
+        gameExe,
+        profilePath: settings.profilePath,
+        platform: settings.gamePlatform,
+        firstSetupPending,
+      });
+      if (!retried) {
+        clearLauncherAutoMinimizePending();
+        setLaunchStatusWithLock(
+          t("launch.moddedFailed", { error: localizeLaunchError(error) }),
+          LAUNCH_ERROR_DISPLAY_MS,
+        );
+      }
     } finally {
       launchInProgress = false;
       updateButtons();
@@ -3406,19 +3567,27 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     setLaunchStatus(t("launch.vanillaStarting"));
     updateButtons();
 
+    let gameExe = "";
     try {
-      const gameExe = await gameExePathFromSettings();
+      gameExe = await gameExePathFromSettings();
       await launchVanilla({
         gameExe,
         platform: settings.gamePlatform,
       });
       setLaunchStatus(t("launch.vanillaSent"));
     } catch (error) {
-      clearLauncherAutoMinimizePending();
-      setLaunchStatusWithLock(
-        t("launch.vanillaFailed", { error: localizeLaunchError(error) }),
-        LAUNCH_ERROR_DISPLAY_MS,
-      );
+      const retried = await retryLaunchWithElevationIfNeeded(error, {
+        kind: "vanilla",
+        gameExe,
+        platform: settings.gamePlatform,
+      });
+      if (!retried) {
+        clearLauncherAutoMinimizePending();
+        setLaunchStatusWithLock(
+          t("launch.vanillaFailed", { error: localizeLaunchError(error) }),
+          LAUNCH_ERROR_DISPLAY_MS,
+        );
+      }
     } finally {
       launchInProgress = false;
       updateButtons();

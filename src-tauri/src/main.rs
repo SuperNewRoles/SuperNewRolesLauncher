@@ -390,8 +390,18 @@ fn setup_tray<R: tauri::Runtime>(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let elevated_launch_payload_path =
+        match commands::launch::parse_elevated_launch_payload_argument(std::env::args_os()) {
+            Ok(path) => path,
+            Err(error) => {
+                eprintln!("Failed to parse elevated launch arguments: {error}");
+                return;
+            }
+        };
+    let helper_mode = elevated_launch_payload_path.is_some();
+
     // 起動引数と共有状態を先に確定し、後続クロージャで再利用する。
-    let auto_launch_modded = should_auto_launch_modded();
+    let auto_launch_modded = !helper_mode && should_auto_launch_modded();
     let bypass_close_to_tray = Arc::new(AtomicBool::new(false));
     let bypass_close_to_tray_for_single_instance = bypass_close_to_tray.clone();
     let bypass_close_to_tray_for_window = bypass_close_to_tray.clone();
@@ -401,9 +411,13 @@ pub fn run() {
     let tray_webview_destroy_state_for_window = tray_webview_destroy_state.clone();
     let tray_webview_destroy_state_for_setup = tray_webview_destroy_state.clone();
     let tray_webview_destroy_state_for_autolaunch = tray_webview_destroy_state.clone();
+    let helper_mode_for_window_events = helper_mode;
+    let helper_mode_for_run_loop = helper_mode;
+    let elevated_launch_payload_path_for_setup = elevated_launch_payload_path.clone();
 
-    let app = tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(
+    let mut builder = tauri::Builder::default();
+    if !helper_mode {
+        builder = builder.plugin(tauri_plugin_single_instance::init(
             move |app, args, _cwd| {
                 if args_contain_autolaunch_modded(args) {
                     start_modded_autolaunch(
@@ -417,12 +431,19 @@ pub fn run() {
 
                 show_main_window(app, &tray_webview_destroy_state_for_single_instance);
             },
-        ))
+        ));
+    }
+
+    let app = builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .on_window_event(move |window, event| {
+            if helper_mode_for_window_events {
+                return;
+            }
+
             if window.label() == TRAY_MENU_WINDOW_LABEL {
                 if let tauri::WindowEvent::CloseRequested { .. } = event {
                     hide_tray_menu_window(window.app_handle());
@@ -465,6 +486,26 @@ pub fn run() {
             crate::utils::mod_profile::validate().map_err(
                 |error| -> Box<dyn std::error::Error> { Box::new(std::io::Error::other(error)) },
             )?;
+            if let Some(payload_path) = elevated_launch_payload_path_for_setup.clone() {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.hide();
+                }
+
+                let app_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    let result = commands::launch::launch_execute_elevated_payload(
+                        app_handle.clone(),
+                        payload_path,
+                    )
+                    .await;
+                    if let Err(error) = &result {
+                        eprintln!("Failed to execute elevated launch payload: {error}");
+                    }
+                    app_handle.exit(if result.is_ok() { 0 } else { 1 });
+                });
+                return Ok(());
+            }
+
             setup_tray(app.handle(), tray_webview_destroy_state_for_setup.clone())?;
             crate::utils::background_notifications::start_worker(app.handle().clone());
 
@@ -526,7 +567,9 @@ pub fn run() {
             commands::notifications::notifications_take_open_target,
             commands::game_servers::game_servers_join_direct,
             commands::launch::launch_modded,
+            commands::launch::launch_modded_elevated,
             commands::launch::launch_vanilla,
+            commands::launch::launch_vanilla_elevated,
             commands::launch::launch_shortcut_create,
             commands::launch::launch_modded_first_setup_pending,
             commands::launch::launch_autolaunch_error_take,
@@ -546,6 +589,10 @@ pub fn run() {
         .expect("error while building tauri application");
 
     app.run(move |app_handle, event| {
+        if helper_mode_for_run_loop {
+            return;
+        }
+
         if let RunEvent::ExitRequested { api, code, .. } = event {
             // 明示終了(codeあり)か終了バイパス時は、通常終了フローをそのまま通す。
             if code.is_some() || bypass_close_to_tray_for_exit.load(Ordering::SeqCst) {
