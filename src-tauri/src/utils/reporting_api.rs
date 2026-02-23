@@ -68,6 +68,7 @@ pub struct ReportNotificationThread {
     pub thread_id: String,
     pub thread_name: String,
     pub latest_message: String,
+    pub latest_message_type: String,
     pub latest_message_id: String,
     pub latest_message_created_at: String,
 }
@@ -162,6 +163,14 @@ struct NotificationThreadItem {
     thread_name: Option<String>,
     #[serde(alias = "message")]
     latest_message: Option<String>,
+    #[serde(
+        rename = "type",
+        alias = "message_type",
+        alias = "messageType",
+        alias = "latest_message_type",
+        alias = "latestMessageType"
+    )]
+    latest_message_type: Option<String>,
     #[serde(
         alias = "message_id",
         alias = "messageId",
@@ -970,6 +979,9 @@ pub async fn get_notifications<R: Runtime>(
             thread_id: item.thread_id.unwrap_or_default(),
             thread_name: item.thread_name.unwrap_or_default(),
             latest_message: item.latest_message.unwrap_or_default(),
+            latest_message_type: item
+                .latest_message_type
+                .unwrap_or_else(|| "normal".to_string()),
             latest_message_id: item.latest_message_id.unwrap_or_default(),
             latest_message_created_at: item.latest_message_created_at.unwrap_or_default(),
         })

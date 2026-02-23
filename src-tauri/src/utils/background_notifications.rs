@@ -41,6 +41,7 @@ pub enum NotificationOpenTarget {
 struct ReportNotificationItem {
     thread_id: String,
     thread_title: String,
+    message_type: String,
     message_key: String,
     content: String,
 }
@@ -129,6 +130,7 @@ impl BackgroundNotificationWorker {
         &mut self,
         app: &AppHandle<R>,
         enabled: bool,
+        locale: &str,
         suppress_notifications: bool,
     ) {
         // 機能フラグまたは設定で無効なら、保持状態をクリアして終了する。
@@ -180,6 +182,7 @@ impl BackgroundNotificationWorker {
             discovered_items.push(ReportNotificationItem {
                 thread_id,
                 thread_title,
+                message_type: thread.latest_message_type,
                 message_key,
                 content: thread.latest_message,
             });
@@ -214,11 +217,7 @@ impl BackgroundNotificationWorker {
 
         for item in new_items.iter().take(MAX_REPORT_NOTIFICATIONS_PER_POLL) {
             let content = condense_whitespace(&item.content);
-            let body = if content.is_empty() {
-                "New message received.".to_string()
-            } else {
-                truncate_chars(&content, 120)
-            };
+            let body = report_notification_body(&item.message_type, &content, locale);
             show_background_notification(
                 app,
                 &format!("{launcher_name} - {}", item.thread_title),
@@ -380,7 +379,7 @@ pub fn start_worker<R: Runtime + 'static>(app: AppHandle<R>) {
                     let suppress_notifications = is_main_window_visible(&app);
 
                     if should_poll_report {
-                        worker.poll_report(&app, report_enabled, suppress_notifications);
+                        worker.poll_report(&app, report_enabled, &locale, suppress_notifications);
                         next_report_poll = now + REPORT_POLL_INTERVAL;
                     }
                     if should_poll_announce {
@@ -460,6 +459,24 @@ fn report_latest_message_key(
         "{normalized_thread_id}:body:{}",
         condense_whitespace(latest_message.trim())
     )
+}
+
+fn report_notification_body(message_type: &str, content: &str, locale: &str) -> String {
+    if content.trim().is_empty() {
+        return "New message received.".to_string();
+    }
+
+    let normalized = truncate_chars(content, 120);
+    if message_type == "status" {
+        let status_label = if locale == "en" {
+            "Status updated"
+        } else {
+            "ステータス更新"
+        };
+        format!("{status_label}: {normalized}")
+    } else {
+        normalized
+    }
 }
 
 fn is_main_window_visible<R: Runtime>(app: &AppHandle<R>) -> bool {
