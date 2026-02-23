@@ -27,7 +27,10 @@ import {
   REPORTING_NOTIFICATION_STORAGE_KEY,
 } from "./constants";
 import { collectAppDom } from "./dom";
-import { isElevationRequiredLaunchError, localizeLaunchErrorMessage } from "./launchErrorLocalization";
+import {
+  isElevationRequiredLaunchError,
+  localizeLaunchErrorMessage,
+} from "./launchErrorLocalization";
 import {
   ANNOUNCE_ENABLED,
   CONNECT_LINKS_ENABLED,
@@ -2612,9 +2615,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
 
     if (input.kind === "modded") {
-      queueLauncherAutoMinimize(
-        input.firstSetupPending ? null : LAUNCHER_AUTO_MINIMIZE_WINDOW_MS,
-      );
+      queueLauncherAutoMinimize(input.firstSetupPending ? null : LAUNCHER_AUTO_MINIMIZE_WINDOW_MS);
       if (input.firstSetupPending) {
         setLaunchStatus(t("launch.moddedFirstSetupStarting"));
         startFirstSetupCompletionPolling(input.gameExe);

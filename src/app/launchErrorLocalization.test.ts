@@ -74,8 +74,7 @@ describe("launch error localization", () => {
   });
 
   it("localizes elevated launch helper failure with detail", () => {
-    const raw =
-      "Error invoking 'launch_modded_elevated': ELEVATED_LAUNCH_FAILED: helper timed out";
+    const raw = "Error invoking 'launch_modded_elevated': ELEVATED_LAUNCH_FAILED: helper timed out";
     expect(localizeLaunchErrorMessage(raw, "Among Us.exe", t)).toBe(
       "launch.errorElevatedLaunchFailed:helper timed out",
     );
