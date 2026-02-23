@@ -772,7 +772,7 @@ pub async fn execute_elevated_launch_payload<R: Runtime>(
         Err(error) => ElevatedLaunchResult {
             success: false,
             error: Some(error.clone()),
-        }
+        },
     };
 
     write_elevated_launch_result(&result_path, &result_record)?;
