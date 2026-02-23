@@ -7,7 +7,9 @@
 - Method B: Local Commands Only
 - Required User Approval Gate
 - Release Notes Authoring
+- Discord Announcement Template
 - Post-Build Validation
+- Post-Release Discord Announcement
 - Cleanup for Wrong Assets
 
 ## Overview
@@ -23,6 +25,7 @@ Default automation path is GitHub Actions `workflow_dispatch`.
   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
 - Updater settings in `src-tauri/tauri.conf.json` are correct.
 - You can use `gh` CLI with repo/workflow scopes.
+- Discord webhook URL is available in `SNRLAUNCHER_DISCORD_RELEASE_WEBHOOK_URL`.
 
 ## Method A: GitHub Actions Release (Recommended, workflow_dispatch)
 Target workflow: `.github/workflows/release.yml`
@@ -77,11 +80,37 @@ git log "$prevTag..HEAD" --pretty=format:"- %s"
 
 Then author the notes following `references/release-notes-style.md`.
 
+### 5.5 Draft Discord announcement text
+Write the message body with AI based on release context (commit delta and drafted notes).
+Do not auto-extract bullet items from markdown/files via scripts.
+
+```powershell
+$version = $tag.TrimStart("v")
+$discordPath = ".tmp/discord-announcement-$tag.txt"
+New-Item -ItemType Directory -Path ".tmp" -Force | Out-Null
+
+@"
+<@&1475130942787158210>
+# SuperNewRoles v$version
+### 主な変更
+- <主な変更1>
+- <主な変更2>
+https://supernewroles.com/launcher-v$version
+"@ | Set-Content -Path $discordPath -Encoding UTF8
+```
+
+If fixes exist, insert this section before the URL line:
+```text
+### 修正
+- <修正1>
+- <修正2>
+```
+
 ### 6. Ask user approval (required)
-- Present the drafted release note text to the user.
-- Ask for explicit approval (`OK` / `Publish`).
+- Present the drafted release note text and Discord announcement text to the user.
+- Ask for explicit approval of both (`OK` / `Publish`).
 - If the user requests changes, revise and ask again.
-- Do not watch/publish before approval.
+- Do not watch/publish before both are approved.
 
 ### 7. Watch workflow only after approval
 ```powershell
@@ -112,6 +141,15 @@ New-Item -ItemType Directory -Path ".tmp" -Force | Out-Null
 
 gh release edit $tag --notes-file $notesPath
 gh release edit $tag --draft=false
+```
+
+### 10. Post release announcement to Discord webhook
+```powershell
+$discordPath = ".tmp/discord-announcement-$tag.txt"
+$message = Get-Content -Path $discordPath -Raw
+
+powershell -ExecutionPolicy Bypass -File ".agents/skills/supernewroles-release/scripts/post-discord-webhook.ps1" `
+  -Message $message
 ```
 
 ## Method B: Local Commands Only
@@ -165,12 +203,41 @@ gh release create $tag `
 
 ### 5. Generate notes and ask user approval
 Generate notes with `references/release-notes-style.md`.
-Do not publish without user approval.
+Also prepare Discord announcement with the template in this runbook.
+Do not publish without user approval of both notes and Discord message.
+
+Suggested draft command for local flow:
+```powershell
+$version = $tag.TrimStart("v")
+$discordPath = ".tmp/discord-announcement-$tag.txt"
+New-Item -ItemType Directory -Path ".tmp" -Force | Out-Null
+
+@"
+<@&1475130942787158210>
+# SuperNewRoles v$version
+### 主な変更
+- <主な変更1>
+- <主な変更2>
+https://supernewroles.com/launcher-v$version
+"@ | Set-Content -Path $discordPath -Encoding UTF8
+```
+
+If fixes exist, insert a `### 修正` section before the URL line.
+Write bullet items with AI drafting, not scripted extraction.
 
 ### 6. Apply approved notes and publish release
 ```powershell
 gh release edit $tag --notes-file ".tmp/release-notes-$tag.md"
 gh release edit $tag --draft=false
+```
+
+### 7. Post release announcement to Discord webhook
+```powershell
+$discordPath = ".tmp/discord-announcement-$tag.txt"
+$message = Get-Content -Path $discordPath -Raw
+
+powershell -ExecutionPolicy Bypass -File ".agents/skills/supernewroles-release/scripts/post-discord-webhook.ps1" `
+  -Message $message
 ```
 
 ## Required User Approval Gate
@@ -180,6 +247,10 @@ Approved examples:
 - `この内容で公開して`
 - `publish`
 
+Approval must cover both:
+- Final release notes text
+- Final Discord announcement text
+
 ## Release Notes Authoring
 Always follow `references/release-notes-style.md`:
 - Japanese section first
@@ -187,6 +258,26 @@ Always follow `references/release-notes-style.md`:
 - `---` separator
 - English section second
 - Download section as `##` heading with installer name
+
+## Discord Announcement Template
+Create `.tmp/discord-announcement-$tag.txt` before approval and publish.
+
+Use this exact structure (replace `{version}` with `1.1.1` style value from `$tag.TrimStart("v")`):
+
+```text
+<@&1475130942787158210>
+# SuperNewRoles v{version}
+### 主な変更
+- ...
+https://supernewroles.com/launcher-v{version}
+```
+
+Rules:
+- Keep the first line role mention exactly as shown.
+- Keep `### 主な変更` heading always.
+- Include `### 修正` section only when fixes exist.
+- Keep the URL line format exactly: `https://supernewroles.com/launcher-v{version}`.
+- Draft bullet texts with AI writing from release context; do not auto-parse release notes.
 
 ## Post-Build Validation
 Run before publish:
@@ -203,6 +294,12 @@ Expected:
 Unexpected:
 - Any `msi`
 - Any `msi.sig`
+
+## Post-Release Discord Announcement
+Run only after publish (`gh release edit $tag --draft=false`) succeeds.
+
+- Use the user-approved text from `.tmp/discord-announcement-$tag.txt`.
+- If webhook post fails, stop and ask user whether to retry.
 
 ## Cleanup for Wrong Assets
 If wrong assets are present:

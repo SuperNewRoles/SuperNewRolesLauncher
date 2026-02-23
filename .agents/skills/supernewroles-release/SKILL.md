@@ -1,6 +1,6 @@
 ---
 name: supernewroles-release
-description: Run and support release operations for SuperNewRolesLauncher (Tauri v2) with NSIS-only distribution, including workflow_dispatch-based GitHub Actions releases, auto-authored bilingual release notes, explicit user approval gates, and final publish.
+description: Run and support release operations for SuperNewRolesLauncher (Tauri v2) with NSIS-only distribution, including workflow_dispatch-based GitHub Actions releases, auto-authored bilingual release notes, explicit user approval gates, final publish, and automatic post-release Discord webhook announcements.
 ---
 
 # SuperNewRoles Release
@@ -11,6 +11,7 @@ Execute the repository release workflow with this policy:
 - Windows distribution is NSIS only.
 - No `msi` and no `msi.sig`.
 - Release notes are auto-authored in Japanese and English, then confirmed by the user before publish.
+- Post a Discord webhook announcement automatically after publish with a fixed template and explicit user approval.
 
 Use GitHub Actions (`workflow_dispatch`) by default.
 Use the local flow only when the user explicitly requests local-only release or CI is unavailable.
@@ -19,9 +20,11 @@ Use the local flow only when the user explicitly requests local-only release or 
 
 1. Default to GitHub Actions flow in `references/release-process.md` Method A.
 2. Trigger the action first, then auto-draft release notes.
-3. Show drafted notes to the user and ask for explicit approval.
-4. Only after user approval: watch the workflow, validate assets, set release notes, and publish.
-5. Enforce NSIS-only outputs and remove wrong assets if needed.
+3. Draft Discord announcement text by AI writing (no scripted auto-extraction), with version placeholder resolved.
+4. Show drafted release notes and Discord message to the user and ask for explicit approval.
+5. Only after approval: watch the workflow, validate assets, set release notes, and publish.
+6. Enforce NSIS-only outputs and remove wrong assets if needed.
+7. After publish, post the user-approved Discord webhook announcement exactly once.
 
 ## Required Inputs
 
@@ -32,6 +35,8 @@ Use the local flow only when the user explicitly requests local-only release or 
 - Availability of signing secrets:
   - `TAURI_SIGNING_PRIVATE_KEY`
   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+- Discord webhook settings:
+  - `SNRLAUNCHER_DISCORD_RELEASE_WEBHOOK_URL`
 
 ## Standard Procedure (GitHub Actions Default)
 
@@ -43,7 +48,8 @@ Use the local flow only when the user explicitly requests local-only release or 
 6. If approved, run `gh run watch ... --exit-status`.
 7. Validate draft assets (`latest.json`, `.exe`, `.sig`, no MSI).
 8. Apply approved notes to draft release and publish.
-9. If user requests edits, revise notes and repeat confirmation.
+9. Post the approved Discord message to webhook using `scripts/post-discord-webhook.ps1`.
+10. If user requests edits, revise notes/message and repeat confirmation.
 
 ## Hard Rules
 
@@ -52,6 +58,10 @@ Use the local flow only when the user explicitly requests local-only release or 
 - Never leave `msi` / `msi.sig` in assets.
 - Always use the required bilingual note format from `references/release-notes-style.md`.
 - The final section in each language must be a `##` heading that tells users to download `SuperNewRolesLauncher_x64-setup.exe`.
+- Never post Discord announcement before `gh release edit <tag> --draft=false` succeeds.
+- Never post Discord announcement text without explicit user approval of the exact message.
+- Always draft Discord announcement bullets by AI writing; do not use scripted extraction from release notes.
+- If `SNRLAUNCHER_DISCORD_RELEASE_WEBHOOK_URL` is set, post the approved announcement after publish and fail loudly on webhook errors.
 
 ## Validation Checklist
 
@@ -61,11 +71,13 @@ Use the local flow only when the user explicitly requests local-only release or 
 - Release notes are in the required JA/EN format and approved by the user.
 - No `msi` and no `msi.sig` in release assets.
 - Draft is published only after the above checks pass.
+- Discord webhook announcement is user-approved and posted once after publish.
 
 ## References
 
 - Full command runbook: `references/release-process.md`
 - Release note style and template: `references/release-notes-style.md`
+- Discord announcement helper: `scripts/post-discord-webhook.ps1`
 - Workflow source of truth: `.github/workflows/release.yml`
 - Project release document: `docs/RELEASE.md`
 

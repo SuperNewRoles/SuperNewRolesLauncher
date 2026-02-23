@@ -10,6 +10,26 @@
 - 署名鍵を用意済み（`TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`）
 - `src-tauri/tauri.conf.json` の updater 設定が正しい
 
+## Discord Webhook 設定（リリース告知）
+
+リリース公開後に Discord へ自動告知する場合は、環境変数 `SNRLAUNCHER_DISCORD_RELEASE_WEBHOOK_URL` を設定します。
+
+- ローカルで一時的に設定（現在のセッションのみ）
+```powershell
+$env:SNRLAUNCHER_DISCORD_RELEASE_WEBHOOK_URL = "https://discord.com/api/webhooks/..."
+```
+- ローカルで永続設定（新しいシェルで有効）
+```powershell
+setx SNRLAUNCHER_DISCORD_RELEASE_WEBHOOK_URL "https://discord.com/api/webhooks/..."
+```
+- GitHub Actions で設定
+`Settings` -> `Secrets and variables` -> `Actions` から、`SNRLAUNCHER_DISCORD_RELEASE_WEBHOOK_URL` を Repository Secret として登録します。
+
+運用ルール:
+- Discord投稿文は AI が起草する（自動抽出しない）。
+- 投稿前に、リリースノートと Discord 投稿文の両方でユーザーの明示承認を取る。
+- 投稿は Release を publish した後に実行する。
+
 ---
 
 ## 方法A: GitHub Actions でリリース（推奨）
