@@ -5251,6 +5251,7 @@ body.locale-switch-animating {
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--card-strong);
+  color: var(--text);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -5278,6 +5279,7 @@ body.locale-switch-animating {
 }
 
 .report-thread-status {
+  color: var(--text);
   font-size: 16px;
 }
 
