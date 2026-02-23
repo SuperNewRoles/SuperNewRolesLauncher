@@ -379,7 +379,7 @@ pub fn start_worker<R: Runtime + 'static>(app: AppHandle<R>) {
                     let suppress_notifications = is_main_window_visible(&app);
 
                     if should_poll_report {
-                        worker.poll_report(&app, report_enabled, &locale, suppress_notifications);
+                        worker.poll_report(&app, report_enabled, locale, suppress_notifications);
                         next_report_poll = now + REPORT_POLL_INTERVAL;
                     }
                     if should_poll_announce {

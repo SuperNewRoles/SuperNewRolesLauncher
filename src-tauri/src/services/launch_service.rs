@@ -23,8 +23,6 @@ const RUNNING_GAME_PID_FILE_NAME: &str = "running-game.pid";
 const STEAM_APP_ID_FILE_NAME: &str = "steam_appid.txt";
 const STEAM_APP_ID_VALUE: &str = "945360";
 const ELEVATED_LAUNCH_DIR_NAME: &str = "elevated-launch";
-const ELEVATION_REQUIRED_ERROR_PREFIX: &str = "ELEVATION_REQUIRED:";
-const ELEVATION_CANCELLED_ERROR_PREFIX: &str = "ELEVATION_CANCELLED:";
 const ELEVATED_LAUNCH_FAILED_ERROR_PREFIX: &str = "ELEVATED_LAUNCH_FAILED:";
 
 #[cfg(windows)]
@@ -487,9 +485,7 @@ fn map_launch_spawn_error(error: std::io::Error) -> String {
     #[cfg(windows)]
     {
         if error.raw_os_error() == Some(WINDOWS_ERROR_ELEVATION_REQUIRED) {
-            return format!(
-                "{ELEVATION_REQUIRED_ERROR_PREFIX} The requested operation requires elevation."
-            );
+            return "ELEVATION_REQUIRED: The requested operation requires elevation.".to_string();
         }
     }
 
@@ -639,9 +635,7 @@ fn start_elevated_launcher_and_wait(payload_path: &Path) -> Result<(), String> {
     if let Err(shell_error) = launched {
         let error = std::io::Error::last_os_error();
         if error.raw_os_error() == Some(WINDOWS_ERROR_CANCELLED) {
-            return Err(format!(
-                "{ELEVATION_CANCELLED_ERROR_PREFIX} The elevation request was cancelled."
-            ));
+            return Err("ELEVATION_CANCELLED: The elevation request was cancelled.".to_string());
         }
         return Err(format!(
             "{ELEVATED_LAUNCH_FAILED_ERROR_PREFIX} Failed to start elevated launcher process: {shell_error}; os error: {error}"
