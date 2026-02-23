@@ -5284,6 +5284,9 @@ body.locale-switch-animating {
   font-size: 16px;
   color: var(--text);
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .report-thread-unread-badge {
@@ -5431,6 +5434,7 @@ body.locale-switch-animating {
   background: var(--bg-1);
   border: 1px solid var(--line);
   max-width: 80%;
+  min-width: 0;
 }
 
 /* 自分のメッセージは右側 */
@@ -5456,21 +5460,27 @@ body.locale-switch-animating {
 
 .report-message-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
   margin-bottom: 6px;
   font-size: 12px;
+  min-width: 0;
 }
 
 .report-message-sender {
   font-weight: 600;
   color: var(--accent);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .report-message-time {
   color: var(--muted);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .report-message-body {
@@ -5478,6 +5488,8 @@ body.locale-switch-animating {
   line-height: 1.5;
   color: var(--text);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .report-thread-panel-footer {
