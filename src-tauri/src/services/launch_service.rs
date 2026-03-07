@@ -25,6 +25,7 @@ const STEAM_APP_ID_VALUE: &str = "945360";
 const STEAM_CLIENT_EXECUTABLE_NAME: &str = "steam.exe";
 const ELEVATED_LAUNCH_DIR_NAME: &str = "elevated-launch";
 const ELEVATED_LAUNCH_FAILED_ERROR_PREFIX: &str = "ELEVATED_LAUNCH_FAILED:";
+const ELEVATION_REQUIRED_ERROR_PREFIX: &str = "ELEVATION_REQUIRED:";
 
 #[cfg(windows)]
 const WINDOWS_ERROR_ELEVATION_REQUIRED: i32 = 740;
@@ -326,7 +327,9 @@ fn snapshot_contains_process(pid: u32, executable_name: &str) -> bool {
 }
 
 #[cfg(windows)]
-fn process_entry_file_name(entry: &windows::Win32::System::Diagnostics::ToolHelp::PROCESSENTRY32W) -> String {
+fn process_entry_file_name(
+    entry: &windows::Win32::System::Diagnostics::ToolHelp::PROCESSENTRY32W,
+) -> String {
     let len = entry
         .szExeFile
         .iter()
@@ -516,7 +519,9 @@ fn map_launch_spawn_error(error: std::io::Error) -> String {
     #[cfg(windows)]
     {
         if error.raw_os_error() == Some(WINDOWS_ERROR_ELEVATION_REQUIRED) {
-            return "ELEVATION_REQUIRED: The requested operation requires elevation.".to_string();
+            return format!(
+                "{ELEVATION_REQUIRED_ERROR_PREFIX} The requested operation requires elevation."
+            );
         }
     }
 

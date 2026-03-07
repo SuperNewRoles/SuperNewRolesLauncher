@@ -4606,8 +4606,7 @@ body.locale-switch-animating {
   gap: 16px;
   padding: 22px 22px 20px;
   border-color: color-mix(in srgb, var(--line) 70%, #66c0f4 30%);
-  background:
-    radial-gradient(circle at top left, rgba(102, 192, 244, 0.14), transparent 42%),
+  background: radial-gradient(circle at top left, rgba(102, 192, 244, 0.14), transparent 42%),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--card-strong) 96%, var(--bg-0) 4%),

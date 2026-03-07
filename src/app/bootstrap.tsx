@@ -1666,9 +1666,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     return !EPIC_LOGIN_ENABLED && selectedSettings?.gamePlatform === "epic";
   }
 
-  async function warnIfSteamIsNotRunningOnStartup(
-    loadedSettings: LauncherSettings,
-  ): Promise<void> {
+  async function warnIfSteamIsNotRunningOnStartup(loadedSettings: LauncherSettings): Promise<void> {
     await ensureSteamRunningOrWarn(loadedSettings);
   }
 

@@ -180,32 +180,32 @@ export function ReportThreadPanel({
                     </div>
                   )}
                   <div className="report-message-body">
-                    {isStatus
-                      ? t("report.statusChanged", { status: message.content })
-                      : (
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          rehypePlugins={[rehypeSanitize]}
-                          components={{
-                            a: ({ href, children }) => (
-                              <a
-                                href={href}
-                                onClick={(event) => {
-                                  event.preventDefault();
-                                  if (!href) {
-                                    return;
-                                  }
-                                  void openExternal(href);
-                                }}
-                              >
-                                {children}
-                              </a>
-                            ),
-                          }}
-                        >
-                          {message.content}
-                        </ReactMarkdown>
-                      )}
+                    {isStatus ? (
+                      t("report.statusChanged", { status: message.content })
+                    ) : (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeSanitize]}
+                        components={{
+                          a: ({ href, children }) => (
+                            <a
+                              href={href}
+                              onClick={(event) => {
+                                event.preventDefault();
+                                if (!href) {
+                                  return;
+                                }
+                                void openExternal(href);
+                              }}
+                            >
+                              {children}
+                            </a>
+                          ),
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    )}
                   </div>
                 </div>
               );
