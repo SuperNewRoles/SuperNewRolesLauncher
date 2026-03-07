@@ -44,6 +44,11 @@ export interface AppDom {
   settingsElevationConfirmCloseButton: HTMLButtonElement;
   settingsElevationConfirmCancelButton: HTMLButtonElement;
   settingsElevationConfirmAcceptButton: HTMLButtonElement;
+  settingsSteamWarningOverlay: HTMLDivElement;
+  settingsSteamWarningOverlayBackdrop: HTMLDivElement;
+  settingsSteamWarningCloseButton: HTMLButtonElement;
+  settingsSteamWarningDismissButton: HTMLButtonElement;
+  settingsSteamWarningContinueButton: HTMLButtonElement;
   settingsMigrationOverlay: HTMLDivElement;
   settingsMigrationOverlayBackdrop: HTMLDivElement;
   settingsMigrationOverlayCloseButton: HTMLButtonElement;
@@ -226,6 +231,19 @@ export function collectAppDom(): AppDom {
     ),
     settingsElevationConfirmAcceptButton: mustElement<HTMLButtonElement>(
       "#settings-elevation-confirm-accept",
+    ),
+    settingsSteamWarningOverlay: mustElement<HTMLDivElement>("#settings-steam-warning-overlay"),
+    settingsSteamWarningOverlayBackdrop: mustElement<HTMLDivElement>(
+      "#settings-steam-warning-overlay-backdrop",
+    ),
+    settingsSteamWarningCloseButton: mustElement<HTMLButtonElement>(
+      "#settings-steam-warning-close",
+    ),
+    settingsSteamWarningDismissButton: mustElement<HTMLButtonElement>(
+      "#settings-steam-warning-dismiss",
+    ),
+    settingsSteamWarningContinueButton: mustElement<HTMLButtonElement>(
+      "#settings-steam-warning-continue",
     ),
     settingsMigrationOverlay: optionalElement("#settings-migration-overlay", "div"),
     settingsMigrationOverlayBackdrop: optionalElement(

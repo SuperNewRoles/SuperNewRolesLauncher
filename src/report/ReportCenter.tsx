@@ -7,7 +7,7 @@ import {
   reportingThreadsList,
 } from "../app/services/tauriClient";
 import type { ReportMessage, ReportThread } from "../app/types";
-import type { createTranslator } from "../i18n";
+import type { LocaleCode, createTranslator } from "../i18n";
 import { NewReportModal } from "./NewReportModal";
 import { ReportList } from "./ReportList";
 import { ReportThreadPanel } from "./ReportThreadPanel";
@@ -20,6 +20,7 @@ const REPORT_THREADS_REFRESH_GAP_MS = 30_000;
 const PANEL_CLOSE_ANIMATION_MS = 300;
 
 interface ReportCenterProps {
+  locale: LocaleCode;
   t: Translator;
   openThreadId?: string | null;
   onOpenThreadHandled?: (threadId: string) => void;
@@ -31,9 +32,9 @@ function formatActionError(error: unknown): string {
   return raw.replace(/^Error invoking '[^']+':\s*/u, "").trim() || raw;
 }
 
-export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCenterProps) {
+export function ReportCenter({ locale, t, openThreadId, onOpenThreadHandled }: ReportCenterProps) {
   const [isReady, setIsReady] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserToken, setCurrentUserToken] = useState<string | null>(null);
   const [threads, setThreads] = useState<ReportThread[]>([]);
   const [isLoadingThreads, setIsLoadingThreads] = useState(false);
   const [selectedThread, setSelectedThread] = useState<ReportThread | null>(null);
@@ -105,9 +106,7 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
         const result = await reportingPrepare();
         if (result.ready) {
           setIsReady(true);
-          if (result.githubId) {
-            setCurrentUserId(result.githubId);
-          }
+          setCurrentUserToken(result.token ?? null);
           await loadThreads({ force: true });
         }
       } catch (e) {
@@ -273,6 +272,11 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
       try {
         // 送信成功後は一覧を再取得し、新規スレッドを即反映する。
         await reportingReportSend(reportData);
+        const prepareResult = await reportingPrepare();
+        if (isMountedRef.current) {
+          setIsReady(prepareResult.ready);
+          setCurrentUserToken(prepareResult.token ?? null);
+        }
         setStatusMessage("");
         void loadThreads({ force: true });
       } catch (e) {
@@ -317,10 +321,11 @@ export function ReportCenter({ t, openThreadId, onOpenThreadHandled }: ReportCen
       />
 
       <ReportThreadPanel
+        locale={locale}
         t={t}
         thread={selectedThread}
         messages={messages}
-        currentUserId={currentUserId}
+        currentUserToken={currentUserToken}
         isOpen={isPanelOpen}
         isFullscreen={isFullscreen}
         isLoading={isLoadingMessages}

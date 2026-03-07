@@ -167,9 +167,9 @@ export interface OfficialLink {
 
 export interface ReportingPrepareResult {
   ready: boolean;
+  token: string | null;
   tokenSource: string;
   createdAccount: boolean;
-  githubId?: string;
 }
 
 export interface ReportingSendResult {

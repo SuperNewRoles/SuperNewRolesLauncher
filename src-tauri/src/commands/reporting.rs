@@ -7,6 +7,7 @@ use crate::utils::{mod_profile, reporting_api};
 #[serde(rename_all = "camelCase")]
 pub struct ReportingPrepareResult {
     pub ready: bool,
+    pub token: Option<String>,
     pub token_source: String,
     pub created_account: bool,
 }
@@ -31,6 +32,7 @@ pub async fn reporting_prepare<R: Runtime>(
     let summary = reporting_api::prepare_account(&app).await?;
     Ok(ReportingPrepareResult {
         ready: true,
+        token: summary.token,
         token_source: summary.token_source,
         created_account: summary.created_account,
     })

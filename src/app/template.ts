@@ -449,6 +449,29 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
         </section>
       </div>
 
+      <div id="settings-steam-warning-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
+        <div id="settings-steam-warning-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
+        <section
+          class="settings-fullscreen-overlay-panel settings-steam-warning-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-steam-warning-title"
+          aria-describedby="settings-steam-warning-message"
+        >
+          <header class="settings-fullscreen-overlay-header">
+            <div class="settings-steam-warning-heading">
+              <h2 id="settings-steam-warning-title">${t("launch.steamNotRunningTitle")}</h2>
+            </div>
+            <button id="settings-steam-warning-close" type="button" class="settings-fullscreen-overlay-close" aria-label="${t("common.close")}">×</button>
+          </header>
+          <p id="settings-steam-warning-message" class="settings-steam-warning-message">${t("launch.steamNotRunningMessage")}</p>
+          <footer class="settings-fullscreen-overlay-actions settings-steam-warning-actions">
+            <button id="settings-steam-warning-dismiss" type="button" class="ghost">${t("common.close")}</button>
+            <button id="settings-steam-warning-continue" type="button" class="settings-danger-button settings-steam-warning-continue" hidden>${t("launch.steamNotRunningContinue")}</button>
+          </footer>
+        </section>
+      </div>
+
       <div id="settings-migration-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
         <div id="settings-migration-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
         <section class="settings-fullscreen-overlay-panel settings-migration-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="settings-migration-overlay-title">

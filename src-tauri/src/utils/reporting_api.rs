@@ -6,7 +6,7 @@ use cbc::cipher::{block_padding::Pkcs7, BlockEncryptMut, KeyIvInit};
 use cbc::Encryptor;
 use futures_util::stream;
 use rand::RngCore;
-use reqwest::Client;
+use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::fs;
@@ -19,6 +19,7 @@ use tauri::{AppHandle, Emitter, Runtime};
 use crate::utils::{mod_profile, settings};
 
 const TOKEN_FILE_NAME: &str = "RequestInGame.token";
+const NO_VALID_REPORTING_TOKEN_ERROR: &str = "No valid reporting token found";
 const LOG_OUTPUT_RELATIVE_PATH: &str = "BepInEx/LogOutput.log";
 const LOG_ENCRYPTION_KEY_SOURCE: &str = "SNRLogKey2024!@#";
 const B64: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
@@ -82,7 +83,7 @@ pub struct ReportNotificationState {
 
 #[derive(Debug, Clone)]
 pub struct PrepareAccountSummary {
-    pub token: String,
+    pub token: Option<String>,
     pub token_source: String,
     pub created_account: bool,
 }
@@ -202,6 +203,12 @@ struct TokenCandidate {
     path: PathBuf,
     token: String,
     modified: SystemTime,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TokenValidationState {
+    Valid,
+    Invalid,
 }
 
 fn reporting_api_base_url() -> &'static str {
@@ -331,10 +338,27 @@ fn persist_token(paths: &[PathBuf], token: &str) -> Result<(), String> {
     Ok(())
 }
 
-async fn validate_token(client: &Client, token: &str) -> Result<bool, String> {
+fn classify_token_validation_status(status: StatusCode) -> Result<TokenValidationState, String> {
+    if status.is_success() {
+        return Ok(TokenValidationState::Valid);
+    }
+
+    if matches!(
+        status,
+        StatusCode::BAD_REQUEST | StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN
+    ) {
+        return Ok(TokenValidationState::Invalid);
+    }
+
+    Err(format!(
+        "Reporting token validation is temporarily unavailable ({status})"
+    ))
+}
+
+async fn validate_token(client: &Client, token: &str) -> Result<TokenValidationState, String> {
     let trimmed = token.trim();
     if trimmed.is_empty() {
-        return Ok(false);
+        return Ok(TokenValidationState::Invalid);
     }
 
     let response = client
@@ -344,7 +368,19 @@ async fn validate_token(client: &Client, token: &str) -> Result<bool, String> {
         .await
         .map_err(|e| format!("Failed to validate reporting token: {e}"))?;
 
-    Ok(response.status().is_success())
+    let status = response.status();
+    match classify_token_validation_status(status) {
+        Ok(state) => Ok(state),
+        Err(prefix) => {
+            let body = response.text().await.unwrap_or_default();
+            let detail = body.trim();
+            if detail.is_empty() {
+                Err(prefix)
+            } else {
+                Err(format!("{prefix}: {detail}"))
+            }
+        }
+    }
 }
 
 async fn create_account(client: &Client) -> Result<String, String> {
@@ -382,29 +418,36 @@ async fn resolve_valid_token<R: Runtime>(
 ) -> Result<(String, String, bool), String> {
     // 優先順位: メモリキャッシュ -> ファイル候補 -> createAccount。
     if let Some(cached) = get_cached_token() {
-        if validate_token(client, &cached).await? {
-            return Ok((cached, "memory-cache".to_string(), false));
+        match validate_token(client, &cached).await? {
+            TokenValidationState::Valid => {
+                return Ok((cached, "memory-cache".to_string(), false));
+            }
+            TokenValidationState::Invalid => {
+                set_cached_token(None);
+            }
         }
-        set_cached_token(None);
     }
 
     let paths = token_candidate_paths(app)?;
     let candidates = collect_token_candidates(&paths);
 
     for candidate in candidates {
-        if validate_token(client, &candidate.token).await? {
-            set_cached_token(Some(candidate.token.clone()));
-            return Ok((
-                candidate.token,
-                candidate.path.to_string_lossy().to_string(),
-                false,
-            ));
+        match validate_token(client, &candidate.token).await? {
+            TokenValidationState::Valid => {
+                set_cached_token(Some(candidate.token.clone()));
+                return Ok((
+                    candidate.token,
+                    candidate.path.to_string_lossy().to_string(),
+                    false,
+                ));
+            }
+            TokenValidationState::Invalid => {}
         }
     }
 
     if !allow_create {
         // 一覧取得など「作成しない」モードではここで打ち切る。
-        return Err("No valid reporting token found".to_string());
+        return Err(NO_VALID_REPORTING_TOKEN_ERROR.to_string());
     }
 
     let token = create_account(client).await?;
@@ -412,6 +455,17 @@ async fn resolve_valid_token<R: Runtime>(
     set_cached_token(Some(token.clone()));
 
     Ok((token, "createAccount".to_string(), true))
+}
+
+async fn resolve_existing_token<R: Runtime>(
+    app: &AppHandle<R>,
+    client: &Client,
+) -> Result<Option<(String, String)>, String> {
+    match resolve_valid_token(app, client, false).await {
+        Ok((token, token_source, _)) => Ok(Some((token, token_source))),
+        Err(error) if error == NO_VALID_REPORTING_TOKEN_ERROR => Ok(None),
+        Err(error) => Err(error),
+    }
 }
 
 fn normalize_report_type(value: &str) -> Result<&'static str, String> {
@@ -568,18 +622,27 @@ pub async fn prepare_account<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<PrepareAccountSummary, String> {
     let client = reporting_client()?;
-    let (token, token_source, created_account) = resolve_valid_token(app, &client, true).await?;
+    let existing = resolve_existing_token(app, &client).await?;
 
-    Ok(PrepareAccountSummary {
-        token,
-        token_source,
-        created_account,
-    })
+    match existing {
+        Some((token, token_source)) => Ok(PrepareAccountSummary {
+            token: Some(token),
+            token_source,
+            created_account: false,
+        }),
+        None => Ok(PrepareAccountSummary {
+            token: None,
+            token_source: "not-found".to_string(),
+            created_account: false,
+        }),
+    }
 }
 
 pub async fn list_threads<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<ReportThread>, String> {
     let client = reporting_client()?;
-    let (token, _, _) = resolve_valid_token(app, &client, true).await?;
+    let Some((token, _)) = resolve_existing_token(app, &client).await? else {
+        return Ok(Vec::new());
+    };
 
     let response = client
         .get(format!("{}/getThreads/", reporting_api_base_url()))
@@ -640,7 +703,9 @@ pub async fn get_messages<R: Runtime>(
     }
 
     let client = reporting_client()?;
-    let (token, _, _) = resolve_valid_token(app, &client, true).await?;
+    let Some((token, _)) = resolve_existing_token(app, &client).await? else {
+        return Ok(Vec::new());
+    };
 
     let response = client
         .get(format!(
@@ -697,7 +762,7 @@ pub async fn send_message<R: Runtime>(
     }
 
     let client = reporting_client()?;
-    let (token, _, _) = resolve_valid_token(app, &client, true).await?;
+    let (token, _, _) = resolve_valid_token(app, &client, false).await?;
 
     let mut body = Map::new();
     body.insert(
@@ -951,7 +1016,13 @@ pub async fn get_notifications<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<ReportNotificationState, String> {
     let client = reporting_client()?;
-    let (token, _, _) = resolve_valid_token(app, &client, true).await?;
+    // バックグラウンド通知取得は副作用を持たせず、既存トークンのみを使う。
+    let Some((token, _)) = resolve_existing_token(app, &client).await? else {
+        return Ok(ReportNotificationState {
+            notification: false,
+            threads: Vec::new(),
+        });
+    };
 
     let response = client
         .get(format!("{}/getNotification/", reporting_api_base_url()))
@@ -997,6 +1068,43 @@ pub async fn get_notifications<R: Runtime>(
 
 pub async fn get_notification_flag<R: Runtime>(app: &AppHandle<R>) -> Result<bool, String> {
     Ok(get_notifications(app).await?.notification)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{classify_token_validation_status, TokenValidationState};
+    use reqwest::StatusCode;
+
+    #[test]
+    fn token_validation_success_means_valid() {
+        assert_eq!(
+            classify_token_validation_status(StatusCode::OK),
+            Ok(TokenValidationState::Valid)
+        );
+    }
+
+    #[test]
+    fn explicit_auth_failures_mean_invalid_token() {
+        assert_eq!(
+            classify_token_validation_status(StatusCode::BAD_REQUEST),
+            Ok(TokenValidationState::Invalid)
+        );
+        assert_eq!(
+            classify_token_validation_status(StatusCode::UNAUTHORIZED),
+            Ok(TokenValidationState::Invalid)
+        );
+        assert_eq!(
+            classify_token_validation_status(StatusCode::FORBIDDEN),
+            Ok(TokenValidationState::Invalid)
+        );
+    }
+
+    #[test]
+    fn server_side_failures_do_not_trigger_regeneration_path() {
+        let error = classify_token_validation_status(StatusCode::SERVICE_UNAVAILABLE)
+            .expect_err("503 should be treated as a retryable validation failure");
+        assert!(error.contains("temporarily unavailable"));
+    }
 }
 
 pub fn get_log_source_info<R: Runtime>(app: &AppHandle<R>) -> Result<LogSourceInfo, String> {

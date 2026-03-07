@@ -442,6 +442,10 @@ const ja = {
     "このゲームは管理者権限での起動が必要です。続行すると Windows の確認ダイアログが表示されます。",
   "launch.elevationConfirmAccept": "管理者で再実行",
   "launch.elevationConfirmCancel": "キャンセル",
+  "launch.steamNotRunningTitle": "Steamが起動していません",
+  "launch.steamNotRunningMessage":
+    "Steamが起動していないと、Among Us内でログインされない場合があります。先にSteamを起動してください。",
+  "launch.steamNotRunningContinue": "それでも起動する",
   "launch.steamNotRunningWarning":
     "Steam版が選択されていますが、Steamが起動していません。先にSteamを起動してください。",
   "launch.gameRunning": "ゲーム実行中",

@@ -42,6 +42,9 @@ describe("renderAppTemplate (settings general)", () => {
     expect(html).toContain('id="settings-uninstall-confirm-accept"');
     expect(html).toContain('id="settings-elevation-confirm-overlay"');
     expect(html).toContain('id="settings-elevation-confirm-accept"');
+    expect(html).toContain('id="settings-steam-warning-overlay"');
+    expect(html).toContain('id="settings-steam-warning-dismiss"');
+    expect(html).toContain('id="settings-steam-warning-continue"');
   });
 
   it("keeps settings overlays outside the settings tab container", () => {
@@ -57,6 +60,7 @@ describe("renderAppTemplate (settings general)", () => {
       "settings-among-us-overlay",
       "settings-uninstall-confirm-overlay",
       "settings-elevation-confirm-overlay",
+      "settings-steam-warning-overlay",
       "settings-migration-overlay",
     ]) {
       const overlay = document.getElementById(id);

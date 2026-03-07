@@ -269,35 +269,7 @@ fn load_persisted_running_game_pid<R: Runtime>(app: &AppHandle<R>) -> Result<Opt
 
 #[cfg(windows)]
 fn is_pid_running(pid: u32) -> bool {
-    use std::os::windows::process::CommandExt;
-
-    // GUIプロセスからの tasklist 実行でコンソールが点滅しないよう抑止する。
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-
-    let filter = format!("PID eq {pid}");
-    let mut command = Command::new("tasklist");
-    command
-        .creation_flags(CREATE_NO_WINDOW)
-        .args(["/FI", &filter, "/FO", "CSV", "/NH"]);
-    let output = match command.output() {
-        Ok(output) => output,
-        Err(_) => return false,
-    };
-
-    if !output.status.success() {
-        return false;
-    }
-
-    let among_us_exe = among_us_exe_file_name().to_ascii_lowercase();
-    let executable_prefix = format!("\"{among_us_exe}\"");
-    let pid_fragment = format!(",\"{pid}\",");
-    String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .map(str::trim)
-        .any(|line| {
-            line.to_ascii_lowercase().starts_with(&executable_prefix)
-                && line.contains(&pid_fragment)
-        })
+    snapshot_contains_process(pid, among_us_exe_file_name())
 }
 
 #[cfg(not(windows))]
@@ -307,35 +279,60 @@ fn is_pid_running(_pid: u32) -> bool {
 
 #[cfg(windows)]
 pub fn is_steam_running() -> bool {
-    use std::os::windows::process::CommandExt;
-
-    // GUIプロセスからの tasklist 実行でコンソールが点滅しないよう抑止する。
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-
-    let filter = format!("IMAGENAME eq {STEAM_CLIENT_EXECUTABLE_NAME}");
-    let mut command = Command::new("tasklist");
-    command
-        .creation_flags(CREATE_NO_WINDOW)
-        .args(["/FI", &filter, "/FO", "CSV", "/NH"]);
-    let output = match command.output() {
-        Ok(output) => output,
-        Err(_) => return false,
-    };
-
-    if !output.status.success() {
-        return false;
-    }
-
-    let executable_prefix = format!("\"{STEAM_CLIENT_EXECUTABLE_NAME}\"");
-    String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .map(str::trim)
-        .any(|line| line.to_ascii_lowercase().starts_with(&executable_prefix))
+    snapshot_contains_process(0, STEAM_CLIENT_EXECUTABLE_NAME)
 }
 
 #[cfg(not(windows))]
 pub fn is_steam_running() -> bool {
     false
+}
+
+#[cfg(windows)]
+fn snapshot_contains_process(pid: u32, executable_name: &str) -> bool {
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+        TH32CS_SNAPPROCESS,
+    };
+
+    let snapshot = match unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) } {
+        Ok(handle) => handle,
+        Err(_) => return false,
+    };
+
+    let mut entry = PROCESSENTRY32W {
+        dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+        ..Default::default()
+    };
+    let target_name = executable_name.trim();
+    let found = unsafe {
+        let mut has_entry = Process32FirstW(snapshot, &mut entry).is_ok();
+        let mut matched = false;
+
+        while has_entry {
+            let pid_matches = pid == 0 || entry.th32ProcessID == pid;
+            if pid_matches && process_entry_file_name(&entry).eq_ignore_ascii_case(target_name) {
+                matched = true;
+                break;
+            }
+            has_entry = Process32NextW(snapshot, &mut entry).is_ok();
+        }
+
+        matched
+    };
+
+    let _ = unsafe { CloseHandle(snapshot) };
+    found
+}
+
+#[cfg(windows)]
+fn process_entry_file_name(entry: &windows::Win32::System::Diagnostics::ToolHelp::PROCESSENTRY32W) -> String {
+    let len = entry
+        .szExeFile
+        .iter()
+        .position(|value| *value == 0)
+        .unwrap_or(entry.szExeFile.len());
+    String::from_utf16_lossy(&entry.szExeFile[..len])
 }
 
 #[cfg(windows)]

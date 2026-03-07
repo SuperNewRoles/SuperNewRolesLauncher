@@ -1,15 +1,22 @@
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
+import remarkGfm from "remark-gfm";
 import type { ReportMessage, ReportThread } from "../app/types";
-import type { createTranslator } from "../i18n";
+import type { LocaleCode, createTranslator } from "../i18n";
+import { isOwnReportMessage } from "./messageOwnership";
+import { formatReportDateTime } from "./reportDateTime";
 
 type Translator = ReturnType<typeof createTranslator>;
 
 interface ReportThreadPanelProps {
+  locale: LocaleCode;
   t: Translator;
   thread: ReportThread | null;
   messages: ReportMessage[];
-  currentUserId: string | null;
+  currentUserToken: string | null;
   isOpen: boolean;
   isFullscreen: boolean;
   isLoading: boolean;
@@ -19,10 +26,11 @@ interface ReportThreadPanelProps {
 }
 
 export function ReportThreadPanel({
+  locale,
   t,
   thread,
   messages,
-  currentUserId,
+  currentUserToken,
   isOpen,
   isFullscreen,
   isLoading,
@@ -46,11 +54,11 @@ export function ReportThreadPanel({
       messageId: `${thread.threadId}-first`,
       createdAt: thread.createdAt,
       content: thread.firstMessage,
-      sender: undefined,
+      sender: currentUserToken ?? undefined,
     };
 
     return [firstMessage, ...messages];
-  }, [thread, messages]);
+  }, [thread, messages, currentUserToken]);
 
   // アニメーション用：DOMがマウントされてからopenクラスを適用
   useEffect(() => {
@@ -79,6 +87,15 @@ export function ReportThreadPanel({
       container.scrollTop = container.scrollHeight;
     });
   }, [isOpen, normalizedMessages]);
+
+  const openExternal = useCallback(async (url: string): Promise<void> => {
+    try {
+      // Tauri 側の opener を優先し、失敗時のみブラウザ API にフォールバックする。
+      await openUrl(url);
+    } catch {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  }, []);
 
   const handleSend = useCallback(async () => {
     // 空返信は送信しない。
@@ -143,8 +160,8 @@ export function ReportThreadPanel({
             {normalizedMessages.map((message) => {
               const isStatus = message.messageType === "status";
               const sender = message.sender;
-              // sender が github: 以外のものは自分側メッセージとして表示する。
-              const isOwnMessage = !sender?.startsWith("github:");
+              // sender と現在の報告トークンが一致するものだけ自分側に寄せる。
+              const isOwnMessage = isOwnReportMessage(sender, currentUserToken);
               const senderName = sender?.replace("github:", "") ?? t("report.untitled");
 
               return (
@@ -158,14 +175,37 @@ export function ReportThreadPanel({
                         {isOwnMessage ? t("report.you") : senderName}
                       </span>
                       <span className="report-message-time">
-                        {new Date(message.createdAt).toLocaleString()}
+                        {formatReportDateTime(message.createdAt, locale)}
                       </span>
                     </div>
                   )}
                   <div className="report-message-body">
                     {isStatus
                       ? t("report.statusChanged", { status: message.content })
-                      : message.content}
+                      : (
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          rehypePlugins={[rehypeSanitize]}
+                          components={{
+                            a: ({ href, children }) => (
+                              <a
+                                href={href}
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  if (!href) {
+                                    return;
+                                  }
+                                  void openExternal(href);
+                                }}
+                              >
+                                {children}
+                              </a>
+                            ),
+                          }}
+                        >
+                          {message.content}
+                        </ReactMarkdown>
+                      )}
                   </div>
                 </div>
               );

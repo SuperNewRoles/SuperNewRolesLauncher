@@ -451,6 +451,10 @@ const en: Record<keyof typeof ja, string> = {
     "This game must be launched with administrator privileges. Continuing will show a Windows elevation prompt.",
   "launch.elevationConfirmAccept": "Retry as Administrator",
   "launch.elevationConfirmCancel": "Cancel",
+  "launch.steamNotRunningTitle": "Steam Is Not Running",
+  "launch.steamNotRunningMessage":
+    "If Steam is not running, you may not be logged in inside Among Us. Start Steam first.",
+  "launch.steamNotRunningContinue": "Launch Anyway",
   "launch.steamNotRunningWarning":
     "Steam is selected, but Steam is not running. Start Steam first.",
   "launch.gameRunning": "Game is running",

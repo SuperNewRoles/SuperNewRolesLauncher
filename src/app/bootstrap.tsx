@@ -450,6 +450,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     settingsElevationConfirmCloseButton,
     settingsElevationConfirmCancelButton,
     settingsElevationConfirmAcceptButton,
+    settingsSteamWarningOverlay,
+    settingsSteamWarningOverlayBackdrop,
+    settingsSteamWarningCloseButton,
+    settingsSteamWarningDismissButton,
+    settingsSteamWarningContinueButton,
     settingsMigrationOverlay,
     settingsMigrationOverlayBackdrop,
     settingsMigrationOverlayCloseButton,
@@ -900,6 +905,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let updateConfirmResolver: ((accepted: boolean) => void) | null = null;
   let updateConfirmBackdropUnlockAt = 0;
   let elevationConfirmResolver: ((accepted: boolean) => void) | null = null;
+  let steamWarningResolver: ((accepted: boolean) => void) | null = null;
   const overlayAnimationTimers = new WeakMap<HTMLDivElement, number>();
   const overlayCloseTimers = new WeakMap<HTMLDivElement, number>();
 
@@ -1065,6 +1071,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     reportCenterRoot.render(
       <ReportCenter
+        locale={currentLocale}
         t={t}
         openThreadId={pendingReportOpenThreadId}
         onOpenThreadHandled={(threadId) => {
@@ -1662,21 +1669,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   async function warnIfSteamIsNotRunningOnStartup(
     loadedSettings: LauncherSettings,
   ): Promise<void> {
-    if (
-      loadedSettings.gamePlatform !== "steam" ||
-      loadedSettings.amongUsPath.trim().length === 0
-    ) {
-      return;
-    }
-
-    try {
-      const steamRunning = await launchSteamRunningGet();
-      if (!steamRunning) {
-        setLaunchStatusWithLock(t("launch.steamNotRunningWarning"), LAUNCH_ERROR_DISPLAY_MS);
-      }
-    } catch {
-      // ignore Steam running state retrieval errors
-    }
+    await ensureSteamRunningOrWarn(loadedSettings);
   }
 
   function updateButtons(): void {
@@ -2141,6 +2134,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       !settingsUninstallConfirmOverlay.hidden ||
       !settingsUpdateConfirmOverlay.hidden ||
       !settingsElevationConfirmOverlay.hidden ||
+      !settingsSteamWarningOverlay.hidden ||
       !settingsMigrationOverlay.hidden ||
       !presetOverlay.hidden ||
       !presetFeedbackOverlay.hidden;
@@ -2601,6 +2595,82 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   settingsElevationConfirmAcceptButton.addEventListener("click", () => {
     resolveElevationConfirm(true);
   });
+
+  function closeSteamWarningOverlay(force = false): void {
+    closeSettingsOverlay(settingsSteamWarningOverlay, force);
+    if (!steamWarningResolver) {
+      return;
+    }
+    const resolve = steamWarningResolver;
+    steamWarningResolver = null;
+    resolve(false);
+  }
+
+  function resolveSteamWarning(accepted: boolean): void {
+    if (!steamWarningResolver) {
+      return;
+    }
+    const resolve = steamWarningResolver;
+    steamWarningResolver = null;
+    closeSettingsOverlay(settingsSteamWarningOverlay);
+    resolve(accepted);
+  }
+
+  function openSteamWarningOverlay(allowContinueAnyway: boolean): Promise<boolean> {
+    if (steamWarningResolver) {
+      const resolve = steamWarningResolver;
+      steamWarningResolver = null;
+      resolve(false);
+    }
+    settingsSteamWarningContinueButton.hidden = !allowContinueAnyway;
+    openSettingsOverlay(settingsSteamWarningOverlay);
+    if (allowContinueAnyway) {
+      settingsSteamWarningContinueButton.focus();
+    } else {
+      settingsSteamWarningDismissButton.focus();
+    }
+    return new Promise<boolean>((resolve) => {
+      steamWarningResolver = resolve;
+    });
+  }
+
+  settingsSteamWarningOverlayBackdrop.addEventListener("click", () => {
+    resolveSteamWarning(false);
+  });
+  settingsSteamWarningCloseButton.addEventListener("click", () => {
+    resolveSteamWarning(false);
+  });
+  settingsSteamWarningDismissButton.addEventListener("click", () => {
+    resolveSteamWarning(false);
+  });
+  settingsSteamWarningContinueButton.addEventListener("click", () => {
+    resolveSteamWarning(true);
+  });
+
+  async function ensureSteamRunningOrWarn(
+    selectedSettings: LauncherSettings,
+    { allowContinueAnyway = false }: { allowContinueAnyway?: boolean } = {},
+  ): Promise<boolean> {
+    if (
+      selectedSettings.gamePlatform !== "steam" ||
+      selectedSettings.amongUsPath.trim().length === 0
+    ) {
+      return true;
+    }
+
+    try {
+      const steamRunning = await launchSteamRunningGet();
+      if (steamRunning) {
+        return true;
+      }
+    } catch {
+      // ignore Steam running state retrieval errors
+      return true;
+    }
+
+    setLaunchStatusWithLock(t("launch.steamNotRunningWarning"), LAUNCH_ERROR_DISPLAY_MS);
+    return openSteamWarningOverlay(allowContinueAnyway);
+  }
 
   function isMigrationProcessing(): boolean {
     return migrationExporting || migrationImporting;
@@ -3277,6 +3347,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       resolveElevationConfirm(false);
       return;
     }
+    if (!settingsSteamWarningOverlay.hidden) {
+      closeSteamWarningOverlay();
+      return;
+    }
     if (!settingsMigrationOverlay.hidden) {
       closeMigrationOverlay();
       return;
@@ -3529,6 +3603,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       setLaunchStatusWithLock(t("launch.errorEpicFeatureDisabled"), LAUNCH_ERROR_DISPLAY_MS);
       return;
     }
+    if (!(await ensureSteamRunningOrWarn(settings, { allowContinueAnyway: true }))) {
+      return;
+    }
     launchInProgress = true;
     setLaunchStatus(t("launch.moddedStarting"));
     updateButtons();
@@ -3582,6 +3659,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
     if (hasBlockedEpicPlatform(settings)) {
       setLaunchStatusWithLock(t("launch.errorEpicFeatureDisabled"), LAUNCH_ERROR_DISPLAY_MS);
+      return;
+    }
+    if (!(await ensureSteamRunningOrWarn(settings, { allowContinueAnyway: true }))) {
       return;
     }
     launchInProgress = true;
@@ -3991,6 +4071,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     if (!loadedSettings.onboardingCompleted) {
       mountOnboarding();
     }
+    void warnIfSteamIsNotRunningOnStartup(loadedSettings);
     await refreshProfileReady();
 
     await refreshLocalPresets(true);
@@ -4006,7 +4087,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       }
     }
     await refreshEpicLoginState();
-    await warnIfSteamIsNotRunningOnStartup(loadedSettings);
 
     try {
       const autoLaunchError = await launchAutolaunchErrorTake();
