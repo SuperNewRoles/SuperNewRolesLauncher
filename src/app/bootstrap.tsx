@@ -61,6 +61,7 @@ import {
   launchModdedElevated,
   launchModdedFirstSetupPending,
   launchShortcutCreate,
+  launchSteamRunningGet,
   launchVanilla,
   launchVanillaElevated,
   migrationExport,
@@ -1656,6 +1657,26 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   function hasBlockedEpicPlatform(selectedSettings: LauncherSettings | null): boolean {
     return !EPIC_LOGIN_ENABLED && selectedSettings?.gamePlatform === "epic";
+  }
+
+  async function warnIfSteamIsNotRunningOnStartup(
+    loadedSettings: LauncherSettings,
+  ): Promise<void> {
+    if (
+      loadedSettings.gamePlatform !== "steam" ||
+      loadedSettings.amongUsPath.trim().length === 0
+    ) {
+      return;
+    }
+
+    try {
+      const steamRunning = await launchSteamRunningGet();
+      if (!steamRunning) {
+        setLaunchStatusWithLock(t("launch.steamNotRunningWarning"), LAUNCH_ERROR_DISPLAY_MS);
+      }
+    } catch {
+      // ignore Steam running state retrieval errors
+    }
   }
 
   function updateButtons(): void {
@@ -3985,6 +4006,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       }
     }
     await refreshEpicLoginState();
+    await warnIfSteamIsNotRunningOnStartup(loadedSettings);
 
     try {
       const autoLaunchError = await launchAutolaunchErrorTake();

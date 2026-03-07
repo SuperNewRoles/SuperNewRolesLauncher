@@ -22,6 +22,7 @@ pub const ELEVATED_LAUNCH_PAYLOAD_ARGUMENT: &str = "--elevated-launch-payload";
 const RUNNING_GAME_PID_FILE_NAME: &str = "running-game.pid";
 const STEAM_APP_ID_FILE_NAME: &str = "steam_appid.txt";
 const STEAM_APP_ID_VALUE: &str = "945360";
+const STEAM_CLIENT_EXECUTABLE_NAME: &str = "steam.exe";
 const ELEVATED_LAUNCH_DIR_NAME: &str = "elevated-launch";
 const ELEVATED_LAUNCH_FAILED_ERROR_PREFIX: &str = "ELEVATED_LAUNCH_FAILED:";
 
@@ -301,6 +302,39 @@ fn is_pid_running(pid: u32) -> bool {
 
 #[cfg(not(windows))]
 fn is_pid_running(_pid: u32) -> bool {
+    false
+}
+
+#[cfg(windows)]
+pub fn is_steam_running() -> bool {
+    use std::os::windows::process::CommandExt;
+
+    // GUIプロセスからの tasklist 実行でコンソールが点滅しないよう抑止する。
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+    let filter = format!("IMAGENAME eq {STEAM_CLIENT_EXECUTABLE_NAME}");
+    let mut command = Command::new("tasklist");
+    command
+        .creation_flags(CREATE_NO_WINDOW)
+        .args(["/FI", &filter, "/FO", "CSV", "/NH"]);
+    let output = match command.output() {
+        Ok(output) => output,
+        Err(_) => return false,
+    };
+
+    if !output.status.success() {
+        return false;
+    }
+
+    let executable_prefix = format!("\"{STEAM_CLIENT_EXECUTABLE_NAME}\"");
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim)
+        .any(|line| line.to_ascii_lowercase().starts_with(&executable_prefix))
+}
+
+#[cfg(not(windows))]
+pub fn is_steam_running() -> bool {
     false
 }
 

@@ -289,6 +289,10 @@ export function launchGameRunningGet(): Promise<boolean> {
   return invoke<boolean>("launch_game_running_get");
 }
 
+export function launchSteamRunningGet(): Promise<boolean> {
+  return invoke<boolean>("launch_steam_running_get");
+}
+
 // トレイメニュー関連API
 export function trayLaunchModded(): Promise<void> {
   return invoke<void>("tray_launch_modded");

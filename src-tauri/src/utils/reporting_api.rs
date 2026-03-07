@@ -82,6 +82,7 @@ pub struct ReportNotificationState {
 
 #[derive(Debug, Clone)]
 pub struct PrepareAccountSummary {
+    pub token: String,
     pub token_source: String,
     pub created_account: bool,
 }
@@ -567,9 +568,10 @@ pub async fn prepare_account<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<PrepareAccountSummary, String> {
     let client = reporting_client()?;
-    let (_, token_source, created_account) = resolve_valid_token(app, &client, true).await?;
+    let (token, token_source, created_account) = resolve_valid_token(app, &client, true).await?;
 
     Ok(PrepareAccountSummary {
+        token,
         token_source,
         created_account,
     })

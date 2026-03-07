@@ -451,6 +451,8 @@ const en: Record<keyof typeof ja, string> = {
     "This game must be launched with administrator privileges. Continuing will show a Windows elevation prompt.",
   "launch.elevationConfirmAccept": "Retry as Administrator",
   "launch.elevationConfirmCancel": "Cancel",
+  "launch.steamNotRunningWarning":
+    "Steam is selected, but Steam is not running. Start Steam first.",
   "launch.gameRunning": "Game is running",
   "launch.gameStopped": "Game is stopped",
 

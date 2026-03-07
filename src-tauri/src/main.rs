@@ -574,6 +574,7 @@ pub fn run() {
             commands::launch::launch_modded_first_setup_pending,
             commands::launch::launch_autolaunch_error_take,
             commands::launch::launch_game_running_get,
+            commands::launch::launch_steam_running_get,
             commands::tray::tray_launch_modded,
             commands::tray::tray_show_main_window,
             commands::tray::tray_exit_app,

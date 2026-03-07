@@ -24,6 +24,12 @@ pub fn launch_game_running_get<R: Runtime>(app: AppHandle<R>) -> Result<bool, St
     launch_service::is_game_running(app)
 }
 
+/// Steam クライアントが起動中かを返す。
+#[tauri::command]
+pub fn launch_steam_running_get() -> bool {
+    launch_service::is_steam_running()
+}
+
 /// Mod起動ショートカットを作成する。
 #[tauri::command]
 pub fn launch_shortcut_create() -> Result<String, String> {
