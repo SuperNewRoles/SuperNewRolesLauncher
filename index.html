@@ -4,13 +4,58 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SuperNewRolesLauncher</title>
+    <script>
+      (() => {
+        const themeStorageKey = "snr-launcher.theme";
+        const isTrayMenu = new URLSearchParams(window.location.search).get("tray-menu") === "1";
+        let storedTheme = "system";
+
+        try {
+          const savedTheme = localStorage.getItem(themeStorageKey);
+          if (savedTheme === "light" || savedTheme === "dark" || savedTheme === "system") {
+            storedTheme = savedTheme;
+          }
+        } catch {
+          // localStorage 非対応時も初期描画は続行する。
+        }
+
+        const prefersDark =
+          typeof window.matchMedia === "function" &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const effectiveTheme =
+          storedTheme === "dark" || (storedTheme === "system" && prefersDark) ? "dark" : "light";
+        const startupBackground = isTrayMenu
+          ? "transparent"
+          : effectiveTheme === "dark"
+            ? "#0b1020"
+            : "#f3f7fb";
+
+        if (storedTheme === "light" || storedTheme === "dark") {
+          document.documentElement.setAttribute("data-theme", storedTheme);
+        }
+
+        document.documentElement.style.colorScheme = effectiveTheme;
+        document.documentElement.style.backgroundColor = startupBackground;
+        document.documentElement.style.setProperty("--startup-window-bg", startupBackground);
+      })();
+    </script>
     <style>
+      html,
+      body,
+      #app {
+        margin: 0;
+        min-height: 100vh;
+        min-height: 100dvh;
+        background: var(--startup-window-bg, #f3f7fb);
+      }
+
       .startup-loader {
         min-height: 100vh;
         min-height: 100dvh;
         display: flex;
         align-items: center;
         justify-content: center;
+        background: var(--startup-window-bg, #f3f7fb);
       }
 
       .startup-loader-spinner {
@@ -26,6 +71,11 @@
         to {
           transform: rotate(360deg);
         }
+      }
+
+      [data-theme="dark"] .startup-loader-spinner {
+        border-color: rgba(90, 176, 255, 0.28);
+        border-top-color: #5ab0ff;
       }
 
       @media (prefers-color-scheme: dark) {

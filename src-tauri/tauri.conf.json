@@ -15,6 +15,7 @@
         "label": "main",
         "title": "SuperNewRolesLauncher",
         "visible": false,
+        "backgroundColor": "#f3f7fb",
         "width": 1100,
         "height": 720
       }

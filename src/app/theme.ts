@@ -3,6 +3,56 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 export type ThemePreference = "system" | "light" | "dark";
 
 const THEME_STORAGE_KEY = "snr-launcher.theme";
+const LIGHT_WINDOW_BACKGROUND = "#f3f7fb";
+const DARK_WINDOW_BACKGROUND = "#0b1020";
+
+function isTrayMenuWindow(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  return new URLSearchParams(window.location.search).get("tray-menu") === "1";
+}
+
+function resolveEffectiveTheme(theme: ThemePreference): "light" | "dark" {
+  if (theme === "light" || theme === "dark") {
+    return theme;
+  }
+  if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  return "light";
+}
+
+function resolveWindowBackgroundColor(theme: ThemePreference): string {
+  return resolveEffectiveTheme(theme) === "dark"
+    ? DARK_WINDOW_BACKGROUND
+    : LIGHT_WINDOW_BACKGROUND;
+}
+
+function syncDocumentThemeMetadata(theme: ThemePreference): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const effectiveTheme = resolveEffectiveTheme(theme);
+  const backgroundColor = isTrayMenuWindow() ? "transparent" : resolveWindowBackgroundColor(theme);
+  document.documentElement.style.colorScheme = effectiveTheme;
+  document.documentElement.style.backgroundColor = backgroundColor;
+  document.documentElement.style.setProperty("--startup-window-bg", backgroundColor);
+}
+
+async function syncCurrentWindowBackground(theme: ThemePreference): Promise<void> {
+  syncDocumentThemeMetadata(theme);
+  if (isTrayMenuWindow()) {
+    return;
+  }
+
+  try {
+    await getCurrentWindow().setBackgroundColor(resolveWindowBackgroundColor(theme));
+  } catch {
+    // ウィンドウ背景色の同期に失敗してもテーマ適用は継続する。
+  }
+}
 
 /**
  * 保存されているテーマ設定を取得
@@ -35,6 +85,8 @@ export function applyTheme(theme: ThemePreference): void {
     // system: OS設定に従う
     document.documentElement.removeAttribute("data-theme");
   }
+
+  void syncCurrentWindowBackground(theme);
 }
 
 /**
@@ -48,10 +100,11 @@ export async function initTheme(): Promise<() => void> {
   // systemモード時はOSの変更を監視
   if (storedTheme === "system") {
     const appWindow = getCurrentWindow();
-    const unlisten = await appWindow.onThemeChanged((event) => {
+    const unlisten = await appWindow.onThemeChanged(() => {
       // systemモードの場合、OS設定に従う（data-themeを削除）
       if (getStoredTheme() === "system") {
         document.documentElement.removeAttribute("data-theme");
+        void syncCurrentWindowBackground("system");
       }
     });
 

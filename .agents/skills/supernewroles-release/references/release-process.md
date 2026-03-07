@@ -91,10 +91,11 @@ New-Item -ItemType Directory -Path ".tmp" -Force | Out-Null
 
 @"
 <@&1475130942787158210>
-# SuperNewRoles v$version
+# SuperNewRoles Launcher v$version
 ### 主な変更
 - <主な変更1>
 - <主な変更2>
+詳細な変更はリリースノートをご覧ください。
 https://supernewroles.com/launcher-v$version
 "@ | Set-Content -Path $discordPath -Encoding UTF8
 ```
