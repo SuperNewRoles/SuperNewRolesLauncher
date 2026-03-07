@@ -22,9 +22,11 @@ pub const ELEVATED_LAUNCH_PAYLOAD_ARGUMENT: &str = "--elevated-launch-payload";
 const RUNNING_GAME_PID_FILE_NAME: &str = "running-game.pid";
 const STEAM_APP_ID_FILE_NAME: &str = "steam_appid.txt";
 const STEAM_APP_ID_VALUE: &str = "945360";
+#[cfg(windows)]
 const STEAM_CLIENT_EXECUTABLE_NAME: &str = "steam.exe";
 const ELEVATED_LAUNCH_DIR_NAME: &str = "elevated-launch";
 const ELEVATED_LAUNCH_FAILED_ERROR_PREFIX: &str = "ELEVATED_LAUNCH_FAILED:";
+#[cfg(windows)]
 const ELEVATION_REQUIRED_ERROR_PREFIX: &str = "ELEVATION_REQUIRED:";
 
 #[cfg(windows)]
