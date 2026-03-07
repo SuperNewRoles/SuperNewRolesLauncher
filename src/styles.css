@@ -60,6 +60,8 @@
   --scrollbar-thumb: rgba(var(--accent-rgb), 0.4);
   --scrollbar-thumb-hover: rgba(var(--accent-rgb), 0.56);
   --scrollbar-thumb-active: rgba(var(--accent-rgb), 0.72);
+  --theme-transition-duration: 220ms;
+  --theme-transition-easing: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -240,7 +242,10 @@ body {
     linear-gradient(160deg, var(--bg-0) 0%, var(--bg-1) 100%);
   background-color: var(--bg-0);
   background-attachment: fixed;
-  transition: background 1.0s ease, color 1.0s ease;
+  transition:
+    background var(--theme-transition-duration) var(--theme-transition-easing),
+    background-color var(--theme-transition-duration) var(--theme-transition-easing),
+    color var(--theme-transition-duration) var(--theme-transition-easing);
   overflow-x: hidden;
   scrollbar-gutter: stable both-edges;
 }
@@ -290,8 +295,8 @@ body {
 *::before,
 *::after {
   transition-property: background-color, border-color, color, box-shadow;
-  transition-duration: 0.3s;
-  transition-timing-function: ease;
+  transition-duration: var(--theme-transition-duration);
+  transition-timing-function: var(--theme-transition-easing);
 }
 
 #app {
