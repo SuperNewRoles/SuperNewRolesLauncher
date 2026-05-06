@@ -53,7 +53,7 @@ describe("game-servers/roomsApi", () => {
               Age: 12,
               MaxPlayers: 15,
               NumImpostors: 2,
-              MapId: "Polus",
+              MapId: 2,
               Language: "Japanese",
               GameState: 0,
             },
@@ -78,6 +78,7 @@ describe("game-servers/roomsApi", () => {
     expect(snapshot.rooms[0]?.ipLittleEndian).toBe("4.3.2.1");
     expect(snapshot.rooms[0]?.port).toBe(22023);
     expect(snapshot.rooms[0]?.playerCount).toBe(5);
+    expect(snapshot.rooms[0]?.mapId).toBe("2");
     expect(snapshot.rooms[0]?.gameState).toBe(0);
   });
 });

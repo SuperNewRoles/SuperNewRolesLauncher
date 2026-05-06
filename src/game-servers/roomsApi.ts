@@ -32,6 +32,9 @@ function toSafeInteger(value: unknown): number | null {
 }
 
 function sanitizeString(value: unknown, fallback = "-"): string {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(Math.trunc(value));
+  }
   if (typeof value !== "string") {
     return fallback;
   }

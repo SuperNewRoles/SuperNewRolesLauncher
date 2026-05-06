@@ -11,7 +11,7 @@ export interface GameServerRoomRaw {
   Age?: number | string;
   MaxPlayers?: number | string;
   NumImpostors?: number | string;
-  MapId?: string;
+  MapId?: number | string;
   Language?: string;
   GameState?: number | string;
   MatchmakerIP?: string;
