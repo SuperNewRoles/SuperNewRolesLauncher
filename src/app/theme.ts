@@ -24,9 +24,7 @@ function resolveEffectiveTheme(theme: ThemePreference): "light" | "dark" {
 }
 
 function resolveWindowBackgroundColor(theme: ThemePreference): string {
-  return resolveEffectiveTheme(theme) === "dark"
-    ? DARK_WINDOW_BACKGROUND
-    : LIGHT_WINDOW_BACKGROUND;
+  return resolveEffectiveTheme(theme) === "dark" ? DARK_WINDOW_BACKGROUND : LIGHT_WINDOW_BACKGROUND;
 }
 
 function syncDocumentThemeMetadata(theme: ThemePreference): void {
