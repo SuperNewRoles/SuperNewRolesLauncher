@@ -293,6 +293,25 @@ export function launchSteamRunningGet(): Promise<boolean> {
   return invoke<boolean>("launch_steam_running_get");
 }
 
+export function launchXboxAppIdGet(): Promise<string> {
+  return invoke<string>("launch_xbox_app_id_get");
+}
+
+export function launchXboxPrepareModded(input: {
+  gameDir: string;
+  profilePath: string;
+}): Promise<void> {
+  return invoke<void>("launch_xbox_prepare_modded", input);
+}
+
+export function launchXboxCleanup(gameDir: string): Promise<void> {
+  return invoke<void>("launch_xbox_cleanup", { gameDir });
+}
+
+export function launchXbox(appId: string): Promise<void> {
+  return invoke<void>("launch_xbox", { appId });
+}
+
 // トレイメニュー関連API
 export function trayLaunchModded(): Promise<void> {
   return invoke<void>("tray_launch_modded");

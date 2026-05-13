@@ -22,6 +22,7 @@ pub const ELEVATED_LAUNCH_PAYLOAD_ARGUMENT: &str = "--elevated-launch-payload";
 const RUNNING_GAME_PID_FILE_NAME: &str = "running-game.pid";
 const STEAM_APP_ID_FILE_NAME: &str = "steam_appid.txt";
 const STEAM_APP_ID_VALUE: &str = "945360";
+const XBOX_LAUNCH_MARKER_FILE_NAME: &str = ".supernewroles_xbox_launch_files";
 #[cfg(windows)]
 const STEAM_CLIENT_EXECUTABLE_NAME: &str = "steam.exe";
 const ELEVATED_LAUNCH_DIR_NAME: &str = "elevated-launch";
@@ -901,6 +902,232 @@ fn ensure_steam_appid_file_if_needed(game_dir: &Path, platform: &str) -> Result<
     Ok(())
 }
 
+fn ensure_valid_xbox_game_dir(game_dir: &Path) -> Result<(), String> {
+    if game_dir.is_dir()
+        && game_dir.join(among_us_exe_file_name()).is_file()
+        && game_dir.join(among_us_data_dir_name()).is_dir()
+    {
+        Ok(())
+    } else {
+        Err(format!(
+            "The selected folder is not an Among Us installation directory: {}",
+            game_dir.to_string_lossy()
+        ))
+    }
+}
+
+#[cfg(windows)]
+pub fn get_xbox_app_id() -> Result<String, String> {
+    let output = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-Command",
+            "(Get-StartApps | Where-Object { $_.Name -eq 'Among Us' -and $_.AppId -like 'Innersloth.AmongUs*' } | Select-Object -First 1).AppId",
+        ])
+        .output()
+        .map_err(|error| format!("Failed to run PowerShell for Xbox app lookup: {error}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Xbox app lookup failed: {stderr}"));
+    }
+
+    let app_id = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .unwrap_or_default()
+        .to_string();
+
+    if app_id.is_empty() {
+        return Err("Among Us was not found in Microsoft Store apps.".to_string());
+    }
+
+    Ok(app_id)
+}
+
+#[cfg(not(windows))]
+pub fn get_xbox_app_id() -> Result<String, String> {
+    Err("Xbox app launch is only supported on Windows.".to_string())
+}
+
+fn rewrite_xbox_doorstop_config(source: &str, profile_path: &Path) -> String {
+    let target_assembly = profile_path
+        .join("BepInEx")
+        .join("core")
+        .join("BepInEx.Unity.IL2CPP.dll");
+    let coreclr_path = profile_path.join("dotnet").join("coreclr.dll");
+    let dotnet_dir = profile_path.join("dotnet");
+    let target_assembly = target_assembly.to_string_lossy().replace('\\', "\\\\");
+    let coreclr_path = coreclr_path.to_string_lossy().replace('\\', "\\\\");
+    let dotnet_dir = dotnet_dir.to_string_lossy().replace('\\', "\\\\");
+
+    let mut output = String::new();
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if is_doorstop_setting_line(trimmed, "enabled") {
+            output.push_str("enabled = true\n");
+        } else if is_doorstop_setting_line(trimmed, "target_assembly") {
+            output.push_str(&format!("target_assembly = \"{target_assembly}\"\n"));
+        } else if is_doorstop_setting_line(trimmed, "ignore_disable_switch") {
+            output.push_str("ignore_disable_switch = true\n");
+        } else if is_doorstop_setting_line(trimmed, "coreclr_path") {
+            output.push_str(&format!("coreclr_path = \"{coreclr_path}\"\n"));
+        } else if is_doorstop_setting_line(trimmed, "corlib_dir") {
+            output.push_str(&format!("corlib_dir = \"{dotnet_dir}\"\n"));
+        } else {
+            output.push_str(line);
+            output.push('\n');
+        }
+    }
+    output
+}
+
+fn is_doorstop_setting_line(trimmed: &str, key: &str) -> bool {
+    trimmed
+        .split_once('=')
+        .is_some_and(|(left, _)| left.trim().eq_ignore_ascii_case(key))
+        && !trimmed.starts_with('#')
+        && !trimmed.starts_with(';')
+}
+
+fn xbox_launch_marker_path(game_dir: &Path) -> PathBuf {
+    game_dir.join(XBOX_LAUNCH_MARKER_FILE_NAME)
+}
+
+fn ensure_xbox_launch_file_is_owned(path: &Path, marker_exists: bool) -> Result<(), String> {
+    if path.exists() && !marker_exists {
+        return Err(format!(
+            "Refusing to overwrite existing Xbox launch file without launcher marker: {}",
+            path.to_string_lossy()
+        ));
+    }
+    Ok(())
+}
+
+pub fn prepare_xbox_modded(game_dir: String, profile_path: String) -> Result<(), String> {
+    let game_dir = PathBuf::from(game_dir);
+    ensure_valid_xbox_game_dir(&game_dir)?;
+
+    let profile_path = PathBuf::from(profile_path);
+    let src_dll = profile_path.join("winhttp.dll");
+    let src_ini = profile_path.join("doorstop_config.ini");
+    let dst_dll = game_dir.join("winhttp.dll");
+    let dst_ini = game_dir.join("doorstop_config.ini");
+    let marker_path = xbox_launch_marker_path(&game_dir);
+    let marker_exists = marker_path.is_file();
+
+    ensure_file_exists(&src_dll, "winhttp.dll")?;
+    ensure_file_exists(&src_ini, "doorstop_config.ini")?;
+    ensure_file_exists(
+        &profile_path
+            .join("BepInEx")
+            .join("core")
+            .join("BepInEx.Unity.IL2CPP.dll"),
+        "BepInEx IL2CPP DLL",
+    )?;
+    ensure_file_exists(
+        &profile_path.join("dotnet").join("coreclr.dll"),
+        "dotnet coreclr",
+    )?;
+    ensure_xbox_launch_file_is_owned(&dst_dll, marker_exists)?;
+    ensure_xbox_launch_file_is_owned(&dst_ini, marker_exists)?;
+
+    fs::copy(&src_dll, &dst_dll)
+        .map_err(|error| format!("Failed to copy Xbox winhttp.dll: {error}"))?;
+
+    let ini_content = match fs::read_to_string(&src_ini) {
+        Ok(content) => content,
+        Err(error) => {
+            let _ = fs::remove_file(&dst_dll);
+            return Err(format!("Failed to read Xbox doorstop_config.ini: {error}"));
+        }
+    };
+
+    let rewritten = rewrite_xbox_doorstop_config(&ini_content, &profile_path);
+    if let Err(error) = fs::write(&dst_ini, rewritten) {
+        let _ = fs::remove_file(&dst_dll);
+        return Err(format!("Failed to write Xbox doorstop_config.ini: {error}"));
+    }
+    if let Err(error) = fs::write(&marker_path, b"managed by SuperNewRolesLauncher\n") {
+        if !marker_exists {
+            let _ = fs::remove_file(&dst_dll);
+            let _ = fs::remove_file(&dst_ini);
+        }
+        return Err(format!("Failed to write Xbox launch marker: {error}"));
+    }
+
+    Ok(())
+}
+
+pub fn cleanup_xbox_files(game_dir: String) -> Result<(), String> {
+    let game_dir = PathBuf::from(game_dir);
+    ensure_valid_xbox_game_dir(&game_dir)?;
+    let marker_path = xbox_launch_marker_path(&game_dir);
+
+    if !marker_path.is_file() {
+        return Ok(());
+    }
+
+    for file_name in ["winhttp.dll", "doorstop_config.ini"] {
+        let path = game_dir.join(file_name);
+        match fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(format!(
+                    "Failed to remove Xbox launch file '{}': {error}",
+                    path.to_string_lossy()
+                ));
+            }
+        }
+    }
+    match fs::remove_file(&marker_path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(format!(
+                "Failed to remove Xbox launch marker '{}': {error}",
+                marker_path.to_string_lossy()
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+pub fn launch_xbox(app_id: String) -> Result<(), String> {
+    let app_id = app_id.trim();
+    if app_id.is_empty() {
+        return Err("Xbox app id is required.".to_string());
+    }
+
+    Command::new("explorer")
+        .arg(format!("shell:AppsFolder\\{app_id}"))
+        .spawn()
+        .map_err(|error| format!("Failed to launch Xbox game: {error}"))?;
+
+    Ok(())
+}
+
+fn launch_xbox_modded(game_dir: &Path, profile_path: &str) -> Result<(), String> {
+    let app_id = get_xbox_app_id()?;
+    let game_dir_string = game_dir.to_string_lossy().to_string();
+    prepare_xbox_modded(game_dir_string.clone(), profile_path.to_string())?;
+
+    match launch_xbox(app_id) {
+        Ok(()) => Ok(()),
+        Err(launch_error) => {
+            if let Err(cleanup_error) = cleanup_xbox_files(game_dir_string) {
+                return Err(format!(
+                    "{launch_error}; cleanup also failed: {cleanup_error}"
+                ));
+            }
+            Err(launch_error)
+        }
+    }
+}
+
 pub fn modded_first_setup_pending<R: Runtime>(
     app: &AppHandle<R>,
     game_exe: String,
@@ -976,6 +1203,10 @@ pub async fn launch_modded_from_saved_settings<R: Runtime>(
         return Err("Profile path is not configured".to_string());
     }
 
+    if launcher_settings.game_platform == settings::GamePlatform::Xbox {
+        return launch_xbox_modded(Path::new(among_us_path), profile_path);
+    }
+
     let game_exe_path = PathBuf::from(among_us_path).join(among_us_exe_file_name());
     launch_modded(
         app,
@@ -994,6 +1225,10 @@ pub async fn launch_modded<R: Runtime>(
 ) -> Result<(), String> {
     let game_exe_path = PathBuf::from(&game_exe);
     let game_dir = ensure_valid_among_us_launch_target(&game_exe_path)?;
+
+    if platform.trim().eq_ignore_ascii_case("xbox") {
+        return launch_xbox_modded(game_dir, &profile_path);
+    }
 
     let profile_path = PathBuf::from(&profile_path);
     let bepinex_dll = profile_path
@@ -1036,6 +1271,13 @@ pub async fn launch_vanilla<R: Runtime>(
 ) -> Result<(), String> {
     let game_exe_path = PathBuf::from(&game_exe);
     let game_dir = ensure_valid_among_us_launch_target(&game_exe_path)?;
+
+    if platform.trim().eq_ignore_ascii_case("xbox") {
+        cleanup_xbox_files(game_dir.to_string_lossy().to_string())?;
+        let app_id = get_xbox_app_id()?;
+        return launch_xbox(app_id);
+    }
+
     ensure_steam_appid_file_if_needed(game_dir, &platform)?;
 
     #[cfg(windows)]
@@ -1067,6 +1309,16 @@ mod tests {
         ));
         fs::create_dir_all(&dir).expect("failed to create temp test directory");
         dir.join(file_name)
+    }
+
+    fn temp_test_dir(label: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "snr-launch-test-{label}-{}-{}",
+            std::process::id(),
+            rand::random::<u64>()
+        ));
+        fs::create_dir_all(&dir).expect("failed to create temp test directory");
+        dir
     }
 
     #[test]
@@ -1143,5 +1395,120 @@ mod tests {
         if let Some(parent) = result_path.parent() {
             let _ = fs::remove_dir(parent);
         }
+    }
+
+    #[test]
+    fn rewrite_xbox_doorstop_config_replaces_only_active_target_lines() {
+        let profile_path = PathBuf::from("C:\\Profiles\\Default");
+        let source = r#"# target_assembly = "old"
+enabled = false
+target_assembly = "old-target"
+; coreclr_path = "old"
+ignore_disable_switch = false
+coreclr_path = "old-coreclr"
+corlib_dir = dotnet
+other = true
+"#;
+
+        let rewritten = rewrite_xbox_doorstop_config(source, &profile_path);
+
+        assert!(rewritten.contains("# target_assembly = \"old\""));
+        assert!(rewritten.contains("; coreclr_path = \"old\""));
+        assert!(rewritten.contains("enabled = true"));
+        assert!(rewritten.contains("target_assembly = \"C:\\\\Profiles\\\\Default\\\\BepInEx\\\\core\\\\BepInEx.Unity.IL2CPP.dll\""));
+        assert!(rewritten.contains("ignore_disable_switch = true"));
+        assert!(rewritten
+            .contains("coreclr_path = \"C:\\\\Profiles\\\\Default\\\\dotnet\\\\coreclr.dll\""));
+        assert!(rewritten.contains("corlib_dir = \"C:\\\\Profiles\\\\Default\\\\dotnet\""));
+        assert!(rewritten.contains("other = true"));
+    }
+
+    #[test]
+    fn prepare_xbox_modded_cleans_copied_dll_when_ini_write_fails() {
+        let game_dir = temp_test_dir("xbox-game");
+        fs::write(game_dir.join(among_us_exe_file_name()), b"").expect("write game exe");
+        fs::create_dir_all(game_dir.join(among_us_data_dir_name())).expect("write data dir");
+        fs::create_dir(game_dir.join("doorstop_config.ini")).expect("create blocking ini dir");
+        fs::write(
+            game_dir.join(XBOX_LAUNCH_MARKER_FILE_NAME),
+            b"managed by test\n",
+        )
+        .expect("write marker");
+
+        let profile_dir = temp_test_dir("xbox-profile");
+        fs::write(profile_dir.join("winhttp.dll"), b"dll").expect("write source dll");
+        fs::write(
+            profile_dir.join("doorstop_config.ini"),
+            "target_assembly = \"old\"\ncoreclr_path = \"old\"\n",
+        )
+        .expect("write source ini");
+        fs::create_dir_all(profile_dir.join("BepInEx").join("core")).expect("create bepinex");
+        fs::write(
+            profile_dir
+                .join("BepInEx")
+                .join("core")
+                .join("BepInEx.Unity.IL2CPP.dll"),
+            b"",
+        )
+        .expect("write bepinex dll");
+        fs::create_dir_all(profile_dir.join("dotnet")).expect("create dotnet");
+        fs::write(profile_dir.join("dotnet").join("coreclr.dll"), b"").expect("write coreclr");
+
+        let error = prepare_xbox_modded(
+            game_dir.to_string_lossy().to_string(),
+            profile_dir.to_string_lossy().to_string(),
+        )
+        .expect_err("blocking ini directory should fail");
+        assert!(error.contains("Failed to write Xbox doorstop_config.ini"));
+        assert!(!game_dir.join("winhttp.dll").exists());
+
+        let _ = fs::remove_dir_all(&game_dir);
+        let _ = fs::remove_dir_all(&profile_dir);
+    }
+
+    #[test]
+    fn cleanup_xbox_files_removes_only_launch_files() {
+        let game_dir = temp_test_dir("xbox-cleanup");
+        fs::write(game_dir.join(among_us_exe_file_name()), b"").expect("write game exe");
+        fs::create_dir_all(game_dir.join(among_us_data_dir_name())).expect("write data dir");
+        fs::write(game_dir.join("winhttp.dll"), b"").expect("write dll");
+        fs::write(game_dir.join("doorstop_config.ini"), b"").expect("write ini");
+        fs::write(
+            game_dir.join(XBOX_LAUNCH_MARKER_FILE_NAME),
+            b"managed by test\n",
+        )
+        .expect("write marker");
+        fs::write(game_dir.join("keep.txt"), b"keep").expect("write keep");
+
+        cleanup_xbox_files(game_dir.to_string_lossy().to_string()).expect("cleanup xbox files");
+
+        assert!(!game_dir.join("winhttp.dll").exists());
+        assert!(!game_dir.join("doorstop_config.ini").exists());
+        assert!(!game_dir.join(XBOX_LAUNCH_MARKER_FILE_NAME).exists());
+        assert!(game_dir.join("keep.txt").is_file());
+
+        let _ = fs::remove_dir_all(&game_dir);
+    }
+
+    #[test]
+    fn cleanup_xbox_files_preserves_unmarked_existing_files() {
+        let game_dir = temp_test_dir("xbox-cleanup-unmarked");
+        fs::write(game_dir.join(among_us_exe_file_name()), b"").expect("write game exe");
+        fs::create_dir_all(game_dir.join(among_us_data_dir_name())).expect("write data dir");
+        fs::write(game_dir.join("winhttp.dll"), b"user dll").expect("write dll");
+        fs::write(game_dir.join("doorstop_config.ini"), b"user ini").expect("write ini");
+
+        cleanup_xbox_files(game_dir.to_string_lossy().to_string()).expect("cleanup xbox files");
+
+        assert_eq!(
+            fs::read(game_dir.join("winhttp.dll")).expect("read dll"),
+            b"user dll"
+        );
+        assert_eq!(
+            fs::read(game_dir.join("doorstop_config.ini")).expect("read ini"),
+            b"user ini"
+        );
+
+        let _ = fs::remove_dir_all(&game_dir);
     }
 }

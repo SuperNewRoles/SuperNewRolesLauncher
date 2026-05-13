@@ -468,6 +468,8 @@ const en: Record<keyof typeof ja, string> = {
     "The elevation request was cancelled. The game was not launched.",
   "launch.errorElevatedLaunchFailed":
     "Failed to retry launch with administrator privileges. Detail: {error}",
+  "launch.errorXboxAppNotFound":
+    "Xbox/Microsoft Store Among Us was not found. Please make sure it is installed.",
   "launch.elevationConfirmTitle": "Administrator Privileges Required",
   "launch.elevationConfirmMessage":
     "This game must be launched with administrator privileges. Continuing will show a Windows elevation prompt.",
@@ -503,6 +505,7 @@ const en: Record<keyof typeof ja, string> = {
   "installFlow.platformTitle": "Which platform do you want to install to?",
   "installFlow.platformSteam": "Steam",
   "installFlow.platformEpic": "Epic",
+  "installFlow.platformXbox": "Xbox",
   "installFlow.folderPath": "Folder path",
   "installFlow.manualSelect": "Select manually",
   "installFlow.versionTitle": "Which version do you want to install?",

@@ -74,6 +74,8 @@ fn asset_regex_for_platform(platform: &settings::GamePlatform) -> Result<Regex, 
     let pattern = match platform {
         settings::GamePlatform::Steam => &mod_profile::get().distribution.asset_regex.steam,
         settings::GamePlatform::Epic => &mod_profile::get().distribution.asset_regex.epic,
+        // Xbox/Microsoft Store版はEpicと同じ64bit配布物を使用する。
+        settings::GamePlatform::Xbox => &mod_profile::get().distribution.asset_regex.epic,
     };
     Regex::new(pattern).map_err(|e| {
         format!(

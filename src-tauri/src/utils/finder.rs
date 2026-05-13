@@ -19,6 +19,15 @@ fn epic_folder_path() -> PathBuf {
     path
 }
 
+fn xbox_folder_path() -> PathBuf {
+    // Xbox/Microsoft Store版判定に使う既知ディレクトリまでの相対パスを組み立てる。
+    let mut path = mod_profile::to_relative_path(&mod_profile::get().paths.among_us_data_dir);
+    path.push("StreamingAssets");
+    path.push("aa");
+    path.push("Win10");
+    path
+}
+
 fn verify_among_us_directory(path: &Path) -> bool {
     // ディレクトリ存在と実行ファイル存在の両方を満たす場合のみ有効とする。
     path.is_dir() && path.join(among_us_exe_name()).is_file()
@@ -26,6 +35,20 @@ fn verify_among_us_directory(path: &Path) -> bool {
 
 fn is_epic_installation(path: &Path) -> bool {
     path.join(epic_folder_path()).is_dir()
+}
+
+fn is_xbox_installation(path: &Path) -> bool {
+    path.join(xbox_folder_path()).is_dir()
+}
+
+#[cfg(target_os = "windows")]
+fn drive_root_path(value: &std::ffi::OsStr) -> PathBuf {
+    let mut root = value.to_os_string();
+    let text = value.to_string_lossy();
+    if !text.ends_with('\\') && !text.ends_with('/') {
+        root.push("\\");
+    }
+    PathBuf::from(root)
 }
 
 #[cfg(target_os = "windows")]
@@ -85,6 +108,14 @@ fn detect_common_paths() -> Vec<PathBuf> {
         candidates.push(epic_path);
     }
 
+    if let Some(system_drive) = std::env::var_os("SystemDrive") {
+        let xbox_path = drive_root_path(&system_drive)
+            .join("XboxGames")
+            .join("Among Us")
+            .join("Content");
+        candidates.push(xbox_path);
+    }
+
     candidates
         .into_iter()
         .filter(|path| verify_among_us_directory(path))
@@ -124,7 +155,91 @@ pub fn detect_platform(path: &str) -> Result<String, String> {
     // Epic固有ディレクトリの有無だけで判定し、未一致はSteamとして扱う。
     if is_epic_installation(&path) {
         Ok("epic".to_string())
+    } else if is_xbox_installation(&path) {
+        Ok("xbox".to_string())
     } else {
         Ok("steam".to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::detect_platform;
+    #[cfg(target_os = "windows")]
+    use super::drive_root_path;
+    use crate::utils::mod_profile;
+    #[cfg(target_os = "windows")]
+    use std::ffi::OsStr;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn make_temp_dir(label: &str) -> PathBuf {
+        let millis = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        std::env::temp_dir().join(format!(
+            "snr-finder-{label}-{}-{millis}",
+            std::process::id()
+        ))
+    }
+
+    fn make_installation(path: &Path, marker: Option<&str>) {
+        fs::create_dir_all(path).expect("create temp install dir");
+        fs::write(
+            path.join(mod_profile::get().paths.among_us_exe.as_str()),
+            b"",
+        )
+        .expect("write exe marker");
+        if let Some(marker) = marker {
+            fs::create_dir_all(
+                path.join(mod_profile::get().paths.among_us_data_dir.as_str())
+                    .join("StreamingAssets")
+                    .join("aa")
+                    .join(marker),
+            )
+            .expect("create platform marker");
+        }
+    }
+
+    #[test]
+    fn detect_platform_detects_xbox_marker() {
+        let path = make_temp_dir("xbox");
+        make_installation(&path, Some("Win10"));
+
+        let platform = detect_platform(&path.to_string_lossy()).expect("detect platform");
+        assert_eq!(platform, "xbox");
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn detect_platform_detects_epic_marker() {
+        let path = make_temp_dir("epic");
+        make_installation(&path, Some("EGS"));
+
+        let platform = detect_platform(&path.to_string_lossy()).expect("detect platform");
+        assert_eq!(platform, "epic");
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn detect_platform_defaults_to_steam_without_marker() {
+        let path = make_temp_dir("steam");
+        make_installation(&path, None);
+
+        let platform = detect_platform(&path.to_string_lossy()).expect("detect platform");
+        assert_eq!(platform, "steam");
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn drive_root_path_expands_drive_relative_value() {
+        assert_eq!(drive_root_path(OsStr::new("C:")), PathBuf::from("C:\\"));
+        assert_eq!(drive_root_path(OsStr::new("D:\\")), PathBuf::from("D:\\"));
     }
 }

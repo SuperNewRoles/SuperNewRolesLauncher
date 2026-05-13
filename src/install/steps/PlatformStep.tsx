@@ -1,6 +1,6 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { useState } from "react";
-import { EPIC_ICON_PATH, STEAM_ICON_PATH } from "../../app/platformIconPaths";
+import { EPIC_ICON_PATH, STEAM_ICON_PATH, XBOX_ICON_PATH } from "../../app/platformIconPaths";
 import {
   filterSelectablePlatformCandidates,
   getPlatformLabelKey,
@@ -32,6 +32,18 @@ export const EPIC_SVG = (
     <path d={EPIC_ICON_PATH} />
   </svg>
 );
+
+export const XBOX_SVG = (
+  <svg viewBox="0 0 24 24" width={80} height={80} fill="currentColor" role="img" aria-label="Xbox">
+    <path d={XBOX_ICON_PATH} />
+  </svg>
+);
+
+export function getPlatformSvg(platform: GamePlatform) {
+  if (platform === "steam") return STEAM_SVG;
+  if (platform === "epic") return EPIC_SVG;
+  return XBOX_SVG;
+}
 
 export default function PlatformStep({
   t,
@@ -91,9 +103,7 @@ export default function PlatformStep({
             className="platform-card"
             onClick={() => onSelect(candidate.path, candidate.platform)}
           >
-            <span className="platform-icon">
-              {candidate.platform === "steam" ? STEAM_SVG : EPIC_SVG}
-            </span>
+            <span className="platform-icon">{getPlatformSvg(candidate.platform)}</span>
             <span className="platform-name">{t(getPlatformLabelKey(candidate.platform))}</span>
             <span className="platform-path">
               {t("installFlow.folderPath")}: {candidate.path}

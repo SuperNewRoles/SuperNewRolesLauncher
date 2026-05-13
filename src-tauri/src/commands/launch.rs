@@ -30,6 +30,30 @@ pub fn launch_steam_running_get() -> bool {
     launch_service::is_steam_running()
 }
 
+/// Xbox/Microsoft Store版 Among Us の AppId を取得する。
+#[tauri::command]
+pub fn launch_xbox_app_id_get() -> Result<String, String> {
+    launch_service::get_xbox_app_id()
+}
+
+/// Xbox/Microsoft Store版のMod起動に必要なDoorstopファイルをゲーム側へ配置する。
+#[tauri::command]
+pub fn launch_xbox_prepare_modded(game_dir: String, profile_path: String) -> Result<(), String> {
+    launch_service::prepare_xbox_modded(game_dir, profile_path)
+}
+
+/// Xbox/Microsoft Store版のゲーム側に配置したDoorstopファイルを削除する。
+#[tauri::command]
+pub fn launch_xbox_cleanup(game_dir: String) -> Result<(), String> {
+    launch_service::cleanup_xbox_files(game_dir)
+}
+
+/// Xbox/Microsoft Store版 Among Us を shell:AppsFolder 経由で起動する。
+#[tauri::command]
+pub fn launch_xbox(app_id: String) -> Result<(), String> {
+    launch_service::launch_xbox(app_id)
+}
+
 /// Mod起動ショートカットを作成する。
 #[tauri::command]
 pub fn launch_shortcut_create() -> Result<String, String> {

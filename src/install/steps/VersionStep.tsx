@@ -1,7 +1,8 @@
 import { MOD_DISPLAY_NAME } from "../../app/modConfig";
+import { getPlatformLabelKey } from "../../app/platformSelection";
 import type { GamePlatform, SnrReleaseSummary } from "../../app/types";
 import type { MessageKey } from "../../i18n";
-import { EPIC_SVG, STEAM_SVG } from "./PlatformStep";
+import { getPlatformSvg } from "./PlatformStep";
 
 interface VersionStepProps {
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
@@ -40,20 +41,14 @@ export default function VersionStep({
   const showErrorState = !releasesLoading && Boolean(releasesError) && !hasReleaseOptions;
   const showEmptyState = !releasesLoading && !releasesError && !hasReleaseOptions;
 
-  const platformName =
-    platform === "steam"
-      ? t("installFlow.platformSteam")
-      : platform === "epic"
-        ? t("installFlow.platformEpic")
-        : "";
+  const platformName = platform ? t(getPlatformLabelKey(platform)) : "";
 
   // 現在選択中のプラットフォームに応じてヘッダーアイコンを切り替える。
-  const platformIcon =
-    platform === "steam" ? (
-      <span className="version-platform-icon steam">{STEAM_SVG}</span>
-    ) : platform === "epic" ? (
-      <span className="version-platform-icon epic">{EPIC_SVG}</span>
-    ) : null;
+  const platformIcon = platform ? (
+    <span className={`version-platform-icon ${platform}`} title={platformName}>
+      {getPlatformSvg(platform)}
+    </span>
+  ) : null;
 
   return (
     <div className="install-step install-step-version">

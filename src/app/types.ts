@@ -3,7 +3,7 @@
  * Tauri command境界の入出力を明示し、機能分割後も型を一元化する。
  */
 
-export type GamePlatform = "steam" | "epic";
+export type GamePlatform = "steam" | "epic" | "xbox";
 export type ReportType = "Bug" | "Question" | "Request" | "Thanks" | "Other";
 
 export interface LauncherSettings {

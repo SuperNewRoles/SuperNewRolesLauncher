@@ -22,6 +22,10 @@ const TOKEN_FILE_NAME: &str = "RequestInGame.token";
 const NO_VALID_REPORTING_TOKEN_ERROR: &str = "No valid reporting token found";
 const LOG_OUTPUT_RELATIVE_PATH: &str = "BepInEx/LogOutput.log";
 const LOG_ENCRYPTION_KEY_SOURCE: &str = "SNRLogKey2024!@#";
+const SETTINGS_DATA_SCHEMA_VERSION: u8 = 1;
+const OPTIONS_FILE_NAME: &str = "Options.data";
+const PRESET_FILE_PREFIX: &str = "PresetOptions_";
+const PRESET_FILE_SUFFIX: &str = ".data";
 const B64: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 const REPORT_SEND_PROGRESS_EVENT: &str = "reporting-send-progress";
 const REPORT_SEND_UPLOAD_CHUNK_SIZE: usize = 16 * 1024;
@@ -106,6 +110,26 @@ pub struct SendReportInput {
     pub map: Option<String>,
     pub role: Option<String>,
     pub timing: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct SettingsDataPayload {
+    schema_version: u8,
+    source: &'static str,
+    save_data_root: String,
+    current_preset: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    current_preset_parse_error: Option<String>,
+    files: Vec<SettingsDataFile>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct SettingsDataFile {
+    kind: &'static str,
+    relative_path: String,
+    content_base64: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    preset_id: Option<i32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -477,6 +501,164 @@ fn normalize_report_type(value: &str) -> Result<&'static str, String> {
         "other" => Ok("Other"),
         other => Err(format!("Unsupported report type: {other}")),
     }
+}
+
+fn normalize_path_for_payload(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
+fn read_i32_le(bytes: &[u8], offset: usize, field: &str) -> Result<i32, String> {
+    if offset + 4 > bytes.len() {
+        return Err(format!(
+            "Unexpected end of Options.data while reading {field}."
+        ));
+    }
+
+    let mut buffer = [0u8; 4];
+    buffer.copy_from_slice(&bytes[offset..offset + 4]);
+    Ok(i32::from_le_bytes(buffer))
+}
+
+fn parse_current_preset_from_options_data(bytes: &[u8]) -> Result<i32, String> {
+    if bytes.len() < 7 {
+        return Err("Options.data is too short to parse current preset.".to_string());
+    }
+
+    let checksum_seed = bytes[1] as u16;
+    let checksum = bytes[2] as u16;
+    if checksum_seed.saturating_mul(checksum_seed) != checksum {
+        return Err(
+            "Options.data checksum validation failed (random^2 check mismatch).".to_string(),
+        );
+    }
+
+    read_i32_le(bytes, 3, "current preset")
+}
+
+fn preset_file_name(preset_id: i32) -> String {
+    format!("{PRESET_FILE_PREFIX}{preset_id}{PRESET_FILE_SUFFIX}")
+}
+
+fn build_settings_data_payload(
+    save_data_dir: &Path,
+    save_data_root: &Path,
+) -> Result<Option<SettingsDataPayload>, String> {
+    let options_path = save_data_dir.join(OPTIONS_FILE_NAME);
+    if !options_path.is_file() {
+        return Ok(None);
+    }
+
+    let options_bytes = fs::read(&options_path).map_err(|e| {
+        format!(
+            "Failed to read Options.data for settings data report '{}': {e}",
+            options_path.display()
+        )
+    })?;
+    let (current_preset, current_preset_parse_error) =
+        match parse_current_preset_from_options_data(&options_bytes) {
+            Ok(current_preset) => (current_preset, None),
+            Err(error) => (-1, Some(error)),
+        };
+
+    let mut files = vec![SettingsDataFile {
+        kind: "options",
+        relative_path: normalize_path_for_payload(&save_data_root.join(OPTIONS_FILE_NAME)),
+        content_base64: B64.encode(options_bytes),
+        preset_id: None,
+    }];
+
+    if current_preset >= 0 {
+        let preset_file_name = preset_file_name(current_preset);
+        let preset_path = save_data_dir.join(&preset_file_name);
+        if preset_path.is_file() {
+            let preset_bytes = fs::read(&preset_path).map_err(|e| {
+                format!(
+                    "Failed to read preset settings data '{}': {e}",
+                    preset_path.display()
+                )
+            })?;
+            files.push(SettingsDataFile {
+                kind: "preset",
+                relative_path: normalize_path_for_payload(&save_data_root.join(preset_file_name)),
+                content_base64: B64.encode(preset_bytes),
+                preset_id: Some(current_preset),
+            });
+        }
+    }
+
+    Ok(Some(SettingsDataPayload {
+        schema_version: SETTINGS_DATA_SCHEMA_VERSION,
+        source: "launcher-save-data",
+        save_data_root: normalize_path_for_payload(save_data_root),
+        current_preset,
+        current_preset_parse_error,
+        files,
+    }))
+}
+
+fn build_settings_data_payload_from_roots(
+    candidate_roots: &[PathBuf],
+    save_data_root: &Path,
+) -> Result<Option<SettingsDataPayload>, String> {
+    let mut first_error = None;
+    let mut seen_roots = Vec::<PathBuf>::new();
+
+    for root in candidate_roots {
+        if root.as_os_str().is_empty() || seen_roots.iter().any(|seen| seen == root) {
+            continue;
+        }
+        seen_roots.push(root.clone());
+
+        let save_data_dir = root.join(save_data_root);
+        match build_settings_data_payload(&save_data_dir, save_data_root) {
+            Ok(Some(payload)) => return Ok(Some(payload)),
+            Ok(None) => {}
+            Err(error) => {
+                first_error.get_or_insert_with(|| {
+                    format!(
+                        "Failed to collect settings data from '{}': {error}",
+                        save_data_dir.display()
+                    )
+                });
+            }
+        }
+    }
+
+    if let Some(error) = first_error {
+        Err(error)
+    } else {
+        Ok(None)
+    }
+}
+
+fn settings_data_candidate_roots(launcher_settings: &settings::LauncherSettings) -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    let profile_path = launcher_settings.profile_path.trim();
+    if !profile_path.is_empty() {
+        roots.push(PathBuf::from(profile_path));
+    }
+
+    let among_us_path = launcher_settings.among_us_path.trim();
+    if !among_us_path.is_empty() {
+        roots.push(PathBuf::from(among_us_path));
+    }
+
+    roots
+}
+
+fn collect_settings_data_compressed(
+    launcher_settings: &settings::LauncherSettings,
+) -> Result<Option<String>, String> {
+    let save_data_root = mod_profile::to_relative_path(&mod_profile::get().presets.save_data_root);
+    let candidate_roots = settings_data_candidate_roots(launcher_settings);
+    let Some(payload) = build_settings_data_payload_from_roots(&candidate_roots, &save_data_root)?
+    else {
+        return Ok(None);
+    };
+
+    let json = serde_json::to_string(&payload)
+        .map_err(|e| format!("Failed to serialize settings data payload: {e}"))?;
+    compress_and_encrypt_log(&json).map(Some)
 }
 
 fn report_log_source_info<R: Runtime>(app: &AppHandle<R>) -> Result<LogSourceInfo, String> {
@@ -878,6 +1060,18 @@ pub async fn send_report<R: Runtime>(
 
         payload.insert("mode".to_string(), Value::String("Launcher".to_string()));
         payload.insert("log_compressed".to_string(), Value::String(compressed));
+        match collect_settings_data_compressed(&launcher_settings) {
+            Ok(Some(settings_data)) if !settings_data.is_empty() => {
+                payload.insert(
+                    "settings_data_compressed".to_string(),
+                    Value::String(settings_data),
+                );
+            }
+            Ok(_) => {}
+            Err(error) => {
+                eprintln!("Failed to collect settings data for bug report: {error}");
+            }
+        }
 
         if let Some(map_value) = input
             .map
@@ -1072,8 +1266,17 @@ pub async fn get_notification_flag<R: Runtime>(app: &AppHandle<R>) -> Result<boo
 
 #[cfg(test)]
 mod tests {
-    use super::{classify_token_validation_status, TokenValidationState};
+    use super::{
+        build_settings_data_payload, build_settings_data_payload_from_roots,
+        classify_token_validation_status, parse_current_preset_from_options_data,
+        TokenValidationState, B64, OPTIONS_FILE_NAME, PRESET_FILE_PREFIX, PRESET_FILE_SUFFIX,
+        SETTINGS_DATA_SCHEMA_VERSION,
+    };
+    use base64::Engine;
     use reqwest::StatusCode;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn token_validation_success_means_valid() {
@@ -1104,6 +1307,185 @@ mod tests {
         let error = classify_token_validation_status(StatusCode::SERVICE_UNAVAILABLE)
             .expect_err("503 should be treated as a retryable validation failure");
         assert!(error.contains("temporarily unavailable"));
+    }
+
+    fn make_options_data(current_preset: i32) -> Vec<u8> {
+        let mut bytes = vec![1, 3, 9];
+        bytes.extend_from_slice(&current_preset.to_le_bytes());
+        bytes.extend_from_slice(&0i32.to_le_bytes());
+        bytes
+    }
+
+    fn unique_temp_dir(test_name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "supernewroleslauncher-reporting-{test_name}-{nanos}"
+        ))
+    }
+
+    #[test]
+    fn parses_current_preset_from_options_data() {
+        let bytes = make_options_data(2);
+        assert_eq!(parse_current_preset_from_options_data(&bytes), Ok(2));
+    }
+
+    #[test]
+    fn settings_data_payload_includes_options_and_current_preset_file() {
+        let temp_dir = unique_temp_dir("settings-data-preset");
+        let save_data_dir = temp_dir
+            .join("profile")
+            .join("SuperNewRolesNext")
+            .join("SaveData");
+        fs::create_dir_all(&save_data_dir).unwrap();
+
+        let options_bytes = make_options_data(4);
+        let preset_bytes = b"preset-data".to_vec();
+        fs::write(save_data_dir.join(OPTIONS_FILE_NAME), &options_bytes).unwrap();
+        fs::write(
+            save_data_dir.join(format!("{PRESET_FILE_PREFIX}4{PRESET_FILE_SUFFIX}")),
+            &preset_bytes,
+        )
+        .unwrap();
+
+        let save_data_root = PathBuf::from("SuperNewRolesNext").join("SaveData");
+        let payload = build_settings_data_payload(&save_data_dir, &save_data_root)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(payload.schema_version, SETTINGS_DATA_SCHEMA_VERSION);
+        assert_eq!(payload.current_preset, 4);
+        assert!(payload.current_preset_parse_error.is_none());
+        assert_eq!(payload.save_data_root, "SuperNewRolesNext/SaveData");
+        assert_eq!(payload.files.len(), 2);
+        assert_eq!(payload.files[0].kind, "options");
+        assert_eq!(
+            payload.files[0].relative_path,
+            "SuperNewRolesNext/SaveData/Options.data"
+        );
+        assert_eq!(payload.files[0].content_base64, B64.encode(&options_bytes));
+        assert_eq!(payload.files[1].kind, "preset");
+        assert_eq!(payload.files[1].preset_id, Some(4));
+        assert_eq!(
+            payload.files[1].relative_path,
+            "SuperNewRolesNext/SaveData/PresetOptions_4.data"
+        );
+        assert_eq!(payload.files[1].content_base64, B64.encode(&preset_bytes));
+        assert!(!payload.files[0]
+            .relative_path
+            .contains(temp_dir.to_str().unwrap()));
+
+        fs::remove_dir_all(temp_dir).unwrap();
+    }
+
+    #[test]
+    fn settings_data_payload_falls_back_to_next_root() {
+        let temp_dir = unique_temp_dir("settings-data-fallback-root");
+        let missing_root = temp_dir.join("profile");
+        let fallback_save_data_dir = temp_dir
+            .join("game")
+            .join("SuperNewRolesNext")
+            .join("SaveData");
+        fs::create_dir_all(&fallback_save_data_dir).unwrap();
+        fs::write(
+            fallback_save_data_dir.join(OPTIONS_FILE_NAME),
+            make_options_data(3),
+        )
+        .unwrap();
+
+        let save_data_root = PathBuf::from("SuperNewRolesNext").join("SaveData");
+        let payload = build_settings_data_payload_from_roots(
+            &[missing_root, temp_dir.join("game")],
+            &save_data_root,
+        )
+        .unwrap()
+        .unwrap();
+
+        assert_eq!(payload.current_preset, 3);
+        assert_eq!(payload.files.len(), 1);
+        assert_eq!(
+            payload.files[0].relative_path,
+            "SuperNewRolesNext/SaveData/Options.data"
+        );
+
+        fs::remove_dir_all(temp_dir).unwrap();
+    }
+
+    #[test]
+    fn settings_data_payload_keeps_options_when_current_preset_parse_fails() {
+        let temp_dir = unique_temp_dir("settings-data-invalid-options");
+        let save_data_dir = temp_dir
+            .join("profile")
+            .join("SuperNewRolesNext")
+            .join("SaveData");
+        fs::create_dir_all(&save_data_dir).unwrap();
+
+        let invalid_options_bytes = vec![1, 2, 5, 0, 0, 0, 0];
+        fs::write(
+            save_data_dir.join(OPTIONS_FILE_NAME),
+            &invalid_options_bytes,
+        )
+        .unwrap();
+
+        let save_data_root = PathBuf::from("SuperNewRolesNext").join("SaveData");
+        let payload = build_settings_data_payload(&save_data_dir, &save_data_root)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(payload.current_preset, -1);
+        assert!(payload
+            .current_preset_parse_error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("checksum validation failed"));
+        assert_eq!(payload.files.len(), 1);
+        assert_eq!(
+            payload.files[0].content_base64,
+            B64.encode(&invalid_options_bytes)
+        );
+
+        fs::remove_dir_all(temp_dir).unwrap();
+    }
+
+    #[test]
+    fn settings_data_payload_omits_missing_current_preset_file() {
+        let temp_dir = unique_temp_dir("settings-data-missing-preset");
+        let save_data_dir = temp_dir
+            .join("profile")
+            .join("SuperNewRolesNext")
+            .join("SaveData");
+        fs::create_dir_all(&save_data_dir).unwrap();
+        fs::write(save_data_dir.join(OPTIONS_FILE_NAME), make_options_data(1)).unwrap();
+
+        let save_data_root = PathBuf::from("SuperNewRolesNext").join("SaveData");
+        let payload = build_settings_data_payload(&save_data_dir, &save_data_root)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(payload.current_preset, 1);
+        assert_eq!(payload.files.len(), 1);
+        assert_eq!(payload.files[0].kind, "options");
+
+        fs::remove_dir_all(temp_dir).unwrap();
+    }
+
+    #[test]
+    fn settings_data_payload_is_none_without_options_data() {
+        let temp_dir = unique_temp_dir("settings-data-no-options");
+        let save_data_dir = temp_dir
+            .join("profile")
+            .join("SuperNewRolesNext")
+            .join("SaveData");
+        fs::create_dir_all(&save_data_dir).unwrap();
+
+        let save_data_root = PathBuf::from("SuperNewRolesNext").join("SaveData");
+        let payload = build_settings_data_payload(&save_data_dir, &save_data_root).unwrap();
+
+        assert!(payload.is_none());
+
+        fs::remove_dir_all(temp_dir).unwrap();
     }
 }
 

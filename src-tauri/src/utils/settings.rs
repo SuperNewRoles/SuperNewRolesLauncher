@@ -21,6 +21,7 @@ pub enum GamePlatform {
     #[default]
     Steam,
     Epic,
+    Xbox,
 }
 
 impl GamePlatform {
@@ -28,6 +29,7 @@ impl GamePlatform {
         match value.trim().to_ascii_lowercase().as_str() {
             "steam" => Ok(Self::Steam),
             "epic" => Ok(Self::Epic),
+            "xbox" => Ok(Self::Xbox),
             other => Err(format!("Unsupported platform: {other}")),
         }
     }
@@ -36,7 +38,30 @@ impl GamePlatform {
         match self {
             Self::Steam => "steam",
             Self::Epic => "epic",
+            Self::Xbox => "xbox",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::GamePlatform;
+
+    #[test]
+    fn game_platform_accepts_xbox_user_value() {
+        assert_eq!(
+            GamePlatform::from_user_value("xbox").expect("xbox should be supported"),
+            GamePlatform::Xbox
+        );
+        assert_eq!(GamePlatform::Xbox.as_str(), "xbox");
+    }
+
+    #[test]
+    fn game_platform_serializes_xbox_as_lowercase() {
+        let json = serde_json::to_string(&GamePlatform::Xbox).expect("serialize xbox");
+        assert_eq!(json, "\"xbox\"");
+        let platform: GamePlatform = serde_json::from_str(&json).expect("deserialize xbox");
+        assert_eq!(platform, GamePlatform::Xbox);
     }
 }
 

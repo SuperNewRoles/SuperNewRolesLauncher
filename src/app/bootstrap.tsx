@@ -64,6 +64,10 @@ import {
   launchSteamRunningGet,
   launchVanilla,
   launchVanillaElevated,
+  launchXbox,
+  launchXboxAppIdGet,
+  launchXboxCleanup,
+  launchXboxPrepareModded,
   migrationExport,
   migrationImport,
   modPreservedSaveDataStatus,
@@ -2122,6 +2126,39 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     return join(settings.amongUsPath, modConfig.paths.amongUsExe);
   }
 
+  async function launchXboxFromSettings(modded: boolean): Promise<void> {
+    if (!settings || !settings.amongUsPath.trim()) {
+      throw new Error("Among Us path is not configured");
+    }
+
+    if (modded) {
+      if (!settings.profilePath.trim()) {
+        throw new Error("Profile path is not configured");
+      }
+      const appId = await launchXboxAppIdGet();
+      await launchXboxPrepareModded({
+        gameDir: settings.amongUsPath,
+        profilePath: settings.profilePath,
+      });
+
+      try {
+        await launchXbox(appId);
+      } catch (error) {
+        try {
+          await launchXboxCleanup(settings.amongUsPath);
+        } catch (cleanupError) {
+          console.error("Failed to cleanup Xbox launch files after launch failure:", cleanupError);
+        }
+        throw error;
+      }
+      return;
+    }
+
+    await launchXboxCleanup(settings.amongUsPath);
+    const appId = await launchXboxAppIdGet();
+    await launchXbox(appId);
+  }
+
   const discordLink =
     OFFICIAL_LINKS.find((link) => link.label.toLowerCase() === "discord")?.url ??
     modConfig.links.supportDiscordUrl;
@@ -2368,7 +2405,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
       try {
         const platform = await finderDetectPlatform(selected);
-        if (platform !== "steam" && platform !== "epic") {
+        if (platform !== "steam" && platform !== "epic" && platform !== "xbox") {
           setAmongUsOverlayError(t("installFlow.invalidAmongUsFolder"));
           return;
         }
@@ -3611,6 +3648,13 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     let gameExe = "";
     let firstSetupPending = false;
     try {
+      if (settings.gamePlatform === "xbox") {
+        queueLauncherAutoMinimize();
+        await launchXboxFromSettings(true);
+        setLaunchStatus(t("launch.moddedSent"));
+        return;
+      }
+
       gameExe = await gameExePathFromSettings();
       try {
         firstSetupPending = await launchModdedFirstSetupPending(gameExe);
@@ -3669,6 +3713,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
     let gameExe = "";
     try {
+      if (settings.gamePlatform === "xbox") {
+        await launchXboxFromSettings(false);
+        setLaunchStatus(t("launch.vanillaSent"));
+        return;
+      }
+
       gameExe = await gameExePathFromSettings();
       await launchVanilla({
         gameExe,

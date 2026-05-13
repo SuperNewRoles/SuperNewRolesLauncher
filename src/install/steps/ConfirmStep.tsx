@@ -1,7 +1,8 @@
 import { cloneElement } from "react";
+import { getPlatformLabelKey } from "../../app/platformSelection";
 import type { GamePlatform } from "../../app/types";
 import type { MessageKey } from "../../i18n";
-import { EPIC_SVG, STEAM_SVG } from "./PlatformStep";
+import { getPlatformSvg } from "./PlatformStep";
 
 interface ConfirmStepProps {
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
@@ -47,25 +48,22 @@ export default function ConfirmStep({
     style: { display: "block" },
   };
 
-  const platformContent =
-    platform === "steam" ? (
-      // プラットフォーム名とブランドアイコンを横並びで表示する。
-      <span
-        style={{ display: "inline-flex", alignItems: "center", gap: "0.15em", lineHeight: "1" }}
-      >
-        {cloneElement(STEAM_SVG, iconProps)}
-        {t("installFlow.platformSteam")}
-      </span>
-    ) : platform === "epic" ? (
-      <span
-        style={{ display: "inline-flex", alignItems: "center", gap: "0.15em", lineHeight: "1" }}
-      >
-        {cloneElement(EPIC_SVG, iconProps)}
-        {t("installFlow.platformEpic")}
-      </span>
-    ) : (
-      t("common.unset")
-    );
+  const platformContent = platform ? (
+    // プラットフォーム名とブランドアイコンを横並びで表示する。
+    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.15em", lineHeight: "1" }}>
+      {cloneElement(getPlatformSvg(platform), iconProps)}
+      {t(getPlatformLabelKey(platform))}
+    </span>
+  ) : (
+    t("common.unset")
+  );
+
+  const platformLabel = (
+    <>
+      {t("installFlow.platformSteam")} / {t("installFlow.platformEpic")} /{" "}
+      {t("installFlow.platformXbox")}
+    </>
+  );
 
   return (
     <div className="install-step install-step-confirm">
@@ -75,9 +73,7 @@ export default function ConfirmStep({
       <h2 className="step-title">{t("installFlow.confirmTitle")}</h2>
       <div className="confirm-content">
         <dl className="confirm-list">
-          <dt>
-            {t("installFlow.platformSteam")} / {t("installFlow.platformEpic")}
-          </dt>
+          <dt>{platformLabel}</dt>
           <dd>{platformContent}</dd>
           <dt>{t("installFlow.folderPath")}</dt>
           <dd>

@@ -9,7 +9,8 @@ export type LaunchErrorMessageKey =
   | "launch.errorBepInExIl2CppDllMissing"
   | "launch.errorElevationRequired"
   | "launch.errorElevationCancelled"
-  | "launch.errorElevatedLaunchFailed";
+  | "launch.errorElevatedLaunchFailed"
+  | "launch.errorXboxAppNotFound";
 
 type Translator = (key: LaunchErrorMessageKey, params?: Record<string, string | number>) => string;
 
@@ -24,6 +25,7 @@ const INVALID_AMONG_US_FOLDER_ERROR_PREFIX =
 const ELEVATION_REQUIRED_ERROR_PREFIX = "ELEVATION_REQUIRED:";
 const ELEVATION_CANCELLED_ERROR_PREFIX = "ELEVATION_CANCELLED:";
 const ELEVATED_LAUNCH_FAILED_ERROR_PREFIX = "ELEVATED_LAUNCH_FAILED:";
+const XBOX_APP_NOT_FOUND_ERROR_PREFIX = "Among Us was not found in Microsoft Store apps.";
 
 export function normalizeInvokeErrorMessage(error: unknown): string {
   // Tauri の invoke ラッパーで付与される接頭辞を除去して判定しやすくする。
@@ -86,6 +88,10 @@ export function localizeLaunchErrorMessage(
   if (message.startsWith(ELEVATED_LAUNCH_FAILED_ERROR_PREFIX)) {
     const detail = message.slice(ELEVATED_LAUNCH_FAILED_ERROR_PREFIX.length).trim();
     return t("launch.errorElevatedLaunchFailed", { error: detail || "unknown error" });
+  }
+
+  if (message.startsWith(XBOX_APP_NOT_FOUND_ERROR_PREFIX)) {
+    return t("launch.errorXboxAppNotFound");
   }
 
   if (

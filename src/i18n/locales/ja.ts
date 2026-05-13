@@ -459,6 +459,8 @@ const ja = {
   "launch.errorElevationCancelled":
     "管理者権限の要求がキャンセルされました。ゲームは起動していません。",
   "launch.errorElevatedLaunchFailed": "管理者権限での再実行に失敗しました。詳細: {error}",
+  "launch.errorXboxAppNotFound":
+    "Xbox/Microsoft Store版 Among Us が見つかりません。インストール済みか確認してください。",
   "launch.elevationConfirmTitle": "管理者権限が必要です",
   "launch.elevationConfirmMessage":
     "このゲームは管理者権限での起動が必要です。続行すると Windows の確認ダイアログが表示されます。",
@@ -495,6 +497,7 @@ const ja = {
   "installFlow.platformTitle": "どのフォルダに導入しますか?",
   "installFlow.platformSteam": "Steam",
   "installFlow.platformEpic": "Epic",
+  "installFlow.platformXbox": "Xbox",
   "installFlow.folderPath": "フォルダパス",
   "installFlow.manualSelect": "自分で選ぶ",
   "installFlow.versionTitle": "どのバージョンを導入しますか?",
