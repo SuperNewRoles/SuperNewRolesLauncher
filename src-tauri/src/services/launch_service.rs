@@ -958,9 +958,9 @@ fn rewrite_xbox_doorstop_config(source: &str, profile_path: &Path) -> String {
         .join("BepInEx.Unity.IL2CPP.dll");
     let coreclr_path = profile_path.join("dotnet").join("coreclr.dll");
     let dotnet_dir = profile_path.join("dotnet");
-    let target_assembly = target_assembly.to_string_lossy().replace('\\', "\\\\");
-    let coreclr_path = coreclr_path.to_string_lossy().replace('\\', "\\\\");
-    let dotnet_dir = dotnet_dir.to_string_lossy().replace('\\', "\\\\");
+    let target_assembly = format_doorstop_windows_path(&target_assembly);
+    let coreclr_path = format_doorstop_windows_path(&coreclr_path);
+    let dotnet_dir = format_doorstop_windows_path(&dotnet_dir);
 
     let mut output = String::new();
     for line in source.lines() {
@@ -981,6 +981,10 @@ fn rewrite_xbox_doorstop_config(source: &str, profile_path: &Path) -> String {
         }
     }
     output
+}
+
+fn format_doorstop_windows_path(path: &Path) -> String {
+    path.to_string_lossy().replace(['\\', '/'], "\\\\")
 }
 
 fn is_doorstop_setting_line(trimmed: &str, key: &str) -> bool {
