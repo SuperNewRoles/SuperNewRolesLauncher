@@ -1,7 +1,7 @@
 import { OnboardingLayout } from "../OnboardingLayout";
 import type { OnboardingStepProps } from "../types";
 
-export function PresetStep({ t, onNext, onBack, onSkip }: OnboardingStepProps) {
+export function PresetStep({ t, onNext, onBack }: OnboardingStepProps) {
   // プリセット保存・呼び出し機能を紹介する。
   return (
     <OnboardingLayout

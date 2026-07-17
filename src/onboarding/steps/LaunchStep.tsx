@@ -1,7 +1,7 @@
 import { OnboardingLayout } from "../OnboardingLayout";
 import type { OnboardingStepProps } from "../types";
 
-export function LaunchStep({ t, onNext, onBack, onSkip }: OnboardingStepProps) {
+export function LaunchStep({ t, onNext, onBack }: OnboardingStepProps) {
   // ランチャー利用の最初の流れを簡潔に説明するステップ。
   return (
     <OnboardingLayout

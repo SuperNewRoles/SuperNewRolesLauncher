@@ -17,18 +17,20 @@
 
 ## フロントエンド構成
 
-- `src/main.ts`
+- `src/main.tsx`
   - エントリポイント。`styles` の読み込みと `runApp()` 呼び出しのみを担当します。
-- `src/app/bootstrap.ts`
+- `src/app/bootstrap.tsx`
   - 画面初期化、イベント購読、機能間連携のオーケストレーションを担当します。
 - `src/app/template.ts`
   - HTMLテンプレート生成専用。DOMイベントや状態更新は持ちません。
 - `src/app/dom.ts`
   - DOM要素取得を集約し、セレクタ崩れを初期化時に検出します。
-- `src/app/state/store.ts`
-  - `@preact/signals-core` を使ったアプリ状態コンテナです。
 - `src/app/state/selectors.ts`
-  - ボタン活性などの条件判定を純関数として提供します。
+  - ランチャー画面が実際に必要とする状態だけを入力として、ボタン活性条件を純関数で提供します。
+- `src/app/asyncPoller.ts`
+  - 非同期取得の間隔制御、多重実行防止、停止後に返った古い結果の破棄を共通化します。
+- `src/app/overlayController.ts`
+  - オーバーレイのアニメーション、スクロールロック、確認ダイアログの Promise 解決を一元管理します。
 - `src/app/services/tauriClient.ts`
   - Tauri command 呼び出しの窓口です。
 
@@ -40,6 +42,7 @@
   - 業務ロジック層。`snr` / `launch` の重い処理を保持します。
 - `src-tauri/src/utils`
   - 共通ユーティリティ（設定、API、圧縮、暗号化、ストレージ）です。
+  - `settings.rs` は破損した設定を黙って上書きせず、同一ディレクトリの一時ファイルから原子的に保存します。
 
 ## Tauri command 命名規約
 

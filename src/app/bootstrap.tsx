@@ -5,7 +5,6 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { check } from "@tauri-apps/plugin-updater";
-import React from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { AnnounceCenter } from "../announce/AnnounceCenter";
 import { announceListArticles } from "../announce/announceApi";
@@ -21,11 +20,8 @@ import {
 import OnboardingWizard from "../onboarding/OnboardingWizard";
 import type { OnboardingStep, OnboardingStepGuide } from "../onboarding/types";
 import { ReportCenter } from "../report/ReportCenter";
-import {
-  ANNOUNCE_BADGE_READ_CREATED_AT_STORAGE_KEY,
-  OFFICIAL_LINKS,
-  REPORTING_NOTIFICATION_STORAGE_KEY,
-} from "./constants";
+import { createAsyncPoller } from "./asyncPoller";
+import { ANNOUNCE_BADGE_READ_CREATED_AT_STORAGE_KEY, OFFICIAL_LINKS } from "./constants";
 import { collectAppDom } from "./dom";
 import {
   isElevationRequiredLaunchError,
@@ -41,6 +37,7 @@ import {
   REPORTING_ENABLED,
   modConfig,
 } from "./modConfig";
+import { createConfirmationController, createOverlayController } from "./overlayController";
 import {
   filterSelectablePlatformCandidates,
   getPlatformIconPath,
@@ -70,53 +67,31 @@ import {
   launchXboxPrepareModded,
   migrationExport,
   migrationImport,
-  modPreservedSaveDataStatus,
   modUninstall,
   notificationsTakeOpenTarget,
   presetsExport,
   presetsImportArchive,
   presetsInspectArchive,
   presetsListLocal,
-  reportingLogSourceGet,
-  reportingMessageSend,
-  reportingMessagesList,
   reportingNotificationFlagGet,
-  reportingPrepare,
-  reportingReportSend,
-  reportingThreadsList,
   settingsGet,
   settingsOpenFolder,
   settingsProfileReady,
   settingsUpdate,
 } from "./services/tauriClient";
 import { computeControlState } from "./state/selectors";
-import { createAppStore } from "./state/store";
 import { renderAppTemplate } from "./template";
 import { type ThemePreference, applyTheme, getStoredTheme, setStoredTheme } from "./theme";
 import type {
-  EpicLoginStatus,
   GamePlatform,
   GameStatePayload,
   InstallProgressPayload,
-  InstallResult,
   LauncherSettings,
   LauncherSettingsInput,
   NotificationOpenTarget,
-  PreservedSaveDataStatus,
-  PresetExportResult,
-  PresetImportResult,
   PresetImportSelectionInput,
   PresetSummary,
-  ReportMessage,
-  ReportThread,
-  ReportType,
-  ReportingLogSourceInfo,
-  ReportingPrepareResult,
-  ReportingSendResult,
-  SendReportInput,
-  SnrReleaseSummary,
   SocialIcon,
-  UninstallResult,
 } from "./types";
 
 /**
@@ -838,21 +813,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
 
   renderEpicActionButtons(false);
 
-  // 通知設定は永続値を先に確定し、store初期値とローカル変数を揃える。
-  const initialReportingNotificationEnabled =
-    REPORTING_ENABLED && localStorage.getItem(REPORTING_NOTIFICATION_STORAGE_KEY) === "1";
-  // signalsストアは段階移行用に導入し、ボタン活性判定の入力を一元化する。
-  const appStore = createAppStore(initialReportingNotificationEnabled);
-
   let settings: LauncherSettings | null = null;
-  const releases: SnrReleaseSummary[] = [];
   let profileIsReady = false;
   let gameRunning = false;
-  const installInProgress = false;
   let uninstallInProgress = false;
   let launchInProgress = false;
   let creatingShortcut = false;
-  const releasesLoading = false;
   let checkingUpdate = false;
   let epicLoggedIn = false;
   let migrationExporting = false;
@@ -864,11 +830,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let localPresets: PresetSummary[] = [];
   let archivePresets: PresetSummary[] = [];
 
-  let preservedSaveDataAvailable = false;
-  let preservedSaveDataFiles = 0;
-  let gameStatePollTimer: number | null = null;
-  let gameStatePolling = false;
-  const reportingNotificationEnabled = initialReportingNotificationEnabled;
   let onboardingRoot: Root | null = null;
   let onboardingSpotlightTarget: HTMLElement | null = null;
   let onboardingGuideAnimationFrame: number | null = null;
@@ -879,12 +840,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let pendingReportOpenThreadId: string | null = null;
   let pendingAnnounceOpenArticleId: string | null = null;
   let activeTab: MainTabId = consumeInstallFlowHomeAfterReload() ? "home" : loadLastMainTab();
-  let reportHomeNotificationLastFetchedAt = 0;
-  let reportHomeNotificationFetching = false;
-  let reportHomeNotificationPollTimer: number | null = null;
-  let announceBadgeLastFetchedAt = 0;
-  let announceBadgeFetching = false;
-  let announceBadgePollTimer: number | null = null;
   let launcherAutoMinimizePending = false;
   let launcherAutoMinimizeTimer: number | null = null;
   let launcherMinimizing = false;
@@ -906,12 +861,64 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let presetFeedbackPrimaryAction: (() => void | Promise<void>) | null = null;
   let presetFeedbackSecondaryAction: (() => void | Promise<void>) | null = null;
   let pendingStartupUpdate: AvailableUpdate | null = null;
-  let updateConfirmResolver: ((accepted: boolean) => void) | null = null;
   let updateConfirmBackdropUnlockAt = 0;
-  let elevationConfirmResolver: ((accepted: boolean) => void) | null = null;
-  let steamWarningResolver: ((accepted: boolean) => void) | null = null;
-  const overlayAnimationTimers = new WeakMap<HTMLDivElement, number>();
-  const overlayCloseTimers = new WeakMap<HTMLDivElement, number>();
+  const overlayController = createOverlayController({
+    overlays: [
+      settingsAmongUsOverlay,
+      settingsUninstallConfirmOverlay,
+      settingsUpdateConfirmOverlay,
+      settingsElevationConfirmOverlay,
+      settingsSteamWarningOverlay,
+      settingsMigrationOverlay,
+      presetOverlay,
+      presetFeedbackOverlay,
+    ],
+    transitionMs: SETTINGS_OVERLAY_TRANSITION_MS,
+  });
+  const updateConfirmation = createConfirmationController({
+    overlay: settingsUpdateConfirmOverlay,
+    overlayController,
+    initialFocus: settingsUpdateConfirmAcceptButton,
+  });
+  const elevationConfirmation = createConfirmationController({
+    overlay: settingsElevationConfirmOverlay,
+    overlayController,
+    initialFocus: settingsElevationConfirmAcceptButton,
+  });
+  const steamWarningConfirmation = createConfirmationController({
+    overlay: settingsSteamWarningOverlay,
+    overlayController,
+  });
+  const reportNotificationPoller = createAsyncPoller({
+    intervalMs: REPORT_HOME_NOTIFICATION_POLL_INTERVAL_MS,
+    minRefreshGapMs: REPORT_HOME_NOTIFICATION_FETCH_GAP_MS,
+    shouldRun: () => REPORTING_ENABLED && activeTab === "home",
+    task: reportingNotificationFlagGet,
+    onValue: setReportCenterNotificationBadge,
+    onError: (error) => {
+      console.error("Failed to fetch reporting notification state:", error);
+    },
+  });
+  const announceNotificationPoller = createAsyncPoller({
+    intervalMs: ANNOUNCE_BADGE_POLL_INTERVAL_MS,
+    minRefreshGapMs: ANNOUNCE_BADGE_FETCH_GAP_MS,
+    shouldRun: () => ANNOUNCE_ENABLED && activeTab !== "announce",
+    task: () => announceListArticles(currentLocale),
+    onValue: (response) => {
+      syncAnnounceBadgeFromItems(response.items);
+    },
+    onError: (error) => {
+      console.error("Failed to fetch announce notification state:", error);
+    },
+  });
+  const gameRunningPoller = createAsyncPoller({
+    intervalMs: 2_000,
+    task: launchGameRunningGet,
+    onValue: applyGameRunningState,
+    onError: (error) => {
+      console.warn("Failed to fetch game running state:", error);
+    },
+  });
 
   function clearPendingOnboardingGuideAnimation(): void {
     if (onboardingGuideAnimationFrame === null) {
@@ -1262,7 +1269,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   function handleAnnounceArticlesUpdated(items: AnnounceArticleMinimal[]): void {
-    announceBadgeLastFetchedAt = Date.now();
+    announceNotificationPoller.markRefreshed();
     syncAnnounceBadgeFromItems(items);
   }
 
@@ -1385,121 +1392,34 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
   }
 
-  async function refreshHomeNotificationState(force = false): Promise<void> {
-    if (!REPORTING_ENABLED) {
-      setReportCenterNotificationBadge(false);
-      return;
-    }
-
-    const now = Date.now();
-    if (
-      !force &&
-      now - reportHomeNotificationLastFetchedAt < REPORT_HOME_NOTIFICATION_FETCH_GAP_MS
-    ) {
-      return;
-    }
-
-    if (reportHomeNotificationFetching) {
-      return;
-    }
-
-    reportHomeNotificationFetching = true;
-    try {
-      const hasUnread = await reportingNotificationFlagGet();
-      reportHomeNotificationLastFetchedAt = Date.now();
-      setReportCenterNotificationBadge(hasUnread);
-    } catch (error) {
-      console.error("Failed to fetch reporting notification state:", error);
-    } finally {
-      reportHomeNotificationFetching = false;
-    }
-  }
-
   function startHomeNotificationPolling(): void {
     if (!REPORTING_ENABLED) {
+      setReportCenterNotificationBadge(false);
       return;
     }
     if (activeTab !== "home") {
       return;
     }
-
-    if (reportHomeNotificationPollTimer === null) {
-      reportHomeNotificationPollTimer = window.setInterval(() => {
-        void refreshHomeNotificationState();
-      }, REPORT_HOME_NOTIFICATION_POLL_INTERVAL_MS);
-    }
-
-    void refreshHomeNotificationState();
+    reportNotificationPoller.start();
   }
 
   function stopHomeNotificationPolling(): void {
-    if (reportHomeNotificationPollTimer !== null) {
-      window.clearInterval(reportHomeNotificationPollTimer);
-      reportHomeNotificationPollTimer = null;
-    }
-  }
-
-  async function refreshAnnounceNotificationState(force = false): Promise<void> {
-    if (!ANNOUNCE_ENABLED) {
-      setAnnounceNotificationBadge(false);
-      return;
-    }
-
-    if (activeTab === "announce") {
-      return;
-    }
-
-    const now = Date.now();
-    if (!force && now - announceBadgeLastFetchedAt < ANNOUNCE_BADGE_FETCH_GAP_MS) {
-      return;
-    }
-
-    if (announceBadgeFetching) {
-      return;
-    }
-
-    announceBadgeFetching = true;
-    try {
-      const response = await announceListArticles(currentLocale);
-      announceBadgeLastFetchedAt = Date.now();
-      syncAnnounceBadgeFromItems(response.items);
-    } catch (error) {
-      console.error("Failed to fetch announce notification state:", error);
-    } finally {
-      announceBadgeFetching = false;
-    }
+    reportNotificationPoller.stop();
   }
 
   function startAnnounceNotificationPolling(): void {
     if (!ANNOUNCE_ENABLED) {
+      setAnnounceNotificationBadge(false);
       return;
     }
     if (activeTab === "announce") {
       return;
     }
-
-    if (announceBadgePollTimer === null) {
-      announceBadgePollTimer = window.setInterval(() => {
-        void refreshAnnounceNotificationState();
-      }, ANNOUNCE_BADGE_POLL_INTERVAL_MS);
-    }
-
-    void refreshAnnounceNotificationState();
+    announceNotificationPoller.start();
   }
 
   function stopAnnounceNotificationPolling(): void {
-    if (announceBadgePollTimer !== null) {
-      window.clearInterval(announceBadgePollTimer);
-      announceBadgePollTimer = null;
-    }
-  }
-
-  function formatDate(value: string): string {
-    if (!value) {
-      return "-";
-    }
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString(currentLocale);
+    announceNotificationPoller.stop();
   }
 
   function setStatusLine(
@@ -1629,43 +1549,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
   }
 
-  async function refreshPreservedSaveDataStatus(): Promise<void> {
-    try {
-      const status = await modPreservedSaveDataStatus();
-      preservedSaveDataAvailable = status.available && status.files > 0;
-      preservedSaveDataFiles = status.files;
-    } catch (error) {
-      preservedSaveDataAvailable = false;
-      preservedSaveDataFiles = 0;
-      console.warn("Failed to get preserved save data status:", error);
-    }
-  }
-
-  function syncStoreSnapshot(): void {
-    // ボタン活性の判定元を1箇所へ集約するため、現行ローカル状態をsignalsへ反映する。
-    appStore.settings.value = settings;
-    appStore.releases.value = releases;
-    appStore.profileIsReady.value = profileIsReady;
-    appStore.gameRunning.value = gameRunning;
-    appStore.installInProgress.value = installInProgress;
-    appStore.uninstallInProgress.value = uninstallInProgress;
-    appStore.launchInProgress.value = launchInProgress;
-    appStore.creatingShortcut.value = creatingShortcut;
-    appStore.releasesLoading.value = releasesLoading;
-    appStore.checkingUpdate.value = checkingUpdate;
-    appStore.epicLoggedIn.value = epicLoggedIn;
-    appStore.migrationExporting.value = migrationExporting;
-    appStore.migrationImporting.value = migrationImporting;
-    appStore.presetLoading.value = presetLoading;
-    appStore.presetExporting.value = presetExporting;
-    appStore.presetInspecting.value = presetInspecting;
-    appStore.presetImporting.value = presetImporting;
-    appStore.localPresets.value = localPresets;
-    appStore.archivePresets.value = archivePresets;
-    appStore.preservedSaveDataAvailable.value = preservedSaveDataAvailable;
-    appStore.preservedSaveDataFiles.value = preservedSaveDataFiles;
-  }
-
   function hasBlockedEpicPlatform(selectedSettings: LauncherSettings | null): boolean {
     return !EPIC_LOGIN_ENABLED && selectedSettings?.gamePlatform === "epic";
   }
@@ -1675,9 +1558,24 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   }
 
   function updateButtons(): void {
-    // ボタン活性条件は純関数に委譲し、DOM更新だけをここで行う。
-    syncStoreSnapshot();
-    const control = computeControlState(appStore.snapshot());
+    // 必要な状態だけを純関数へ渡し、DOM更新と条件計算を分離する。
+    const control = computeControlState({
+      settings,
+      profileIsReady,
+      gameRunning,
+      uninstallInProgress,
+      launchInProgress,
+      creatingShortcut,
+      epicLoggedIn,
+      migrationExporting,
+      migrationImporting,
+      presetLoading,
+      presetExporting,
+      presetInspecting,
+      presetImporting,
+      localPresets,
+      archivePresets,
+    });
     const amongUsSelectionDisabled =
       control.detectAmongUsPathButtonDisabled || amongUsOverlayLoading;
     const epicPlatformBlocked = hasBlockedEpicPlatform(settings);
@@ -1799,32 +1697,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       }
     }
     updateButtons();
-  }
-
-  async function refreshGameRunningState(): Promise<void> {
-    try {
-      const running = await launchGameRunningGet();
-      applyGameRunningState(running);
-    } catch {
-      // ignore game running state retrieval errors
-    }
-  }
-
-  function startGameRunningPolling(): void {
-    if (gameStatePollTimer !== null) {
-      window.clearInterval(gameStatePollTimer);
-    }
-
-    gameStatePollTimer = window.setInterval(() => {
-      if (gameStatePolling) {
-        return;
-      }
-
-      gameStatePolling = true;
-      void refreshGameRunningState().finally(() => {
-        gameStatePolling = false;
-      });
-    }, 2_000);
   }
 
   function renderSettings(): void {
@@ -2163,90 +2035,12 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     OFFICIAL_LINKS.find((link) => link.label.toLowerCase() === "discord")?.url ??
     modConfig.links.supportDiscordUrl;
 
-  function syncOverlayBodyLock(): void {
-    const overlayOpen =
-      !settingsAmongUsOverlay.hidden ||
-      !settingsUninstallConfirmOverlay.hidden ||
-      !settingsUpdateConfirmOverlay.hidden ||
-      !settingsElevationConfirmOverlay.hidden ||
-      !settingsSteamWarningOverlay.hidden ||
-      !settingsMigrationOverlay.hidden ||
-      !presetOverlay.hidden ||
-      !presetFeedbackOverlay.hidden;
-    document.documentElement.classList.toggle("settings-overlay-open", overlayOpen);
-    document.body.classList.toggle("settings-overlay-open", overlayOpen);
-  }
-
-  function clearOverlayTimer(
-    timerMap: WeakMap<HTMLDivElement, number>,
-    overlay: HTMLDivElement,
-  ): void {
-    const timer = timerMap.get(overlay);
-    if (timer !== undefined) {
-      window.clearTimeout(timer);
-      timerMap.delete(overlay);
-    }
-  }
-
-  function scheduleOverlayAnimationCleanup(overlay: HTMLDivElement): void {
-    clearOverlayTimer(overlayAnimationTimers, overlay);
-    const timer = window.setTimeout(() => {
-      overlay.classList.remove("is-animating");
-      overlayAnimationTimers.delete(overlay);
-    }, SETTINGS_OVERLAY_TRANSITION_MS);
-    overlayAnimationTimers.set(overlay, timer);
-  }
-
   function openSettingsOverlay(overlay: HTMLDivElement): void {
-    clearOverlayTimer(overlayCloseTimers, overlay);
-
-    document.documentElement.classList.add("settings-overlay-open");
-    document.body.classList.add("settings-overlay-open");
-    overlay.hidden = false;
-    overlay.setAttribute("aria-hidden", "false");
-    overlay.classList.remove("is-closing");
-    overlay.classList.add("is-animating");
-
-    requestAnimationFrame(() => {
-      if (overlay.hidden || overlay.classList.contains("is-closing")) {
-        return;
-      }
-      overlay.classList.add("is-open");
-    });
-
-    scheduleOverlayAnimationCleanup(overlay);
-    syncOverlayBodyLock();
+    overlayController.open(overlay);
   }
 
   function closeSettingsOverlay(overlay: HTMLDivElement, immediate = false): void {
-    clearOverlayTimer(overlayAnimationTimers, overlay);
-    clearOverlayTimer(overlayCloseTimers, overlay);
-
-    if (immediate) {
-      overlay.hidden = true;
-      overlay.setAttribute("aria-hidden", "true");
-      overlay.classList.remove("is-open", "is-closing", "is-animating");
-      syncOverlayBodyLock();
-      return;
-    }
-
-    if (overlay.hidden || overlay.classList.contains("is-closing")) {
-      return;
-    }
-
-    overlay.classList.add("is-closing", "is-animating");
-    overlay.classList.remove("is-open");
-
-    const timer = window.setTimeout(() => {
-      overlay.hidden = true;
-      overlay.setAttribute("aria-hidden", "true");
-      overlay.classList.remove("is-closing", "is-animating");
-      overlayCloseTimers.delete(overlay);
-      syncOverlayBodyLock();
-    }, SETTINGS_OVERLAY_TRANSITION_MS);
-    overlayCloseTimers.set(overlay, timer);
-
-    syncOverlayBodyLock();
+    overlayController.close(overlay, immediate);
   }
 
   function setAmongUsOverlayError(
@@ -2521,7 +2315,6 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
         count: result.preservedFiles,
       });
       await refreshProfileReady();
-      await refreshPreservedSaveDataStatus();
       await refreshLocalPresets(true);
       closeUninstallConfirmOverlay(true);
       window.location.reload();
@@ -2534,39 +2327,21 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   });
 
   function closeUpdateConfirmOverlay(force = false): void {
-    closeSettingsOverlay(settingsUpdateConfirmOverlay, force);
-    // Any close path must settle the pending confirmation promise.
-    if (!updateConfirmResolver) {
-      return;
-    }
-    const resolve = updateConfirmResolver;
-    updateConfirmResolver = null;
-    resolve(false);
+    updateConfirmation.close(force);
   }
 
   function resolveUpdateConfirm(accepted: boolean): void {
-    if (!updateConfirmResolver) {
-      return;
+    if (accepted) {
+      updateConfirmation.accept();
+    } else {
+      updateConfirmation.cancel();
     }
-    const resolve = updateConfirmResolver;
-    updateConfirmResolver = null;
-    closeSettingsOverlay(settingsUpdateConfirmOverlay);
-    resolve(accepted);
   }
 
   function openUpdateConfirmOverlay(version: string): Promise<boolean> {
-    if (updateConfirmResolver) {
-      const resolve = updateConfirmResolver;
-      updateConfirmResolver = null;
-      resolve(false);
-    }
     updateConfirmBackdropUnlockAt = Date.now() + 1_000;
     settingsUpdateConfirmMessage.textContent = t("update.confirmPrompt", { version });
-    openSettingsOverlay(settingsUpdateConfirmOverlay);
-    settingsUpdateConfirmAcceptButton.focus();
-    return new Promise<boolean>((resolve) => {
-      updateConfirmResolver = resolve;
-    });
+    return updateConfirmation.request();
   }
 
   settingsUpdateConfirmOverlayBackdrop.addEventListener("click", () => {
@@ -2586,36 +2361,19 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   });
 
   function closeElevationConfirmOverlay(force = false): void {
-    closeSettingsOverlay(settingsElevationConfirmOverlay, force);
-    if (!elevationConfirmResolver) {
-      return;
-    }
-    const resolve = elevationConfirmResolver;
-    elevationConfirmResolver = null;
-    resolve(false);
+    elevationConfirmation.close(force);
   }
 
   function resolveElevationConfirm(accepted: boolean): void {
-    if (!elevationConfirmResolver) {
-      return;
+    if (accepted) {
+      elevationConfirmation.accept();
+    } else {
+      elevationConfirmation.cancel();
     }
-    const resolve = elevationConfirmResolver;
-    elevationConfirmResolver = null;
-    closeSettingsOverlay(settingsElevationConfirmOverlay);
-    resolve(accepted);
   }
 
   function openElevationConfirmOverlay(): Promise<boolean> {
-    if (elevationConfirmResolver) {
-      const resolve = elevationConfirmResolver;
-      elevationConfirmResolver = null;
-      resolve(false);
-    }
-    openSettingsOverlay(settingsElevationConfirmOverlay);
-    settingsElevationConfirmAcceptButton.focus();
-    return new Promise<boolean>((resolve) => {
-      elevationConfirmResolver = resolve;
-    });
+    return elevationConfirmation.request();
   }
 
   settingsElevationConfirmOverlayBackdrop.addEventListener("click", () => {
@@ -2632,40 +2390,23 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   });
 
   function closeSteamWarningOverlay(force = false): void {
-    closeSettingsOverlay(settingsSteamWarningOverlay, force);
-    if (!steamWarningResolver) {
-      return;
-    }
-    const resolve = steamWarningResolver;
-    steamWarningResolver = null;
-    resolve(false);
+    steamWarningConfirmation.close(force);
   }
 
   function resolveSteamWarning(accepted: boolean): void {
-    if (!steamWarningResolver) {
-      return;
+    if (accepted) {
+      steamWarningConfirmation.accept();
+    } else {
+      steamWarningConfirmation.cancel();
     }
-    const resolve = steamWarningResolver;
-    steamWarningResolver = null;
-    closeSettingsOverlay(settingsSteamWarningOverlay);
-    resolve(accepted);
   }
 
   function openSteamWarningOverlay(allowContinueAnyway: boolean): Promise<boolean> {
-    if (steamWarningResolver) {
-      const resolve = steamWarningResolver;
-      steamWarningResolver = null;
-      resolve(false);
-    }
     settingsSteamWarningContinueButton.hidden = !allowContinueAnyway;
-    openSettingsOverlay(settingsSteamWarningOverlay);
-    if (allowContinueAnyway) {
-      settingsSteamWarningContinueButton.focus();
-    } else {
-      settingsSteamWarningDismissButton.focus();
-    }
-    return new Promise<boolean>((resolve) => {
-      steamWarningResolver = resolve;
+    return steamWarningConfirmation.request({
+      initialFocus: allowContinueAnyway
+        ? settingsSteamWarningContinueButton
+        : settingsSteamWarningDismissButton,
     });
   }
 
@@ -3231,6 +2972,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     closeUninstallConfirmOverlay(force);
     closeUpdateConfirmOverlay(force);
     closeElevationConfirmOverlay(force);
+    closeSteamWarningOverlay(force);
     closeMigrationOverlay(force);
     closeAmongUsOverlay(force);
   }
@@ -4123,9 +3865,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     await refreshProfileReady();
 
     await refreshLocalPresets(true);
-    await refreshPreservedSaveDataStatus();
-    await refreshGameRunningState();
-    startGameRunningPolling();
+    gameRunningPoller.start();
 
     if (EPIC_LOGIN_ENABLED) {
       try {

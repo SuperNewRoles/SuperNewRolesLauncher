@@ -1,7 +1,7 @@
 import { OnboardingLayout } from "../OnboardingLayout";
 import type { OnboardingStepProps } from "../types";
 
-export function ReportStep({ t, onNext, onBack, onSkip }: OnboardingStepProps) {
+export function ReportStep({ t, onNext, onBack }: OnboardingStepProps) {
   // 不具合報告導線の存在をオンボーディング中に周知する。
   return (
     <OnboardingLayout

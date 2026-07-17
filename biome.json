@@ -1,7 +1,15 @@
 {
   "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
   "files": {
-    "ignore": ["dist", "node_modules", "src-tauri/target", "src-tauri/gen", "src-tauri/icons"]
+    "ignore": [
+      ".tmp",
+      "dist",
+      "node_modules",
+      "src-tauri/target",
+      "src-tauri/gen",
+      "src-tauri/icons",
+      "src-tauri/tauri.generated.conf.json"
+    ]
   },
   "organizeImports": {
     "enabled": true
