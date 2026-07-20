@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  CustomDllInstallResult,
   EpicLoginStatus,
   GamePlatform,
   GameServersJoinDirectResult,
@@ -87,6 +88,13 @@ export function modInstall(input: {
 
 export function modUninstall(preserveSaveData: boolean): Promise<UninstallResult> {
   return invoke<UninstallResult>("mod_uninstall", { preserveSaveData });
+}
+
+export function modCustomDllInstall(input: {
+  sourcePath: string;
+  disableAutoUpdate: boolean;
+}): Promise<CustomDllInstallResult> {
+  return invoke<CustomDllInstallResult>("mod_custom_dll_install", input);
 }
 
 export function modPreservedSaveDataStatus(): Promise<PreservedSaveDataStatus> {

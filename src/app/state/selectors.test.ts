@@ -8,6 +8,8 @@ function createBaseState(): ControlStateInput {
     settings: null,
     profileIsReady: false,
     gameRunning: false,
+    customDllSelecting: false,
+    customDllInstalling: false,
     uninstallInProgress: false,
     launchInProgress: false,
     creatingShortcut: false,
@@ -27,6 +29,7 @@ describe("computeControlState", () => {
   it("settings 未取得時は主要操作が無効になる", () => {
     const result = computeControlState(createBaseState());
     expect(result.uninstallButtonDisabled).toBe(true);
+    expect(result.customDllLoadButtonDisabled).toBe(true);
     expect(result.launchVanillaButtonDisabled).toBe(true);
     expect(result.migrationExportButtonDisabled).toBe(true);
   });
@@ -75,6 +78,7 @@ describe("computeControlState", () => {
     expect(result.launchVanillaButtonDisabled).toBe(false);
     expect(result.launchModdedButtonDisabled).toBe(false);
     expect(result.uninstallButtonDisabled).toBe(false);
+    expect(result.customDllLoadButtonDisabled).toBe(false);
     expect(result.closeWebviewOnTrayBackgroundInputDisabled).toBe(false);
   });
 
@@ -100,6 +104,98 @@ describe("computeControlState", () => {
     const result = computeControlState(state);
     expect(result.launchVanillaButtonDisabled).toBe(true);
     expect(result.launchModdedButtonDisabled).toBe(true);
+    expect(result.customDllLoadButtonDisabled).toBe(true);
+  });
+
+  it("プロファイル未準備時はカスタムDLL読み込みを無効化する", () => {
+    const state = createBaseState();
+    state.settings = {
+      amongUsPath: "C:/AmongUs",
+      gamePlatform: "steam",
+      selectedReleaseTag: "v1.0.0",
+      selectedGameServerId: "snr-main",
+      profilePath: "C:/profile",
+      closeToTrayOnClose: true,
+      closeWebviewOnTrayBackground: true,
+      reportNotificationsEnabled: true,
+      announceNotificationsEnabled: true,
+      uiLocale: "ja",
+      onboardingCompleted: true,
+    };
+
+    expect(computeControlState(state).customDllLoadButtonDisabled).toBe(true);
+  });
+
+  it("カスタムDLL選択中は読み込みボタンだけを無効化する", () => {
+    const state = createBaseState();
+    state.settings = {
+      amongUsPath: "C:/AmongUs",
+      gamePlatform: "steam",
+      selectedReleaseTag: "v1.0.0",
+      selectedGameServerId: "snr-main",
+      profilePath: "C:/profile",
+      closeToTrayOnClose: true,
+      closeWebviewOnTrayBackground: true,
+      reportNotificationsEnabled: true,
+      announceNotificationsEnabled: true,
+      uiLocale: "ja",
+      onboardingCompleted: true,
+    };
+    state.profileIsReady = true;
+    state.customDllSelecting = true;
+
+    const result = computeControlState(state);
+    expect(result.customDllLoadButtonDisabled).toBe(true);
+    expect(result.launchVanillaButtonDisabled).toBe(false);
+  });
+
+  it("別のデータ操作中はカスタムDLL読み込みを無効化する", () => {
+    const state = createBaseState();
+    state.settings = {
+      amongUsPath: "C:/AmongUs",
+      gamePlatform: "steam",
+      selectedReleaseTag: "v1.0.0",
+      selectedGameServerId: "snr-main",
+      profilePath: "C:/profile",
+      closeToTrayOnClose: true,
+      closeWebviewOnTrayBackground: true,
+      reportNotificationsEnabled: true,
+      announceNotificationsEnabled: true,
+      uiLocale: "ja",
+      onboardingCompleted: true,
+    };
+    state.profileIsReady = true;
+    state.migrationExporting = true;
+
+    expect(computeControlState(state).customDllLoadButtonDisabled).toBe(true);
+  });
+
+  it("カスタムDLL適用中は競合する操作を無効化する", () => {
+    const state = createBaseState();
+    state.settings = {
+      amongUsPath: "C:/AmongUs",
+      gamePlatform: "steam",
+      selectedReleaseTag: "v1.0.0",
+      selectedGameServerId: "snr-main",
+      profilePath: "C:/profile",
+      closeToTrayOnClose: true,
+      closeWebviewOnTrayBackground: true,
+      reportNotificationsEnabled: true,
+      announceNotificationsEnabled: true,
+      uiLocale: "ja",
+      onboardingCompleted: true,
+    };
+    state.profileIsReady = true;
+    state.customDllInstalling = true;
+
+    const result = computeControlState(state);
+    expect(result.customDllLoadButtonDisabled).toBe(true);
+    expect(result.launchModdedButtonDisabled).toBe(true);
+    expect(result.launchVanillaButtonDisabled).toBe(true);
+    expect(result.uninstallButtonDisabled).toBe(true);
+    expect(result.migrationExportButtonDisabled).toBe(true);
+    expect(result.presetRefreshButtonDisabled).toBe(true);
+    expect(result.closeToTrayOnCloseInputDisabled).toBe(true);
   });
 
   it("アーカイブに importable preset が無い場合は import を無効化する", () => {

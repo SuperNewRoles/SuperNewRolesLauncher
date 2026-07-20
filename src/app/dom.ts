@@ -18,6 +18,7 @@ export interface AppDom {
   announceNotificationsEnabledInput: HTMLInputElement;
   settingsNotificationsStatus: HTMLSpanElement;
   settingsShortcutStatus: HTMLSpanElement;
+  customDllLoadButton: HTMLButtonElement;
   uninstallButton: HTMLButtonElement;
   settingsSupportDiscordLinkButton: HTMLButtonElement;
   settingsAmongUsOverlay: HTMLDivElement;
@@ -28,6 +29,23 @@ export interface AppDom {
   settingsAmongUsCandidateList: HTMLDivElement;
   settingsAmongUsCandidateEmpty: HTMLParagraphElement;
   settingsAmongUsManualSelectButton: HTMLButtonElement;
+  settingsCustomDllOverlay: HTMLDivElement;
+  settingsCustomDllOverlayBackdrop: HTMLDivElement;
+  settingsCustomDllCloseButton: HTMLButtonElement;
+  settingsCustomDllStepWarning: HTMLElement;
+  settingsCustomDllSelection: HTMLDivElement;
+  settingsCustomDllSelectedPath: HTMLParagraphElement;
+  settingsCustomDllReselectButton: HTMLButtonElement;
+  settingsCustomDllDisableAutoUpdateInput: HTMLInputElement;
+  settingsCustomDllError: HTMLDivElement;
+  settingsCustomDllCancelButton: HTMLButtonElement;
+  settingsCustomDllNextButton: HTMLButtonElement;
+  settingsCustomDllStepProcessing: HTMLElement;
+  settingsCustomDllProcessingMessage: HTMLParagraphElement;
+  settingsCustomDllStepResult: HTMLElement;
+  settingsCustomDllResultTitle: HTMLHeadingElement;
+  settingsCustomDllResultMessage: HTMLParagraphElement;
+  settingsCustomDllResultCloseButton: HTMLButtonElement;
   settingsUninstallConfirmOverlay: HTMLDivElement;
   settingsUninstallConfirmOverlayBackdrop: HTMLDivElement;
   settingsUninstallConfirmCloseButton: HTMLButtonElement;
@@ -166,6 +184,7 @@ export function collectAppDom(): AppDom {
     ),
     settingsNotificationsStatus: mustElement<HTMLSpanElement>("#settings-notifications-status"),
     settingsShortcutStatus: mustElement<HTMLSpanElement>("#settings-shortcut-status"),
+    customDllLoadButton: mustElement<HTMLButtonElement>("#custom-dll-load"),
     uninstallButton: mustElement<HTMLButtonElement>("#uninstall-snr"),
     settingsSupportDiscordLinkButton: optionalElement("#settings-support-discord-link", "button"),
     settingsAmongUsOverlay: mustElement<HTMLDivElement>("#settings-among-us-overlay"),
@@ -185,6 +204,41 @@ export function collectAppDom(): AppDom {
     ),
     settingsAmongUsManualSelectButton: mustElement<HTMLButtonElement>(
       "#settings-among-us-manual-select",
+    ),
+    settingsCustomDllOverlay: mustElement<HTMLDivElement>("#settings-custom-dll-overlay"),
+    settingsCustomDllOverlayBackdrop: mustElement<HTMLDivElement>(
+      "#settings-custom-dll-overlay-backdrop",
+    ),
+    settingsCustomDllCloseButton: mustElement<HTMLButtonElement>("#settings-custom-dll-close"),
+    settingsCustomDllStepWarning: mustElement<HTMLElement>("#settings-custom-dll-step-warning"),
+    settingsCustomDllSelection: mustElement<HTMLDivElement>("#settings-custom-dll-selection"),
+    settingsCustomDllSelectedPath: mustElement<HTMLParagraphElement>(
+      "#settings-custom-dll-selected-path",
+    ),
+    settingsCustomDllReselectButton: mustElement<HTMLButtonElement>(
+      "#settings-custom-dll-reselect",
+    ),
+    settingsCustomDllDisableAutoUpdateInput: mustElement<HTMLInputElement>(
+      "#settings-custom-dll-disable-auto-update",
+    ),
+    settingsCustomDllError: mustElement<HTMLDivElement>("#settings-custom-dll-error"),
+    settingsCustomDllCancelButton: mustElement<HTMLButtonElement>("#settings-custom-dll-cancel"),
+    settingsCustomDllNextButton: mustElement<HTMLButtonElement>("#settings-custom-dll-next"),
+    settingsCustomDllStepProcessing: mustElement<HTMLElement>(
+      "#settings-custom-dll-step-processing",
+    ),
+    settingsCustomDllProcessingMessage: mustElement<HTMLParagraphElement>(
+      "#settings-custom-dll-processing-message",
+    ),
+    settingsCustomDllStepResult: mustElement<HTMLElement>("#settings-custom-dll-step-result"),
+    settingsCustomDllResultTitle: mustElement<HTMLHeadingElement>(
+      "#settings-custom-dll-result-title",
+    ),
+    settingsCustomDllResultMessage: mustElement<HTMLParagraphElement>(
+      "#settings-custom-dll-result-message",
+    ),
+    settingsCustomDllResultCloseButton: mustElement<HTMLButtonElement>(
+      "#settings-custom-dll-result-close",
     ),
     settingsUninstallConfirmOverlay: mustElement<HTMLDivElement>(
       "#settings-uninstall-confirm-overlay",

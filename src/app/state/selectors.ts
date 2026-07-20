@@ -10,6 +10,8 @@ export interface ControlStateInput {
   settings: LauncherSettings | null;
   profileIsReady: boolean;
   gameRunning: boolean;
+  customDllSelecting: boolean;
+  customDllInstalling: boolean;
   uninstallInProgress: boolean;
   launchInProgress: boolean;
   creatingShortcut: boolean;
@@ -26,6 +28,7 @@ export interface ControlStateInput {
 
 /** ランチャー画面で実際に参照する操作可否。 */
 export interface ControlState {
+  customDllLoadButtonDisabled: boolean;
   uninstallButtonDisabled: boolean;
   launchModdedButtonDisabled: boolean;
   launchVanillaButtonDisabled: boolean;
@@ -63,7 +66,7 @@ export function computeControlState(state: ControlStateInput): ControlState {
     state.presetLoading || state.presetExporting || state.presetInspecting || state.presetImporting;
   const dataTransferBusy = migrationBusy || presetBusy;
   const shortcutBusy = state.creatingShortcut;
-  const operationBusy = state.uninstallInProgress || dataTransferBusy;
+  const operationBusy = state.uninstallInProgress || state.customDllInstalling || dataTransferBusy;
   const launchAvailable =
     hasSettings &&
     hasGamePath &&
@@ -77,13 +80,16 @@ export function computeControlState(state: ControlStateInput): ControlState {
     operationBusy || state.launchInProgress || state.gameRunning || !hasSettings;
 
   return {
-    uninstallButtonDisabled:
+    customDllLoadButtonDisabled:
       !hasSettings ||
-      state.uninstallInProgress ||
-      state.launchInProgress ||
+      !state.profileIsReady ||
       state.gameRunning ||
-      dataTransferBusy ||
-      shortcutBusy,
+      state.customDllSelecting ||
+      state.launchInProgress ||
+      shortcutBusy ||
+      operationBusy,
+    uninstallButtonDisabled:
+      !hasSettings || state.launchInProgress || state.gameRunning || operationBusy || shortcutBusy,
     launchModdedButtonDisabled: !launchAvailable || !state.profileIsReady,
     launchVanillaButtonDisabled: !launchAvailable,
     createModdedShortcutButtonDisabled:
@@ -99,13 +105,8 @@ export function computeControlState(state: ControlStateInput): ControlState {
     reportNotificationsEnabledInputDisabled: state.launchInProgress || operationBusy,
     announceNotificationsEnabledInputDisabled: state.launchInProgress || operationBusy,
     migrationExportButtonDisabled:
-      !hasSettings ||
-      dataTransferBusy ||
-      state.uninstallInProgress ||
-      state.launchInProgress ||
-      state.gameRunning,
-    migrationImportButtonDisabled:
-      dataTransferBusy || state.uninstallInProgress || state.launchInProgress || state.gameRunning,
+      !hasSettings || operationBusy || state.launchInProgress || state.gameRunning,
+    migrationImportButtonDisabled: operationBusy || state.launchInProgress || state.gameRunning,
     presetRefreshButtonDisabled: presetControlsDisabled,
     presetSelectAllLocalButtonDisabled: presetControlsDisabled || state.localPresets.length === 0,
     presetClearLocalButtonDisabled: presetControlsDisabled || state.localPresets.length === 0,

@@ -543,6 +543,7 @@ pub fn run() {
             commands::finder::finder_detect_platforms,
             commands::snr::mod_releases_list,
             commands::snr::mod_install,
+            commands::snr::mod_custom_dll_install,
             commands::snr::mod_uninstall,
             commands::snr::mod_preserved_save_data_status,
             commands::snr::mod_savedata_preview,

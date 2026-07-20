@@ -22,6 +22,7 @@ import type { OnboardingStep, OnboardingStepGuide } from "../onboarding/types";
 import { ReportCenter } from "../report/ReportCenter";
 import { createAsyncPoller } from "./asyncPoller";
 import { ANNOUNCE_BADGE_READ_CREATED_AT_STORAGE_KEY, OFFICIAL_LINKS } from "./constants";
+import { hasExpectedCustomDllFileName } from "./customDllPath";
 import { collectAppDom } from "./dom";
 import {
   isElevationRequiredLaunchError,
@@ -67,6 +68,7 @@ import {
   launchXboxPrepareModded,
   migrationExport,
   migrationImport,
+  modCustomDllInstall,
   modUninstall,
   notificationsTakeOpenTarget,
   presetsExport,
@@ -132,6 +134,7 @@ type MigrationMode = "export" | "import";
 type MigrationOverlayStep = "select" | "password" | "processing" | "result";
 type PresetOverlayMode = "import" | "export";
 type PresetFeedbackMode = "none" | "confirmImport" | "result";
+type CustomDllOverlayStep = "warning" | "processing" | "result";
 type ElevationLaunchRetryInput =
   | {
       kind: "modded";
@@ -403,6 +406,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     announceNotificationsEnabledInput,
     settingsNotificationsStatus,
     settingsShortcutStatus,
+    customDllLoadButton,
     uninstallButton,
     settingsSupportDiscordLinkButton,
     settingsAmongUsOverlay,
@@ -413,6 +417,23 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     settingsAmongUsCandidateList,
     settingsAmongUsCandidateEmpty,
     settingsAmongUsManualSelectButton,
+    settingsCustomDllOverlay,
+    settingsCustomDllOverlayBackdrop,
+    settingsCustomDllCloseButton,
+    settingsCustomDllStepWarning,
+    settingsCustomDllSelection,
+    settingsCustomDllSelectedPath,
+    settingsCustomDllReselectButton,
+    settingsCustomDllDisableAutoUpdateInput,
+    settingsCustomDllError,
+    settingsCustomDllCancelButton,
+    settingsCustomDllNextButton,
+    settingsCustomDllStepProcessing,
+    settingsCustomDllProcessingMessage,
+    settingsCustomDllStepResult,
+    settingsCustomDllResultTitle,
+    settingsCustomDllResultMessage,
+    settingsCustomDllResultCloseButton,
     settingsUninstallConfirmOverlay,
     settingsUninstallConfirmOverlayBackdrop,
     settingsUninstallConfirmCloseButton,
@@ -816,6 +837,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let settings: LauncherSettings | null = null;
   let profileIsReady = false;
   let gameRunning = false;
+  let customDllSelecting = false;
+  let customDllInstalling = false;
   let uninstallInProgress = false;
   let launchInProgress = false;
   let creatingShortcut = false;
@@ -848,6 +871,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   let localeSwitchInProgress = false;
   let amongUsOverlayLoading = false;
   let amongUsReselectPulseTimer: number | null = null;
+  let customDllOverlayStep: CustomDllOverlayStep = "warning";
+  let customDllSelectedPath = "";
   let migrationOverlayMode: MigrationMode | null = null;
   let migrationOverlayStep: MigrationOverlayStep = "select";
   let migrationSelectedPath = "";
@@ -865,6 +890,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   const overlayController = createOverlayController({
     overlays: [
       settingsAmongUsOverlay,
+      settingsCustomDllOverlay,
       settingsUninstallConfirmOverlay,
       settingsUpdateConfirmOverlay,
       settingsElevationConfirmOverlay,
@@ -1563,6 +1589,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       settings,
       profileIsReady,
       gameRunning,
+      customDllSelecting,
+      customDllInstalling,
       uninstallInProgress,
       launchInProgress,
       creatingShortcut,
@@ -1580,6 +1608,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       control.detectAmongUsPathButtonDisabled || amongUsOverlayLoading;
     const epicPlatformBlocked = hasBlockedEpicPlatform(settings);
 
+    customDllLoadButton.disabled = control.customDllLoadButtonDisabled;
     uninstallButton.disabled = control.uninstallButtonDisabled;
     reselectAmongUsButton.disabled = amongUsSelectionDisabled;
     settingsAmongUsManualSelectButton.disabled = amongUsSelectionDisabled;
@@ -1593,6 +1622,15 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       uninstallInProgress || control.uninstallButtonDisabled;
     settingsUninstallConfirmCancelButton.disabled = uninstallInProgress;
     settingsUninstallConfirmCloseButton.disabled = uninstallInProgress;
+    const customDllDialogBusy = customDllSelecting || customDllInstalling;
+    settingsCustomDllCloseButton.disabled = customDllDialogBusy;
+    settingsCustomDllCancelButton.disabled = customDllDialogBusy;
+    settingsCustomDllNextButton.disabled =
+      customDllDialogBusy || control.customDllLoadButtonDisabled;
+    settingsCustomDllReselectButton.disabled =
+      customDllDialogBusy || control.customDllLoadButtonDisabled;
+    settingsCustomDllDisableAutoUpdateInput.disabled = customDllDialogBusy;
+    settingsCustomDllResultCloseButton.disabled = customDllInstalling;
     settingsElevationConfirmAcceptButton.disabled = false;
     settingsElevationConfirmCancelButton.disabled = false;
     settingsElevationConfirmCloseButton.disabled = false;
@@ -2215,6 +2253,171 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     } catch {
       // user cancelled
     }
+  });
+
+  function setCustomDllError(message: string | null): void {
+    if (!message) {
+      settingsCustomDllError.hidden = true;
+      settingsCustomDllError.textContent = "";
+      settingsCustomDllError.className = "status-line settings-custom-dll-error";
+      return;
+    }
+
+    settingsCustomDllError.hidden = false;
+    setStatusLine(settingsCustomDllError, message, "error");
+    settingsCustomDllError.classList.add("settings-custom-dll-error");
+  }
+
+  function renderCustomDllOverlayContent(): void {
+    settingsCustomDllStepWarning.hidden = customDllOverlayStep !== "warning";
+    settingsCustomDllStepProcessing.hidden = customDllOverlayStep !== "processing";
+    settingsCustomDllStepResult.hidden = customDllOverlayStep !== "result";
+    settingsCustomDllSelection.hidden = customDllSelectedPath.length === 0;
+    settingsCustomDllSelectedPath.textContent = customDllSelectedPath;
+    settingsCustomDllProcessingMessage.textContent = t("settings.customDll.processing");
+  }
+
+  function resetCustomDllOverlayState(): void {
+    customDllOverlayStep = "warning";
+    customDllSelectedPath = "";
+    settingsCustomDllDisableAutoUpdateInput.checked = true;
+    settingsCustomDllResultTitle.textContent = "";
+    settingsCustomDllResultMessage.textContent = "";
+    settingsCustomDllResultMessage.classList.remove("is-error", "is-success");
+    setCustomDllError(null);
+    renderCustomDllOverlayContent();
+  }
+
+  function openCustomDllOverlay(): void {
+    if (customDllLoadButton.disabled) {
+      return;
+    }
+    resetCustomDllOverlayState();
+    openSettingsOverlay(settingsCustomDllOverlay);
+    updateButtons();
+    settingsCustomDllNextButton.focus();
+  }
+
+  function closeCustomDllOverlay(force = false): void {
+    if (customDllInstalling && !force) {
+      return;
+    }
+    closeSettingsOverlay(settingsCustomDllOverlay, force);
+    updateButtons();
+  }
+
+  async function pickCustomDll(): Promise<void> {
+    if (customDllSelecting || customDllInstalling) {
+      return;
+    }
+
+    customDllSelecting = true;
+    updateButtons();
+    try {
+      const selectedPath = await open({
+        title: t("settings.customDll.dialogTitle"),
+        multiple: false,
+        directory: false,
+        filters: [{ name: "DLL", extensions: ["dll"] }],
+      });
+      if (!selectedPath || Array.isArray(selectedPath)) {
+        return;
+      }
+
+      if (!hasExpectedCustomDllFileName(selectedPath, modConfig.paths.modDllRelativePath)) {
+        setCustomDllError(t("settings.customDll.invalidFileName"));
+        return;
+      }
+
+      customDllSelectedPath = selectedPath;
+      setCustomDllError(null);
+      renderCustomDllOverlayContent();
+    } catch (error) {
+      setCustomDllError(t("settings.customDll.failedWithError", { error: String(error) }));
+    } finally {
+      customDllSelecting = false;
+      updateButtons();
+    }
+  }
+
+  async function installCustomDll(): Promise<void> {
+    if (
+      customDllInstalling ||
+      customDllSelecting ||
+      customDllLoadButton.disabled ||
+      !customDllSelectedPath
+    ) {
+      return;
+    }
+    if (!hasExpectedCustomDllFileName(customDllSelectedPath, modConfig.paths.modDllRelativePath)) {
+      setCustomDllError(t("settings.customDll.invalidFileName"));
+      return;
+    }
+
+    customDllInstalling = true;
+    customDllOverlayStep = "processing";
+    setCustomDllError(null);
+    renderCustomDllOverlayContent();
+    updateButtons();
+
+    try {
+      const result = await modCustomDllInstall({
+        sourcePath: customDllSelectedPath,
+        disableAutoUpdate: settingsCustomDllDisableAutoUpdateInput.checked,
+      });
+
+      try {
+        await reloadSettings();
+        await refreshProfileReady();
+      } catch (refreshError) {
+        console.warn("Failed to refresh settings after custom DLL install:", refreshError);
+        if (settings) {
+          settings = { ...settings, selectedReleaseTag: result.releaseTag };
+        }
+      }
+
+      customDllOverlayStep = "result";
+      settingsCustomDllResultTitle.textContent = t("settings.customDll.successTitle");
+      settingsCustomDllResultMessage.textContent = t("settings.customDll.successMessage", {
+        tag: result.releaseTag,
+        path: result.targetPath,
+      });
+      settingsCustomDllResultMessage.classList.remove("is-error");
+      settingsCustomDllResultMessage.classList.add("is-success");
+    } catch (error) {
+      customDllOverlayStep = "warning";
+      setCustomDllError(t("settings.customDll.failedWithError", { error: String(error) }));
+    } finally {
+      customDllInstalling = false;
+      renderCustomDllOverlayContent();
+      updateButtons();
+    }
+  }
+
+  customDllLoadButton.addEventListener("click", () => {
+    openCustomDllOverlay();
+  });
+  settingsCustomDllOverlayBackdrop.addEventListener("click", () => {
+    closeCustomDllOverlay();
+  });
+  settingsCustomDllCloseButton.addEventListener("click", () => {
+    closeCustomDllOverlay();
+  });
+  settingsCustomDllCancelButton.addEventListener("click", () => {
+    closeCustomDllOverlay();
+  });
+  settingsCustomDllReselectButton.addEventListener("click", () => {
+    void pickCustomDll();
+  });
+  settingsCustomDllNextButton.addEventListener("click", () => {
+    if (customDllSelectedPath) {
+      void installCustomDll();
+      return;
+    }
+    void pickCustomDll();
+  });
+  settingsCustomDllResultCloseButton.addEventListener("click", () => {
+    closeCustomDllOverlay();
   });
 
   openAmongUsFolderButton.addEventListener("click", async () => {
@@ -2969,6 +3172,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
   function closeAllOverlays(force = false): void {
     closePresetResultOverlay(force);
     closePresetOverlay(force);
+    closeCustomDllOverlay(force);
     closeUninstallConfirmOverlay(force);
     closeUpdateConfirmOverlay(force);
     closeElevationConfirmOverlay(force);
@@ -3110,6 +3314,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
     if (!presetOverlay.hidden) {
       closePresetOverlay();
+      return;
+    }
+    if (!settingsCustomDllOverlay.hidden) {
+      closeCustomDllOverlay();
       return;
     }
     if (!settingsUninstallConfirmOverlay.hidden) {
@@ -3759,6 +3967,17 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
     void runPendingStartupUpdateIfPossible();
   });
+
+  window.addEventListener(
+    "beforeunload",
+    () => {
+      updateConfirmation.dispose();
+      elevationConfirmation.dispose();
+      steamWarningConfirmation.dispose();
+      overlayController.dispose();
+    },
+    { once: true },
+  );
 
   setVersionDisplay(t("launcher.currentVersionLoading"), "loading");
   setUpdateStatus("", "idle");

@@ -15,6 +15,7 @@ describe("renderAppTemplate (settings general)", () => {
     expect(html).toContain('id="create-modded-shortcut"');
     expect(html).toContain('id="settings-general-status"');
     expect(html).toContain('id="settings-shortcut-status"');
+    expect(html).toContain('id="custom-dll-load"');
     expect(html).toContain('id="uninstall-snr"');
     expect(html).toContain('id="install-status"');
     expect(html).toContain('id="report-tab-badge"');
@@ -33,6 +34,84 @@ describe("renderAppTemplate (settings general)", () => {
     const tabOrder = tabBarItems.map((item) => item.getAttribute("data-tab"));
 
     expect(tabOrder).toEqual(["preset", "announce", "home", "servers", "report", "settings"]);
+  });
+
+  it("places the custom DLL card between shortcut and uninstall", () => {
+    const document = new DOMParser().parseFromString(html, "text/html");
+    const cards = Array.from(
+      document.querySelectorAll("#settings-panel-general .settings-general-layout > .card"),
+    );
+    const shortcutCard = document.querySelector("#create-modded-shortcut")?.closest(".card");
+    const customDllCard = document.querySelector("#custom-dll-load")?.closest(".card");
+    const uninstallCard = document.querySelector("#uninstall-snr")?.closest(".card");
+
+    expect(shortcutCard).not.toBeNull();
+    expect(customDllCard).not.toBeNull();
+    expect(uninstallCard).not.toBeNull();
+    expect(cards.indexOf(customDllCard as Element)).toBe(
+      cards.indexOf(shortcutCard as Element) + 1,
+    );
+    expect(cards.indexOf(uninstallCard as Element)).toBe(
+      cards.indexOf(customDllCard as Element) + 1,
+    );
+  });
+
+  it("includes an accessible custom DLL loading overlay", () => {
+    const document = new DOMParser().parseFromString(html, "text/html");
+    const overlay = document.querySelector<HTMLElement>("#settings-custom-dll-overlay");
+    const dialog = overlay?.querySelector<HTMLElement>("[role='dialog']");
+
+    expect(overlay?.hidden).toBe(true);
+    expect(overlay?.getAttribute("aria-hidden")).toBe("true");
+    expect(dialog?.getAttribute("aria-modal")).toBe("true");
+    expect(dialog?.getAttribute("aria-labelledby")).toBe("settings-custom-dll-overlay-title");
+    expect(document.querySelector("#settings-custom-dll-overlay-title")?.textContent).not.toBe("");
+
+    for (const id of [
+      "settings-custom-dll-overlay-backdrop",
+      "settings-custom-dll-close",
+      "settings-custom-dll-step-warning",
+      "settings-custom-dll-selection",
+      "settings-custom-dll-selected-path",
+      "settings-custom-dll-reselect",
+      "settings-custom-dll-disable-auto-update",
+      "settings-custom-dll-error",
+      "settings-custom-dll-cancel",
+      "settings-custom-dll-next",
+      "settings-custom-dll-step-processing",
+      "settings-custom-dll-processing-message",
+      "settings-custom-dll-step-result",
+      "settings-custom-dll-result-title",
+      "settings-custom-dll-result-message",
+      "settings-custom-dll-result-close",
+    ]) {
+      expect(document.getElementById(id), `missing #${id}`).not.toBeNull();
+    }
+
+    expect(document.querySelector(".settings-custom-dll-warning-list")?.children).toHaveLength(5);
+    expect(document.querySelector<HTMLElement>("#settings-custom-dll-selection")?.hidden).toBe(
+      true,
+    );
+    expect(document.querySelector("#settings-custom-dll-selected-path")?.textContent).toBe("");
+    expect(
+      document.querySelector<HTMLInputElement>("#settings-custom-dll-disable-auto-update")?.checked,
+    ).toBe(true);
+    expect(document.querySelector("#settings-custom-dll-error")?.getAttribute("aria-live")).toBe(
+      "assertive",
+    );
+    expect(document.querySelector<HTMLElement>("#settings-custom-dll-error")?.hidden).toBe(true);
+    expect(
+      document.querySelector<HTMLElement>("#settings-custom-dll-step-processing")?.hidden,
+    ).toBe(true);
+    expect(document.querySelector<HTMLElement>("#settings-custom-dll-step-result")?.hidden).toBe(
+      true,
+    );
+    expect(
+      document.querySelector("#settings-custom-dll-close")?.getAttribute("aria-label"),
+    ).not.toBe("");
+    expect(
+      document.querySelector("label[for='settings-custom-dll-disable-auto-update']"),
+    ).not.toBeNull();
   });
 
   it("includes among us reselect and uninstall overlays", () => {
@@ -58,6 +137,7 @@ describe("renderAppTemplate (settings general)", () => {
     // オーバーレイがタブ内部に入ると z-index とフォーカス制御が崩れるため位置を固定で検証する。
     for (const id of [
       "settings-among-us-overlay",
+      "settings-custom-dll-overlay",
       "settings-uninstall-confirm-overlay",
       "settings-elevation-confirm-overlay",
       "settings-steam-warning-overlay",

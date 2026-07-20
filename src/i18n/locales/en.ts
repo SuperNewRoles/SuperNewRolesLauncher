@@ -130,6 +130,31 @@ const en: Record<keyof typeof ja, string> = {
   "settings.general.shortcutTitle": "Shortcut",
   "settings.general.shortcutDescription":
     "Create a desktop shortcut for launching the modded game.",
+  "settings.customDll.title": "Custom DLL",
+  "settings.customDll.description": "Load a custom SuperNewRoles.dll into the current profile.",
+  "settings.customDll.open": "Load DLL",
+  "settings.customDll.warningTitle": "Custom DLL loading warning",
+  "settings.customDll.warningSecurity":
+    "Select only a DLL you trust. DLLs can execute arbitrary code and may affect your PC or data.",
+  "settings.customDll.warningGameClosed": "Completely close Among Us before replacing the DLL.",
+  "settings.customDll.warningUpdate":
+    "If Disable automatic updates is unchecked, the automatic updater may overwrite the custom DLL on its next run.",
+  "settings.customDll.warningReinstall":
+    "Reinstalling the official profile resets both the custom DLL and the disabled automatic-update setting.",
+  "settings.customDll.warningSingleFile":
+    "Only the selected DLL is copied. Dependency DLLs and other files are not copied.",
+  "settings.customDll.selectedPath": "Selected DLL",
+  "settings.customDll.reselect": "Choose another",
+  "settings.customDll.disableAutoUpdate": "Disable automatic updates",
+  "settings.customDll.cancel": "Cancel",
+  "settings.customDll.next": "Next",
+  "settings.customDll.dialogTitle": "Select SuperNewRoles.dll",
+  "settings.customDll.processing": "Applying custom DLL...",
+  "settings.customDll.successTitle": "Custom DLL applied",
+  "settings.customDll.successMessage": "Release tag: {tag}\nInstalled at: {path}",
+  "settings.customDll.failedWithError": "Failed to apply custom DLL: {error}",
+  "settings.customDll.invalidFileName": "Select a DLL named SuperNewRoles.dll.",
+  "settings.customDll.close": "Close",
   "settings.general.dangerTitle": "Uninstall",
   "settings.general.uninstallDescription": "Delete modded files from the current profile.",
   "settings.general.supportText":

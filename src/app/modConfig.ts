@@ -60,6 +60,8 @@ export interface ModConfig {
     saveDataRoot: string;
     localLowRoot: string;
     reportTokenRelativePath: string;
+    modDllRelativePath: string;
+    modAutoUpdateConfigRelativePath: string;
     profileRequiredFiles: string[];
   };
   migration: {
@@ -111,6 +113,17 @@ function ensureNonEmpty(value: string, name: string): string {
     throw new Error(`Invalid mod config: '${name}' must not be empty.`);
   }
   return trimmed;
+}
+
+function ensureRelativePath(value: string, name: string): string {
+  const normalized = ensureNonEmpty(value, name).replace(/\\/gu, "/");
+  const pathSegments = normalized.split("/");
+  const isAbsolute =
+    normalized.startsWith("/") || normalized.startsWith("//") || /^[A-Za-z]:\//u.test(normalized);
+  if (isAbsolute || pathSegments.includes("..")) {
+    throw new Error(`Invalid mod config: '${name}' must be a safe relative path.`);
+  }
+  return normalized;
 }
 
 function normalizeBaseUrl(url: string, name: string): string {
@@ -199,6 +212,14 @@ function assertModConfig(input: ModConfig): ModConfig {
   ensureNonEmpty(input.paths.saveDataRoot, "paths.saveDataRoot");
   ensureNonEmpty(input.paths.localLowRoot, "paths.localLowRoot");
   ensureNonEmpty(input.paths.reportTokenRelativePath, "paths.reportTokenRelativePath");
+  input.paths.modDllRelativePath = ensureRelativePath(
+    input.paths.modDllRelativePath,
+    "paths.modDllRelativePath",
+  );
+  input.paths.modAutoUpdateConfigRelativePath = ensureRelativePath(
+    input.paths.modAutoUpdateConfigRelativePath,
+    "paths.modAutoUpdateConfigRelativePath",
+  );
   ensureNonEmpty(input.migration.extension, "migration.extension");
   ensureNonEmpty(input.migration.magic, "migration.magic");
   ensureNonEmpty(input.presets.extension, "presets.extension");
