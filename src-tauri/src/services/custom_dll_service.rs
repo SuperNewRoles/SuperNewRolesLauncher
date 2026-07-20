@@ -38,20 +38,28 @@ enum ReplaceOperation {
 
 struct TemporaryFile {
     path: PathBuf,
+    keep: bool,
 }
 
 impl TemporaryFile {
     fn new(path: PathBuf) -> Self {
-        Self { path }
+        Self { path, keep: false }
     }
 
     fn path(&self) -> &Path {
         &self.path
     }
+
+    fn keep(&mut self) {
+        self.keep = true;
+    }
 }
 
 impl Drop for TemporaryFile {
     fn drop(&mut self) {
+        if self.keep {
+            return;
+        }
         let _ = fs::remove_file(&self.path);
     }
 }
@@ -171,8 +179,8 @@ where
     }
 
     // 全ステージングが完了してからバックアップを作り、対象ファイルにはまだ触れない。
-    let dll_backup = backup_file(target_path)?;
-    let config_backup = match (auto_update_config_path, config_existed) {
+    let mut dll_backup = backup_file(target_path)?;
+    let mut config_backup = match (auto_update_config_path, config_existed) {
         (Some(config_path), true) => Some(backup_file(config_path)?),
         _ => None,
     };
@@ -193,7 +201,7 @@ where
         ) {
             let rollback_errors = rollback_files(
                 target_path,
-                &dll_backup,
+                &mut dll_backup,
                 None,
                 None,
                 false,
@@ -215,9 +223,9 @@ where
     if let Err(error) = save_settings(&updated_settings) {
         let rollback_errors = rollback_files(
             target_path,
-            &dll_backup,
+            &mut dll_backup,
             auto_update_config_path,
-            config_backup.as_ref(),
+            config_backup.as_mut(),
             auto_update_config_path.is_some() && !config_existed,
             &mut replace_file,
         );
@@ -562,9 +570,9 @@ fn ensure_directory(path: &Path) -> Result<CreatedDirectories, String> {
 
 fn rollback_files<ReplaceFile>(
     target_path: &Path,
-    dll_backup: &TemporaryFile,
+    dll_backup: &mut TemporaryFile,
     config_path: Option<&Path>,
-    config_backup: Option<&TemporaryFile>,
+    config_backup: Option<&mut TemporaryFile>,
     remove_created_config: bool,
     replace_file: &mut ReplaceFile,
 ) -> Vec<String>
@@ -575,14 +583,17 @@ where
 
     if let Some(config_path) = config_path {
         if let Some(backup) = config_backup {
+            let backup_path = backup.path().to_path_buf();
             if let Err(error) = replace_file(
                 backup.path(),
                 config_path,
                 ReplaceOperation::AutoUpdateConfigRollback,
             ) {
+                backup.keep();
                 errors.push(format!(
-                    "failed to restore auto-update config '{}': {error}",
-                    config_path.display()
+                    "failed to restore auto-update config '{}': {error}; backup retained at '{}'",
+                    config_path.display(),
+                    backup_path.display()
                 ));
             }
         } else if remove_created_config {
@@ -597,14 +608,13 @@ where
         }
     }
 
-    if let Err(error) = replace_file(
-        dll_backup.path(),
-        target_path,
-        ReplaceOperation::DllRollback,
-    ) {
+    let dll_backup_path = dll_backup.path().to_path_buf();
+    if let Err(error) = replace_file(&dll_backup_path, target_path, ReplaceOperation::DllRollback) {
+        dll_backup.keep();
         errors.push(format!(
-            "failed to restore profile mod DLL '{}': {error}",
-            target_path.display()
+            "failed to restore profile mod DLL '{}': {error}; backup retained at '{}'",
+            target_path.display(),
+            dll_backup_path.display()
         ));
     }
 
@@ -778,7 +788,8 @@ mod tests {
             )
         }
 
-        fn assert_no_transaction_files(&self) {
+        fn transaction_files(&self) -> Vec<PathBuf> {
+            let mut transaction_files = Vec::new();
             let mut pending = vec![self.directory.path().to_path_buf()];
             while let Some(directory) = pending.pop() {
                 if !directory.exists() {
@@ -789,15 +800,20 @@ mod tests {
                     let path = entry.path();
                     if path.is_dir() {
                         pending.push(path);
-                    } else {
-                        assert!(
-                            !entry.file_name().to_string_lossy().contains(".custom-dll."),
-                            "transaction file was not cleaned up: {}",
-                            path.display()
-                        );
+                    } else if entry.file_name().to_string_lossy().contains(".custom-dll.") {
+                        transaction_files.push(path);
                     }
                 }
             }
+            transaction_files
+        }
+
+        fn assert_no_transaction_files(&self) {
+            let transaction_files = self.transaction_files();
+            assert!(
+                transaction_files.is_empty(),
+                "transaction files were not cleaned up: {transaction_files:?}"
+            );
         }
     }
 
@@ -1036,6 +1052,53 @@ mod tests {
         );
         assert_eq!(original_settings.selected_release_tag, "v-old");
         fixture.assert_no_transaction_files();
+    }
+
+    #[test]
+    fn rollback_failures_retain_recovery_backups() {
+        let fixture = Fixture::new("rollback-failure", b"new DLL", b"old DLL");
+        let original_config = br#"{"updateType":"all","custom":42}"#;
+        fs::create_dir_all(fixture.config.parent().expect("config parent"))
+            .expect("create config parent");
+        fs::write(&fixture.config, original_config).expect("write original config");
+
+        let error = fixture
+            .install(
+                Some(&fixture.config),
+                |_| Err("simulated settings failure".to_string()),
+                |source, destination, operation| match operation {
+                    ReplaceOperation::AutoUpdateConfigRollback => Err(io::Error::new(
+                        io::ErrorKind::PermissionDenied,
+                        "simulated config rollback failure",
+                    )),
+                    ReplaceOperation::DllRollback => Err(io::Error::new(
+                        io::ErrorKind::PermissionDenied,
+                        "simulated DLL rollback failure",
+                    )),
+                    _ => atomic_replace_file(source, destination),
+                },
+            )
+            .expect_err("rollback failures should abort the transaction");
+
+        assert!(error.contains("simulated config rollback failure"));
+        assert!(error.contains("simulated DLL rollback failure"));
+        assert!(error.contains("backup retained at"));
+
+        let backup_files = fixture.transaction_files();
+        assert_eq!(backup_files.len(), 2, "both backups should be retained");
+        assert!(backup_files
+            .iter()
+            .all(|path| path.to_string_lossy().ends_with(".backup")));
+        let backup_contents = backup_files
+            .iter()
+            .map(|path| fs::read(path).expect("read retained backup"))
+            .collect::<Vec<_>>();
+        assert!(backup_contents
+            .iter()
+            .any(|contents| contents == b"old DLL"));
+        assert!(backup_contents
+            .iter()
+            .any(|contents| contents == original_config));
     }
 
     #[test]
