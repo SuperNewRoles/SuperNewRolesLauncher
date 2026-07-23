@@ -38,6 +38,7 @@ import {
   REPORTING_ENABLED,
   modConfig,
 } from "./modConfig";
+import { uiIconHtml } from "./uiIcons";
 import { createConfirmationController, createOverlayController } from "./overlayController";
 import {
   filterSelectablePlatformCandidates,
@@ -817,7 +818,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
     epicAuthStatusBox.classList.toggle("is-logged-in", state === "logged-in");
     epicAuthStatusBox.classList.toggle("is-error", state === "error");
-    epicAuthStatusIcon.textContent = state === "logged-in" ? "✓" : state === "error" ? "⚠" : "🔐";
+    const iconName =
+      state === "logged-in" ? "check" : state === "error" ? "alert-triangle" : "lock";
+    epicAuthStatusIcon.innerHTML = uiIconHtml(iconName, { size: 32 });
   }
 
   function renderEpicActionButtons(loggedIn: boolean): void {

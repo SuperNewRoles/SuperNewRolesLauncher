@@ -1,6 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { useEffect, useState } from "react";
 import type { PresetSummary } from "../../app/types";
+import { UiIcon } from "../../app/UiIcon";
 import type { MessageKey } from "../../i18n";
 
 interface ImportStepProps {
@@ -204,7 +205,8 @@ export default function ImportStep({
   return (
     <div className="install-step install-step-import">
       <button type="button" className="btn-back" onClick={onBack}>
-        ← {t("installFlow.back")}
+        <UiIcon name="arrow-left" size={16} className="btn-back-icon" />
+        {t("installFlow.back")}
       </button>
 
       <h2 className="step-title">{t("installFlow.importTitle")}</h2>
@@ -229,7 +231,10 @@ export default function ImportStep({
                 onClick={handleSelectSource}
                 disabled={previewing}
               >
-                📁 {t("installFlow.importSelectSource")}
+                <span className="btn-manual-select-icon" aria-hidden="true">
+                  <UiIcon name="folder" size={18} />
+                </span>
+                {t("installFlow.importSelectSource")}
               </button>
 
               <p className={`import-preview-status ${previewError ? "is-error" : ""}`}>
@@ -298,7 +303,10 @@ export default function ImportStep({
                     onClick={handleSelectArchive}
                     disabled={pickingArchive}
                   >
-                    📦 {t("installFlow.importArchiveSelect")}
+                    <span className="btn-manual-select-icon" aria-hidden="true">
+                      <UiIcon name="package" size={18} />
+                    </span>
+                    {t("installFlow.importArchiveSelect")}
                   </button>
                   <p className="import-path-line">
                     <strong>{t("installFlow.importArchivePath")}:</strong>{" "}

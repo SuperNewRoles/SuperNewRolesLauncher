@@ -10,6 +10,7 @@ import {
   REPORTING_ENABLED,
   modConfig,
 } from "./modConfig";
+import { REPORT_CENTER_ICON, uiIconHtml } from "./uiIcons";
 
 /**
  * 画面テンプレート生成専用モジュール。
@@ -86,7 +87,9 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
           <span id="launch-status" class="home-launch-status" aria-live="polite"></span>
           <div class="home-buttons-row">
             <button id="launch-vanilla" type="button" class="btn-home-secondary">${t("home.launchVanilla")}</button>
-            <button id="report-center-tab" type="button" class="btn-home-secondary btn-report-center"${reportHiddenAttr}>${t("report.title")}
+            <button id="report-center-tab" type="button" class="btn-home-secondary btn-report-center"${reportHiddenAttr}>
+              <span class="btn-report-center-icon" aria-hidden="true">${uiIconHtml(REPORT_CENTER_ICON, { size: 18, strokeWidth: 2 })}</span>
+              ${t("report.title")}
               <span id="report-center-badge" class="report-center-badge" aria-hidden="true"></span>
             </button>
           </div>
@@ -108,14 +111,14 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
         <div class="tab-inner tab-settings-scroll tab-preset-scroll preset-remake-root">
           <div class="preset-remake-launch-grid">
             <button id="preset-open-import" type="button" class="settings-migration-action preset-remake-primary">
-              <span class="settings-migration-action-icon" aria-hidden="true">📥</span>
+              <span class="settings-migration-action-icon" aria-hidden="true">${uiIconHtml("download", { strokeWidth: 2 })}</span>
               <span class="settings-migration-action-text">
                 <span class="settings-migration-action-title">${t("preset.importSelected")}</span>
                 <span class="settings-migration-action-subtitle">${t("preset.importActionSubtitle")}</span>
               </span>
             </button>
             <button id="preset-open-export" type="button" class="settings-migration-action preset-remake-primary">
-              <span class="settings-migration-action-icon" aria-hidden="true">📤</span>
+              <span class="settings-migration-action-icon" aria-hidden="true">${uiIconHtml("upload", { strokeWidth: 2 })}</span>
               <span class="settings-migration-action-text">
                 <span class="settings-migration-action-title">${t("preset.exportSelected")}</span>
                 <span class="settings-migration-action-subtitle">${t("preset.exportActionSubtitle")}</span>
@@ -206,8 +209,8 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                       </span>
                     </label>
                     <div class="settings-general-action-grid">
-                      <button id="open-among-us-folder" type="button" class="settings-folder-action-button"><span class="settings-folder-action-icon" aria-hidden="true">📁</span><span>${t("launcher.openAmongUsFolder")}</span></button>
-                      <button id="open-profile-folder" type="button" class="settings-folder-action-button"><span class="settings-folder-action-icon" aria-hidden="true">📁</span><span>${t("launcher.openProfileFolder")}</span></button>
+                      <button id="open-among-us-folder" type="button" class="settings-folder-action-button"><span class="settings-folder-action-icon" aria-hidden="true">${uiIconHtml("folder", { size: 18 })}</span><span>${t("launcher.openAmongUsFolder")}</span></button>
+                      <button id="open-profile-folder" type="button" class="settings-folder-action-button"><span class="settings-folder-action-icon" aria-hidden="true">${uiIconHtml("folder", { size: 18 })}</span><span>${t("launcher.openProfileFolder")}</span></button>
                     </div>
                     <span id="settings-general-status" class="status-line" aria-live="polite"></span>
                   </section>
@@ -276,12 +279,12 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
 
                       <div class="epic-login-card">
                         <div id="epic-auth-status-box" class="epic-login-info settings-epic-status">
-                          <div id="epic-auth-status-icon" class="epic-login-info-icon">🔐</div>
+                          <div id="epic-auth-status-icon" class="epic-login-info-icon">${uiIconHtml("lock", { size: 32 })}</div>
                           <p id="epic-auth-status" class="epic-login-info-text" aria-live="polite"></p>
                         </div>
                         <div class="epic-login-form settings-epic-login-actions">
                           <button id="epic-login-webview" type="button" class="btn-primary btn-login" aria-hidden="false">
-                            <span class="btn-icon">🌐</span>${t("epic.loginWebview")}
+                            <span class="btn-icon">${uiIconHtml("globe", { size: 18 })}</span>${t("epic.loginWebview")}
                           </button>
                           <button id="epic-logout" type="button" class="ghost settings-epic-logout" hidden aria-hidden="true">${t("epic.logout")}</button>
                         </div>
@@ -296,14 +299,14 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                   <strong>${t("migration.title")}</strong>
                   <div class="settings-migration-action-stack">
                     <button id="migration-export" type="button" class="settings-migration-action settings-migration-action-export">
-                      <span class="settings-migration-action-icon" aria-hidden="true">🧳</span>
+                      <span class="settings-migration-action-icon" aria-hidden="true">${uiIconHtml("suitcase", { strokeWidth: 2 })}</span>
                       <span class="settings-migration-action-text">
                         <span class="settings-migration-action-title">${t("migration.export")}</span>
                         <span class="settings-migration-action-subtitle">${t("migration.overlay.exportActionHint")}</span>
                       </span>
                     </button>
                     <button id="migration-import" type="button" class="settings-migration-action settings-migration-action-import">
-                      <span class="settings-migration-action-icon" aria-hidden="true">📦</span>
+                      <span class="settings-migration-action-icon" aria-hidden="true">${uiIconHtml("package", { strokeWidth: 2 })}</span>
                       <span class="settings-migration-action-text">
                         <span class="settings-migration-action-title">${t("migration.import")}</span>
                         <span class="settings-migration-action-subtitle">${t("migration.overlay.importActionHint")}</span>
@@ -388,7 +391,7 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
             <p class="muted settings-among-us-overlay-description">${t("settings.general.reselectOverlayDescription")}</p>
             <div id="settings-among-us-overlay-error" class="status-line settings-among-us-overlay-error" hidden></div>
             <div id="settings-among-us-candidate-list" class="settings-among-us-candidate-list platform-grid"></div>
-            <button id="settings-among-us-manual-select" type="button" class="btn-manual-select settings-among-us-manual-select-centered">📁 ${t("settings.general.reselectOverlayManualSelect")}</button>
+            <button id="settings-among-us-manual-select" type="button" class="btn-manual-select settings-among-us-manual-select-centered"><span class="btn-manual-select-icon" aria-hidden="true">${uiIconHtml("folder", { size: 18 })}</span>${t("settings.general.reselectOverlayManualSelect")}</button>
             <p id="settings-among-us-candidate-empty" class="muted settings-among-us-candidate-empty" hidden>${t("settings.general.reselectOverlayEmpty")}</p>
             <footer class="settings-among-us-overlay-actions">
               <button id="settings-among-us-overlay-cancel" type="button" class="ghost settings-among-us-overlay-cancel">${t("settings.general.reselectOverlayClose")}</button>
@@ -413,7 +416,7 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
           <section id="settings-custom-dll-step-warning" class="settings-custom-dll-step">
             <div class="settings-custom-dll-warning" role="note" aria-labelledby="settings-custom-dll-warning-title">
               <div class="settings-custom-dll-warning-heading">
-                <span class="settings-custom-dll-warning-icon" aria-hidden="true">⚠</span>
+                <span class="settings-custom-dll-warning-icon" aria-hidden="true">${uiIconHtml("alert-triangle", { size: 22 })}</span>
                 <h3 id="settings-custom-dll-warning-title">${t("settings.customDll.warningTitle")}</h3>
               </div>
               <ul class="settings-custom-dll-warning-list">
@@ -607,29 +610,29 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
 
     <nav class="tab-bar" role="tablist" aria-label="メインナビゲーション">
       <button type="button" class="tab-bar-item" data-tab="preset" role="tab" aria-selected="false"${presetHiddenAttr}>
-        <span class="tab-bar-item-emoji" aria-hidden="true">📦</span>
+        <span class="tab-bar-item-icon" aria-hidden="true">${uiIconHtml("package", { size: 20, strokeWidth: 2 })}</span>
         <span class="tab-bar-item-label">${t("preset.tab")}</span>
       </button>
       <button type="button" class="tab-bar-item tab-bar-item-announce" data-tab="announce" role="tab" aria-selected="false"${announceHiddenAttr}>
-        <span class="tab-bar-item-emoji" aria-hidden="true">📢</span>
+        <span class="tab-bar-item-icon" aria-hidden="true">${uiIconHtml("megaphone", { size: 20, strokeWidth: 2 })}</span>
         <span class="tab-bar-item-label">${t("announce.tab")}</span>
         <span id="announce-tab-badge" class="report-center-badge announce-tab-badge" aria-hidden="true"></span>
       </button>
       <button type="button" class="tab-bar-item tab-bar-item-active" data-tab="home" role="tab" aria-selected="true">
-        <span class="tab-bar-item-emoji" aria-hidden="true">🏠</span>
+        <span class="tab-bar-item-icon" aria-hidden="true">${uiIconHtml("home", { size: 20, strokeWidth: 2 })}</span>
         <span class="tab-bar-item-label">${t("home.tab")}</span>
       </button>
       <button type="button" class="tab-bar-item" data-tab="servers" role="tab" aria-selected="false"${gameServersHiddenAttr}>
-        <span class="tab-bar-item-emoji" aria-hidden="true">🌐</span>
+        <span class="tab-bar-item-icon" aria-hidden="true">${uiIconHtml("globe", { size: 20, strokeWidth: 2 })}</span>
         <span class="tab-bar-item-label">${t("gameServers.tab")}</span>
       </button>
       <button type="button" class="tab-bar-item tab-bar-item-report" data-tab="report" role="tab" aria-selected="false"${reportHiddenAttr}>
-        <span class="tab-bar-item-emoji" aria-hidden="true">📝</span>
+        <span class="tab-bar-item-icon" aria-hidden="true">${uiIconHtml(REPORT_CENTER_ICON, { size: 20, strokeWidth: 2 })}</span>
         <span class="tab-bar-item-label">${t("report.title")}</span>
         <span id="report-tab-badge" class="report-center-badge report-tab-badge" aria-hidden="true"></span>
       </button>
       <button type="button" class="tab-bar-item" data-tab="settings" role="tab" aria-selected="false">
-        <span class="tab-bar-item-emoji" aria-hidden="true">⚙️</span>
+        <span class="tab-bar-item-icon" aria-hidden="true">${uiIconHtml("settings", { size: 20, strokeWidth: 2 })}</span>
         <span class="tab-bar-item-label">${t("settings.tab")}</span>
       </button>
     </nav>

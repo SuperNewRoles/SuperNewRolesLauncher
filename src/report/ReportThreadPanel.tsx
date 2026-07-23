@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import type { ReportMessage, ReportThread } from "../app/types";
+import { UiIcon } from "../app/UiIcon";
 import type { LocaleCode, createTranslator } from "../i18n";
 import { isOwnReportMessage } from "./messageOwnership";
 import { formatReportDateTime } from "./reportDateTime";
@@ -131,7 +132,7 @@ export function ReportThreadPanel({
             title={isFullscreen ? "縮小表示に戻す" : "全画面表示にする"}
             aria-label={isFullscreen ? "縮小表示に戻す" : "全画面表示にする"}
           >
-            {isFullscreen ? "🗗" : "⛶"}
+            {isFullscreen ? <UiIcon name="minimize" size={16} /> : <UiIcon name="maximize" size={16} />}
           </button>
           <button
             type="button"
@@ -235,7 +236,7 @@ export function ReportThreadPanel({
           onClick={handleSend}
           disabled={!replyText.trim() || isSending}
         >
-          {isSending ? "..." : "→"}
+          {isSending ? "..." : <UiIcon name="arrow-right" size={18} />}
         </button>
       </div>
     </div>

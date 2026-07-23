@@ -1,3 +1,4 @@
+import { UiIcon } from "../../app/UiIcon";
 import type { MessageKey } from "../../i18n";
 
 interface EpicLoginStepProps {
@@ -32,7 +33,8 @@ export default function EpicLoginStep({
   return (
     <div className="install-step install-step-epic-login">
       <button type="button" className="btn-back" onClick={onBack}>
-        ← {t("installFlow.back")}
+        <UiIcon name="arrow-left" size={16} className="btn-back-icon" />
+        {t("installFlow.back")}
       </button>
 
       <div className="epic-login-container">
@@ -57,24 +59,32 @@ export default function EpicLoginStep({
           {/* ログイン状態に応じて「完了導線」か「認証開始導線」を切り替える。 */}
           {epicLoggedIn ? (
             <div className="epic-logged-in">
-              <div className="epic-status-icon">✓</div>
+              <div className="epic-status-icon">
+                <UiIcon name="check" size={28} />
+              </div>
               <div className="epic-status-content">
                 <p className="epic-status-label">{t("epic.loggedInLabel")}</p>
                 <p className="epic-status success">{epicUserDisplay || "User"}</p>
               </div>
               <button type="button" className="btn-primary btn-next" onClick={onDone}>
                 {t("installFlow.next")}
-                <span className="btn-arrow">→</span>
+                <span className="btn-arrow">
+                  <UiIcon name="arrow-right" size={16} />
+                </span>
               </button>
             </div>
           ) : (
             <div className="epic-login-form">
               <div className="epic-login-info">
-                <div className="epic-login-info-icon">🔐</div>
+                <div className="epic-login-info-icon">
+                  <UiIcon name="lock" size={32} />
+                </div>
                 <p className="epic-login-info-text">{t("epic.loginDescription")}</p>
               </div>
               <button type="button" className="btn-primary btn-login" onClick={handleLogin}>
-                <span className="btn-icon">🌐</span>
+                <span className="btn-icon">
+                  <UiIcon name="globe" size={18} />
+                </span>
                 {t("epic.loginWebview")}
               </button>
             </div>

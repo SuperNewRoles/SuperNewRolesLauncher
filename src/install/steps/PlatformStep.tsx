@@ -8,6 +8,7 @@ import {
 } from "../../app/platformSelection";
 import { finderDetectPlatform } from "../../app/services/tauriClient";
 import type { GamePlatform } from "../../app/types";
+import { UiIcon } from "../../app/UiIcon";
 import type { MessageKey } from "../../i18n";
 import type { DetectedPlatform } from "../types";
 
@@ -92,7 +93,8 @@ export default function PlatformStep({
   return (
     <div className="install-step install-step-platform">
       <button type="button" className="btn-back" onClick={onBack}>
-        ← {t("installFlow.back")}
+        <UiIcon name="arrow-left" size={16} className="btn-back-icon" />
+        {t("installFlow.back")}
       </button>
       <h2 className="step-title">{t("installFlow.platformTitle")}</h2>
       <div className="platform-grid">
@@ -112,7 +114,10 @@ export default function PlatformStep({
         ))}
       </div>
       <button type="button" className="btn-manual-select" onClick={handleManualSelect}>
-        📁 {t("installFlow.manualSelect")}
+        <span className="btn-manual-select-icon" aria-hidden="true">
+          <UiIcon name="folder" size={18} />
+        </span>
+        {t("installFlow.manualSelect")}
       </button>
       {(error || localError) && (
         // 手動選択エラーを優先表示し、直近操作の失敗理由を分かりやすくする。
