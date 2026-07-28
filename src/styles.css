@@ -5600,6 +5600,10 @@ body.locale-switch-animating {
   line-height: 1.55;
 }
 
+.settings-vanilla-cosmetics-confirm-message {
+  white-space: pre-line;
+}
+
 .settings-steam-warning-panel {
   width: min(560px, 100%);
   gap: 16px;

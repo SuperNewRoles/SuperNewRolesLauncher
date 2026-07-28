@@ -3,7 +3,7 @@
 
 use tauri::{AppHandle, Runtime};
 
-use crate::services::launch_service;
+use crate::services::{launch_service, player_data_service};
 
 pub use launch_service::{
     clear_autolaunch_error, launch_modded_from_saved_settings, set_autolaunch_error,
@@ -104,6 +104,18 @@ pub async fn launch_vanilla<R: Runtime>(
 ) -> Result<(), String> {
     // Vanilla起動でも共通の起動監視経路を利用する。
     launch_service::launch_vanilla(app, game_exe, platform).await
+}
+
+/// Vanilla起動前にplayer.amogusからModコスメティック情報を除去する。
+#[tauri::command]
+pub fn launch_vanilla_cleanup_player_cosmetics() -> Result<(), String> {
+    player_data_service::cleanup_default_player_data()
+}
+
+/// Vanilla起動前にplayer.amogusのクリーンアップが必要かを返す。
+#[tauri::command]
+pub fn launch_vanilla_player_cosmetics_cleanup_required() -> Result<bool, String> {
+    player_data_service::default_player_data_requires_cleanup()
 }
 
 /// Vanilla起動を管理者権限で再実行する。

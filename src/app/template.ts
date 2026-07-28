@@ -449,6 +449,27 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
         </section>
       </div>
 
+      <div id="settings-vanilla-cosmetics-confirm-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
+        <div id="settings-vanilla-cosmetics-confirm-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
+        <section
+          class="settings-fullscreen-overlay-panel settings-update-confirm-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-vanilla-cosmetics-confirm-title"
+          aria-describedby="settings-vanilla-cosmetics-confirm-message"
+        >
+          <header class="settings-fullscreen-overlay-header">
+            <h2 id="settings-vanilla-cosmetics-confirm-title">${t("launch.vanillaCosmeticsCleanupTitle")}</h2>
+            <button id="settings-vanilla-cosmetics-confirm-close" type="button" class="settings-fullscreen-overlay-close" aria-label="${t("common.close")}">×</button>
+          </header>
+          <p id="settings-vanilla-cosmetics-confirm-message" class="settings-update-confirm-message settings-vanilla-cosmetics-confirm-message">${t("launch.vanillaCosmeticsCleanupMessage")}</p>
+          <footer class="settings-fullscreen-overlay-actions">
+            <button id="settings-vanilla-cosmetics-confirm-cancel" type="button" class="ghost">${t("launch.vanillaCosmeticsCleanupCancel")}</button>
+            <button id="settings-vanilla-cosmetics-confirm-accept" type="button">${t("launch.vanillaCosmeticsCleanupAccept")}</button>
+          </footer>
+        </section>
+      </div>
+
       <div id="settings-steam-warning-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
         <div id="settings-steam-warning-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
         <section

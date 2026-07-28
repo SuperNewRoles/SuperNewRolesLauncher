@@ -5,4 +5,5 @@
 
 pub mod game_server_service;
 pub mod launch_service;
+pub mod player_data_service;
 pub mod snr_service;
