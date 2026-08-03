@@ -121,17 +121,16 @@ pub fn install_custom_dll<R: Runtime>(
     let paths = &mod_profile::get().paths;
     let target_path =
         profile_path.join(mod_profile::to_relative_path(&paths.mod_dll_relative_path));
-    let auto_update_config_path = disable_auto_update.then(|| {
-        profile_path.join(mod_profile::to_relative_path(
-            &paths.mod_auto_update_config_relative_path,
-        ))
-    });
+    let auto_update_config_path = profile_path.join(mod_profile::to_relative_path(
+        &paths.mod_auto_update_config_relative_path,
+    ));
     let source_path = PathBuf::from(source_path.trim());
 
     install_custom_dll_transaction(
         &source_path,
         &target_path,
-        auto_update_config_path.as_deref(),
+        &auto_update_config_path,
+        disable_auto_update,
         &launcher_settings,
         |updated_settings| settings::save_settings(app, updated_settings),
         |source, destination, _operation| atomic_replace_file(source, destination),
@@ -141,7 +140,8 @@ pub fn install_custom_dll<R: Runtime>(
 fn install_custom_dll_transaction<SaveSettings, ReplaceFile>(
     source_path: &Path,
     target_path: &Path,
-    auto_update_config_path: Option<&Path>,
+    auto_update_config_path: &Path,
+    disable_auto_update: bool,
     launcher_settings: &settings::LauncherSettings,
     save_settings: SaveSettings,
     mut replace_file: ReplaceFile,
@@ -163,27 +163,43 @@ where
 
     let mut created_config_directories = None;
     let mut config_staging = None;
-    let mut config_existed = false;
-    if let Some(config_path) = auto_update_config_path {
-        let config_parent = config_path.parent().ok_or_else(|| {
+    let config_existed;
+    if disable_auto_update {
+        let config_parent = auto_update_config_path.parent().ok_or_else(|| {
             format!(
                 "The configured auto-update path has no parent directory: {}",
-                config_path.display()
+                auto_update_config_path.display()
             )
         })?;
         let created_directories = ensure_directory(config_parent)?;
-        let (contents, existed) = disabled_auto_update_config(config_path)?;
+        let (contents, existed) = disabled_auto_update_config(auto_update_config_path)?;
         config_existed = existed;
-        config_staging = Some(stage_bytes(config_path, &contents, "stage")?);
+        config_staging = Some(stage_bytes(auto_update_config_path, &contents, "stage")?);
         created_config_directories = Some(created_directories);
+    } else {
+        config_existed = match fs::metadata(auto_update_config_path) {
+            Ok(metadata) if metadata.is_file() => true,
+            Ok(_) => {
+                return Err(format!(
+                    "The configured auto-update path is not a file: {}",
+                    auto_update_config_path.display()
+                ))
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => false,
+            Err(error) => {
+                return Err(format!(
+                    "Failed to inspect auto-update config '{}': {error}",
+                    auto_update_config_path.display()
+                ))
+            }
+        };
     }
 
     // 全ステージングが完了してからバックアップを作り、対象ファイルにはまだ触れない。
     let mut dll_backup = backup_file(target_path)?;
-    let mut config_backup = match (auto_update_config_path, config_existed) {
-        (Some(config_path), true) => Some(backup_file(config_path)?),
-        _ => None,
-    };
+    let mut config_backup = config_existed
+        .then(|| backup_file(auto_update_config_path))
+        .transpose()?;
 
     if let Err(error) = replace_file(dll_staging.path(), target_path, ReplaceOperation::DllApply) {
         return Err(format!(
@@ -193,10 +209,10 @@ where
         ));
     }
 
-    if let (Some(config_path), Some(staging)) = (auto_update_config_path, &config_staging) {
+    if let Some(staging) = &config_staging {
         if let Err(error) = replace_file(
             staging.path(),
-            config_path,
+            auto_update_config_path,
             ReplaceOperation::AutoUpdateConfigApply,
         ) {
             let rollback_errors = rollback_files(
@@ -210,8 +226,26 @@ where
             return Err(with_rollback_errors(
                 format!(
                     "Failed to atomically replace auto-update config '{}' using '{}': {error}",
-                    config_path.display(),
+                    auto_update_config_path.display(),
                     staging.path().display()
+                ),
+                rollback_errors,
+            ));
+        }
+    } else if config_existed {
+        if let Err(error) = fs::remove_file(auto_update_config_path) {
+            let rollback_errors = rollback_files(
+                target_path,
+                &mut dll_backup,
+                Some(auto_update_config_path),
+                config_backup.as_mut(),
+                false,
+                &mut replace_file,
+            );
+            return Err(with_rollback_errors(
+                format!(
+                    "Failed to remove auto-update config '{}': {error}",
+                    auto_update_config_path.display()
                 ),
                 rollback_errors,
             ));
@@ -224,9 +258,9 @@ where
         let rollback_errors = rollback_files(
             target_path,
             &mut dll_backup,
-            auto_update_config_path,
+            Some(auto_update_config_path),
             config_backup.as_mut(),
-            auto_update_config_path.is_some() && !config_existed,
+            disable_auto_update && !config_existed,
             &mut replace_file,
         );
         return Err(with_rollback_errors(
@@ -248,7 +282,7 @@ where
         target_path: target_path.to_string_lossy().to_string(),
         sha256,
         release_tag,
-        auto_update_config_updated: auto_update_config_path.is_some(),
+        auto_update_config_updated: disable_auto_update || config_existed,
     })
 }
 
@@ -770,7 +804,7 @@ mod tests {
 
         fn install<SaveSettings, ReplaceFile>(
             &self,
-            config: Option<&Path>,
+            disable_auto_update: bool,
             save_settings: SaveSettings,
             replace_file: ReplaceFile,
         ) -> Result<CustomDllInstallResult, String>
@@ -781,7 +815,8 @@ mod tests {
             install_custom_dll_transaction(
                 &self.source,
                 &self.target,
-                config,
+                &self.config,
+                disable_auto_update,
                 &self.launcher_settings(),
                 save_settings,
                 replace_file,
@@ -839,7 +874,7 @@ mod tests {
 
         let result = fixture
             .install(
-                Some(&fixture.config),
+                true,
                 |settings| {
                     saved_settings.replace(Some(settings.clone()));
                     Ok(())
@@ -882,7 +917,7 @@ mod tests {
         assert!(!fixture.config.exists());
 
         fixture
-            .install(Some(&fixture.config), |_| Ok(()), production_replace)
+            .install(true, |_| Ok(()), production_replace)
             .expect("missing config should be created");
 
         let config: Value = serde_json::from_slice(
@@ -912,7 +947,7 @@ mod tests {
             fs::write(&fixture.config, original).expect("write invalid config");
 
             fixture
-                .install(Some(&fixture.config), |_| Ok(()), production_replace)
+                .install(true, |_| Ok(()), production_replace)
                 .expect("invalid config should be repaired");
 
             let config: Value = serde_json::from_slice(
@@ -927,22 +962,31 @@ mod tests {
     }
 
     #[test]
-    fn leaves_auto_update_config_byte_for_byte_unchanged_when_not_requested() {
-        let fixture = Fixture::new("config-unchecked", b"new DLL", b"old DLL");
+    fn enabling_auto_update_removes_existing_disable_config() {
+        let fixture = Fixture::new("config-enabled", b"new DLL", b"old DLL");
         fs::create_dir_all(fixture.config.parent().expect("config parent"))
             .expect("create config parent");
-        let original = b"not even JSON\r\n\x00";
-        fs::write(&fixture.config, original).expect("write config marker");
+        fs::write(&fixture.config, b"disabled marker").expect("write config marker");
 
         let result = fixture
-            .install(None, |_| Ok(()), production_replace)
-            .expect("install without config update should succeed");
+            .install(false, |_| Ok(()), production_replace)
+            .expect("enabling auto-update should succeed");
+
+        assert!(result.auto_update_config_updated);
+        assert!(!fixture.config.exists());
+        fixture.assert_no_transaction_files();
+    }
+
+    #[test]
+    fn enabling_auto_update_does_not_create_missing_config() {
+        let fixture = Fixture::new("config-already-enabled", b"new DLL", b"old DLL");
+
+        let result = fixture
+            .install(false, |_| Ok(()), production_replace)
+            .expect("missing auto-update config should remain missing");
 
         assert!(!result.auto_update_config_updated);
-        assert_eq!(
-            fs::read(&fixture.config).expect("read untouched config"),
-            original
-        );
+        assert!(!fixture.config.exists());
         fixture.assert_no_transaction_files();
     }
 
@@ -1027,7 +1071,8 @@ mod tests {
         let error = install_custom_dll_transaction(
             &fixture.source,
             &fixture.target,
-            Some(&fixture.config),
+            &fixture.config,
+            true,
             &original_settings,
             |updated| {
                 assert!(updated.selected_release_tag.starts_with("custom:"));
@@ -1055,6 +1100,33 @@ mod tests {
     }
 
     #[test]
+    fn settings_save_failure_restores_config_removed_while_enabling_updates() {
+        let fixture = Fixture::new("enable-settings-rollback", b"new DLL", b"old DLL");
+        let original_config = b"disabled marker";
+        fs::create_dir_all(fixture.config.parent().expect("config parent"))
+            .expect("create config parent");
+        fs::write(&fixture.config, original_config).expect("write original config");
+
+        fixture
+            .install(
+                false,
+                |_| Err("simulated settings failure".to_string()),
+                production_replace,
+            )
+            .expect_err("settings failure should restore the removed config");
+
+        assert_eq!(
+            fs::read(&fixture.target).expect("read restored DLL"),
+            b"old DLL"
+        );
+        assert_eq!(
+            fs::read(&fixture.config).expect("read restored config"),
+            original_config
+        );
+        fixture.assert_no_transaction_files();
+    }
+
+    #[test]
     fn rollback_failures_retain_recovery_backups() {
         let fixture = Fixture::new("rollback-failure", b"new DLL", b"old DLL");
         let original_config = br#"{"updateType":"all","custom":42}"#;
@@ -1064,7 +1136,7 @@ mod tests {
 
         let error = fixture
             .install(
-                Some(&fixture.config),
+                true,
                 |_| Err("simulated settings failure".to_string()),
                 |source, destination, operation| match operation {
                     ReplaceOperation::AutoUpdateConfigRollback => Err(io::Error::new(
@@ -1113,7 +1185,7 @@ mod tests {
 
         fixture
             .install(
-                Some(&fixture.config),
+                true,
                 |_| Err("simulated settings failure".to_string()),
                 production_replace,
             )
@@ -1138,7 +1210,7 @@ mod tests {
 
         let error = fixture
             .install(
-                Some(&fixture.config),
+                true,
                 |_| panic!("settings must not be saved after config replacement failure"),
                 |source, destination, operation| {
                     if operation == ReplaceOperation::AutoUpdateConfigApply {
@@ -1174,7 +1246,7 @@ mod tests {
 
         let error = fixture
             .install(
-                Some(&fixture.config),
+                true,
                 |_| panic!("settings must not be saved after DLL replacement failure"),
                 |_source, _destination, operation| {
                     assert_eq!(operation, ReplaceOperation::DllApply);

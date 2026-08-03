@@ -5177,8 +5177,8 @@ body.settings-overlay-open .tab-settings-shell {
 }
 
 .settings-general-custom-dll-section {
-  border-color: color-mix(in srgb, #f59e0b 42%, var(--line) 58%);
-  background: linear-gradient(135deg, color-mix(in srgb, #f59e0b 7%, transparent), transparent 58%),
+  border-color: color-mix(in srgb, var(--warning) 42%, var(--line) 58%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--warning) 7%, transparent), transparent 58%),
     var(--card);
 }
 
@@ -5187,7 +5187,7 @@ body.settings-overlay-open .tab-settings-shell {
 }
 
 .settings-custom-dll-open {
-  border-color: color-mix(in srgb, #f59e0b 50%, var(--line) 50%);
+  border-color: color-mix(in srgb, var(--warning) 50%, var(--line) 50%);
 }
 
 .settings-switch-row {
@@ -5581,9 +5581,9 @@ body.locale-switch-animating {
 
 .settings-custom-dll-warning {
   padding: 14px 16px;
-  border: 1px solid color-mix(in srgb, #f59e0b 55%, var(--line) 45%);
+  border: 1px solid color-mix(in srgb, var(--warning) 55%, var(--line) 45%);
   border-radius: 12px;
-  background: color-mix(in srgb, #f59e0b 11%, var(--bg-1) 89%);
+  background: color-mix(in srgb, var(--warning) 11%, var(--bg-1) 89%);
 }
 
 .settings-custom-dll-warning-heading {
@@ -5601,7 +5601,7 @@ body.locale-switch-animating {
 .settings-custom-dll-warning-icon {
   flex: 0 0 auto;
   display: inline-flex;
-  color: #d97706;
+  color: var(--warning);
   line-height: 1;
 }
 
@@ -5615,7 +5615,7 @@ body.locale-switch-animating {
 }
 
 .settings-custom-dll-warning-list li::marker {
-  color: #d97706;
+  color: var(--warning);
 }
 
 .settings-custom-dll-selection {
@@ -6041,7 +6041,7 @@ body.locale-switch-animating {
 .btn-report-center-icon {
   display: inline-flex;
   line-height: 1;
-  color: currentColor;
+  color: currentcolor;
 }
 
 .btn-report-center-icon svg {
@@ -6130,7 +6130,7 @@ body.locale-switch-animating {
   align-items: center;
   justify-content: center;
   line-height: 1;
-  color: currentColor;
+  color: currentcolor;
   transition: transform 0.2s ease;
 }
 

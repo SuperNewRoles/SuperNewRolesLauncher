@@ -36,11 +36,20 @@ export type UiIconName =
 
 type IconContent = string;
 
+export type UiIconElementTag = "circle" | "path" | "polyline" | "rect";
+
+export interface UiIconElement {
+  tag: UiIconElementTag;
+  attributes: Readonly<Record<string, string>>;
+}
+
+const ICON_ELEMENT_PATTERN = /<(circle|path|polyline|rect)\s+([^>]+)\/>/gu;
+const ICON_ATTRIBUTE_PATTERN = /([a-z][a-z0-9-]*)="([^"]*)"/gu;
+
 const UI_ICON_CONTENTS: Record<UiIconName, IconContent> = {
   package:
     '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/>',
-  megaphone:
-    '<path d="m3 11 19-7-7 19"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  megaphone: '<path d="m3 11 19-7-7 19"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
   home: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   globe:
     '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
@@ -77,14 +86,12 @@ const UI_ICON_CONTENTS: Record<UiIconName, IconContent> = {
   monitor:
     '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>',
   loader: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
-  maximize:
-    '<path d="M15 3h6v6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/><path d="M9 21H3v-6"/>',
+  maximize: '<path d="M15 3h6v6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/><path d="M9 21H3v-6"/>',
   minimize:
     '<path d="m14 10 7-7"/><path d="M20 10h-6V4"/><path d="m3 21 7-7"/><path d="M4 14h6v6"/>',
   "arrow-right": '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
   "arrow-left": '<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>',
-  "alert-circle":
-    '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+  "alert-circle": '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
   rocket:
     '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>',
   hand: '<path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-4a8 8 0 0 1-6-2.3l-.1-.1a3.37 3.37 0 0 1-.1-4.5l.2-.2a2 2 0 0 1 2.8 0L7 15"/>',
@@ -101,14 +108,36 @@ export interface UiIconHtmlOptions {
 /** template.ts など HTML 文字列向けの SVG を生成する。 */
 export function uiIconHtml(name: UiIconName, options: UiIconHtmlOptions = {}): string {
   const { className, size, strokeWidth = 2 } = options;
-  const sizeAttr =
-    size === undefined ? "" : ` width="${String(size)}" height="${String(size)}"`;
+  const sizeAttr = size === undefined ? "" : ` width="${String(size)}" height="${String(size)}"`;
   const classAttr = className ? ` class="${className}"` : "";
   return `<svg${classAttr} viewBox="0 0 24 24"${sizeAttr} fill="none" stroke="currentColor" stroke-width="${String(strokeWidth)}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${UI_ICON_CONTENTS[name]}</svg>`;
 }
 
 export function getUiIconContent(name: UiIconName): string {
   return UI_ICON_CONTENTS[name];
+}
+
+function parseUiIconElements(content: IconContent): readonly UiIconElement[] {
+  return Array.from(content.matchAll(ICON_ELEMENT_PATTERN), (elementMatch) => {
+    const attributes = Object.fromEntries(
+      Array.from(elementMatch[2].matchAll(ICON_ATTRIBUTE_PATTERN), (attributeMatch) => [
+        attributeMatch[1],
+        attributeMatch[2],
+      ]),
+    );
+    return {
+      tag: elementMatch[1] as UiIconElementTag,
+      attributes,
+    };
+  });
+}
+
+const UI_ICON_ELEMENTS = Object.fromEntries(
+  Object.entries(UI_ICON_CONTENTS).map(([name, content]) => [name, parseUiIconElements(content)]),
+) as Record<UiIconName, readonly UiIconElement[]>;
+
+export function getUiIconElements(name: UiIconName): readonly UiIconElement[] {
+  return UI_ICON_ELEMENTS[name];
 }
 
 /** 報告センター共通アイコン名（ホーム導線とタブで揃える）。 */

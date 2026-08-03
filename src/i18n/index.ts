@@ -7,6 +7,7 @@ type LocaleMessages = Record<string, string>;
 const LOCALE_STORAGE_KEY = "ui.locale";
 const DEFAULT_LOCALE = "en";
 const PARAM_PATTERN = /\{([a-zA-Z0-9_]+)\}/g;
+const MOD_DLL_NAME = modConfig.paths.modDllRelativePath.split(/[\\/]/u).pop() ?? "";
 
 const LOCALES = {
   ja,
@@ -24,6 +25,7 @@ const DEFAULT_TRANSLATE_PARAMS: TranslateParams = {
   modName: modConfig.mod.displayName,
   modShort: modConfig.mod.shortName,
   launcherName: modConfig.branding.launcherName,
+  dllName: MOD_DLL_NAME,
   migrationExt: modConfig.migration.extension,
   presetExt: modConfig.presets.extension,
 };

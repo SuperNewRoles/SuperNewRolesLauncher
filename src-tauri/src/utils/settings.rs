@@ -180,6 +180,8 @@ mod tests {
 
         assert!(error.contains(&path.to_string_lossy().to_string()));
         assert!(error.contains("Failed to parse settings file"));
+        assert!(error.contains(&directory.path().to_string_lossy().to_string()));
+        assert!(error.contains("rename or delete 'settings.json'"));
         assert_eq!(
             fs::read(&path).expect("read corrupt settings after failed load"),
             corrupt,
@@ -586,16 +588,18 @@ fn read_settings_file(
         }
         Err(error) => {
             return Err(format!(
-                "Failed to read settings file '{}': {error}",
-                path.display()
+                "Failed to read settings file '{}': {error}. To recover, open the app-data folder '{}', rename or delete 'settings.json', then restart the launcher.",
+                path.display(),
+                settings_parent(path).display()
             ))
         }
     };
 
     let on_disk = serde_json::from_str::<LauncherSettingsOnDisk>(&content).map_err(|error| {
         format!(
-            "Failed to parse settings file '{}': {error}",
-            path.display()
+            "Failed to parse settings file '{}': {error}. To recover, open the app-data folder '{}', rename or delete 'settings.json', then restart the launcher.",
+            path.display(),
+            settings_parent(path).display()
         )
     })?;
 

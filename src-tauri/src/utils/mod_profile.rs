@@ -291,7 +291,7 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
     non_empty("paths.amongUsDataDir", &profile.paths.among_us_data_dir)?;
     non_empty("paths.saveDataRoot", &profile.paths.save_data_root)?;
     non_empty("paths.localLowRoot", &profile.paths.local_low_root)?;
-    non_empty(
+    safe_relative_path(
         "paths.reportTokenRelativePath",
         &profile.paths.report_token_relative_path,
     )?;
@@ -352,7 +352,7 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
     {
         return Err("Invalid mod config: presets.extension must be alphanumeric.".to_string());
     }
-    non_empty(
+    safe_relative_path(
         "presets.optionsArchivePath",
         &profile.presets.options_archive_path,
     )?;
@@ -563,7 +563,7 @@ mod tests {
     use super::safe_relative_path;
 
     #[test]
-    fn custom_dll_config_paths_must_be_safe_and_relative() {
+    fn configured_relative_paths_must_be_safe() {
         for safe in [
             "BepInEx/plugins/SuperNewRoles.dll",
             r"BepInEx\patchers\snrupdate.json",
@@ -576,6 +576,7 @@ mod tests {
             "../SuperNewRoles.dll",
             "BepInEx/../SuperNewRoles.dll",
             r"C:\Games\SuperNewRoles.dll",
+            "C:SuperNewRoles.dll",
             r"\\server\share\SuperNewRoles.dll",
             "/BepInEx/plugins/SuperNewRoles.dll",
         ] {

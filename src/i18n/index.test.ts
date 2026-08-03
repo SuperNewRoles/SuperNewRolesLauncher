@@ -19,6 +19,12 @@ describe("i18n", () => {
     expect(t("install.done", { asset: "sample.zip" })).toContain("sample.zip");
   });
 
+  it("createTranslator は設定由来のDLL名を展開する", () => {
+    const t = createTranslator("en");
+
+    expect(t("settings.customDll.dialogTitle")).toBe("Select SuperNewRoles.dll");
+  });
+
   it("createTranslator は未知キーでも文字列を返す", () => {
     // 文言欠落時でも UI が空にならないよう、キー文字列フォールバックを期待する。
     const t = createTranslator("en");

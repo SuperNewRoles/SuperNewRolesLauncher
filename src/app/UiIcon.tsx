@@ -1,5 +1,5 @@
-import type { CSSProperties } from "react";
-import { getUiIconContent, type UiIconName } from "./uiIcons";
+import { type CSSProperties, createElement } from "react";
+import { type UiIconName, getUiIconElements } from "./uiIcons";
 
 interface UiIconProps {
   name: UiIconName;
@@ -25,7 +25,13 @@ export function UiIcon({ name, className, size, strokeWidth = 2, style }: UiIcon
       aria-hidden="true"
       focusable="false"
       style={style}
-      dangerouslySetInnerHTML={{ __html: getUiIconContent(name) }}
-    />
+    >
+      {getUiIconElements(name).map((element, index) =>
+        createElement(element.tag, {
+          ...element.attributes,
+          key: `${name}-${index}`,
+        }),
+      )}
+    </svg>
   );
 }
