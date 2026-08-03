@@ -6380,6 +6380,8 @@ body.locale-switch-animating {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
   padding: 16px;
   box-sizing: border-box;
 }
@@ -6439,6 +6441,8 @@ body.locale-switch-animating {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .report-list-empty {
