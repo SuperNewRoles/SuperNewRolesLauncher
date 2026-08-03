@@ -15,47 +15,6 @@ interface CompleteStepProps {
   importSkipReason: string | null;
 }
 
-function Confetti() {
-  const [particles] = useState(() =>
-    // 初回レンダーで紙吹雪パラメータを固定し、再描画で揺れないようにする。
-    Array.from({ length: 40 }, (_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      delay: Math.random() * 0.8,
-      duration: 1.0 + Math.random() * 1.1,
-      size: 6 + Math.random() * 8,
-      color: ["#2278c8", "#19764c", "#f59f00", "#e03131", "#7048e8", "#1098ad", "#f06595"][
-        Math.floor(Math.random() * 7)
-      ],
-      rotation: Math.random() * 360,
-      drift: (Math.random() - 0.5) * 80,
-    })),
-  );
-
-  return (
-    <div className="confetti-container" aria-hidden="true">
-      {particles.map((p) => (
-        <div
-          key={p.id}
-          className="confetti-particle"
-          style={
-            {
-              left: `${p.left}%`,
-              animationDelay: `${p.delay}s`,
-              animationDuration: `${p.duration}s`,
-              width: `${p.size}px`,
-              height: `${p.size * 1.4}px`,
-              backgroundColor: p.color,
-              "--drift": `${p.drift}px`,
-              "--rotation": `${p.rotation}deg`,
-            } as React.CSSProperties
-          }
-        />
-      ))}
-    </div>
-  );
-}
-
 function SuccessIcon() {
   // 完了アイコンは単純な SVG で描画し、テーマ色に追従させる。
   return (

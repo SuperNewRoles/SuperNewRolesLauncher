@@ -53,6 +53,13 @@ export interface InstallResult {
   restoredSaveFiles: number;
 }
 
+export interface CustomDllInstallResult {
+  targetPath: string;
+  sha256: string;
+  releaseTag: string;
+  autoUpdateConfigUpdated: boolean;
+}
+
 export interface UninstallResult {
   profilePath: string;
   removedProfile: boolean;

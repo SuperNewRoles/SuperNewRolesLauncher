@@ -4,7 +4,7 @@
 use regex::Regex;
 use serde::Deserialize;
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use std::sync::OnceLock;
 
 const MOD_CONFIG_RAW: &str = include_str!("../../../src/shared/mod.config.json");
@@ -91,6 +91,8 @@ pub struct Paths {
     pub save_data_root: String,
     pub local_low_root: String,
     pub report_token_relative_path: String,
+    pub mod_dll_relative_path: String,
+    pub mod_auto_update_config_relative_path: String,
     pub profile_required_files: Vec<String>,
 }
 
@@ -184,6 +186,32 @@ fn non_empty(name: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn safe_relative_path(name: &str, value: &str) -> Result<(), String> {
+    non_empty(name, value)?;
+    // 設定はWindows向けだが、検証はビルドホストに依存しないよう区切りを統一する。
+    let normalized = value.trim().replace('\\', "/");
+    let path = Path::new(&normalized);
+    let bytes = normalized.as_bytes();
+    let has_windows_drive_prefix =
+        bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':';
+    if path.is_absolute()
+        || normalized.starts_with('/')
+        || has_windows_drive_prefix
+        || normalized.split('/').any(|segment| segment == "..")
+        || path.components().any(|component| {
+            matches!(
+                component,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
+        })
+    {
+        return Err(format!(
+            "Invalid mod config: '{name}' must be a safe relative path."
+        ));
+    }
+    Ok(())
+}
+
 fn parse_mod_profile() -> Result<ModProfile, String> {
     // 埋め込みJSONを読み取り、起動時に一度だけ検証して共有する。
     let mut profile = serde_json::from_str::<ModProfile>(MOD_CONFIG_RAW)
@@ -266,6 +294,14 @@ fn validate_mod_profile(profile: &mut ModProfile) -> Result<(), String> {
     non_empty(
         "paths.reportTokenRelativePath",
         &profile.paths.report_token_relative_path,
+    )?;
+    safe_relative_path(
+        "paths.modDllRelativePath",
+        &profile.paths.mod_dll_relative_path,
+    )?;
+    safe_relative_path(
+        "paths.modAutoUpdateConfigRelativePath",
+        &profile.paths.mod_auto_update_config_relative_path,
     )?;
     if profile.paths.profile_required_files.is_empty() {
         return Err(
@@ -497,7 +533,7 @@ pub fn to_relative_path(value: &str) -> PathBuf {
     let mut result = PathBuf::new();
     // 余分な区切りや空セグメントを無視して安全な相対パスへ変換する。
     for segment in value
-        .split('/')
+        .split(['/', '\\'])
         .map(str::trim)
         .filter(|segment| !segment.is_empty())
     {
@@ -520,4 +556,33 @@ pub fn default_game_server_id() -> Option<&'static str> {
         .game_servers
         .first()
         .map(|server| server.id.as_str())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::safe_relative_path;
+
+    #[test]
+    fn custom_dll_config_paths_must_be_safe_and_relative() {
+        for safe in [
+            "BepInEx/plugins/SuperNewRoles.dll",
+            r"BepInEx\patchers\snrupdate.json",
+        ] {
+            safe_relative_path("paths.test", safe).expect("safe relative path should pass");
+        }
+
+        for unsafe_path in [
+            "",
+            "../SuperNewRoles.dll",
+            "BepInEx/../SuperNewRoles.dll",
+            r"C:\Games\SuperNewRoles.dll",
+            r"\\server\share\SuperNewRoles.dll",
+            "/BepInEx/plugins/SuperNewRoles.dll",
+        ] {
+            assert!(
+                safe_relative_path("paths.test", unsafe_path).is_err(),
+                "unsafe path should be rejected: {unsafe_path}"
+            );
+        }
+    }
 }

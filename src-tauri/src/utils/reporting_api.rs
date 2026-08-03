@@ -1264,6 +1264,10 @@ pub async fn get_notification_flag<R: Runtime>(app: &AppHandle<R>) -> Result<boo
     Ok(get_notifications(app).await?.notification)
 }
 
+pub fn get_log_source_info<R: Runtime>(app: &AppHandle<R>) -> Result<LogSourceInfo, String> {
+    report_log_source_info(app)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -1487,8 +1491,4 @@ mod tests {
 
         fs::remove_dir_all(temp_dir).unwrap();
     }
-}
-
-pub fn get_log_source_info<R: Runtime>(app: &AppHandle<R>) -> Result<LogSourceInfo, String> {
-    report_log_source_info(app)
 }

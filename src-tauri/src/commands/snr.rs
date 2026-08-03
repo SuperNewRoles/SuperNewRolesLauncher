@@ -3,8 +3,12 @@
 
 use tauri::{AppHandle, Runtime};
 
-use crate::{services::snr_service, utils::mod_profile};
+use crate::{
+    services::{custom_dll_service, snr_service},
+    utils::mod_profile,
+};
 
+pub use custom_dll_service::CustomDllInstallResult;
 pub use snr_service::{
     InstallResult, PreservedSaveDataStatus, SaveDataImportResult, SaveDataPresetMergeResult,
     SaveDataPreviewResult, SnrReleaseSummary, UninstallResult,
@@ -149,4 +153,14 @@ pub async fn mod_install<R: Runtime>(
     restore_preserved_save_data: Option<bool>,
 ) -> Result<InstallResult, String> {
     snr_service::install_snr_release(app, tag, platform, restore_preserved_save_data).await
+}
+
+/// 選択したカスタムDLLを現在のプロファイルへ適用する。
+#[tauri::command]
+pub fn mod_custom_dll_install<R: Runtime>(
+    app: AppHandle<R>,
+    source_path: String,
+    disable_auto_update: bool,
+) -> Result<CustomDllInstallResult, String> {
+    custom_dll_service::install_custom_dll(&app, source_path, disable_auto_update)
 }

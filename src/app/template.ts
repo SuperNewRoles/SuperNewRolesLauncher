@@ -219,6 +219,12 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
                     <span id="settings-shortcut-status" class="status-line" aria-live="polite"></span>
                   </section>
 
+                  <section class="card settings-general-card settings-general-custom-dll-section">
+                    <strong>${t("settings.customDll.title")}</strong>
+                    <p class="muted settings-general-custom-dll-description">${t("settings.customDll.description")}</p>
+                    <button id="custom-dll-load" type="button" class="settings-custom-dll-open">${t("settings.customDll.open")}</button>
+                  </section>
+
                   <section class="card settings-general-card settings-general-danger-zone">
                     <strong>${t("settings.general.dangerTitle")}</strong>
                     <p class="muted">${t("settings.general.uninstallDescription")}</p>
@@ -388,6 +394,68 @@ export function renderAppTemplate(locale: LocaleCode, t: Translator): string {
               <button id="settings-among-us-overlay-cancel" type="button" class="ghost settings-among-us-overlay-cancel">${t("settings.general.reselectOverlayClose")}</button>
             </footer>
           </div>
+        </section>
+      </div>
+
+      <div id="settings-custom-dll-overlay" class="settings-fullscreen-overlay" hidden aria-hidden="true">
+        <div id="settings-custom-dll-overlay-backdrop" class="settings-fullscreen-overlay-backdrop"></div>
+        <section
+          class="settings-fullscreen-overlay-panel settings-custom-dll-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-custom-dll-overlay-title"
+        >
+          <header class="settings-fullscreen-overlay-header">
+            <h2 id="settings-custom-dll-overlay-title">${t("settings.customDll.title")}</h2>
+            <button id="settings-custom-dll-close" type="button" class="settings-fullscreen-overlay-close" aria-label="${t("settings.customDll.close")}">×</button>
+          </header>
+
+          <section id="settings-custom-dll-step-warning" class="settings-custom-dll-step">
+            <div class="settings-custom-dll-warning" role="note" aria-labelledby="settings-custom-dll-warning-title">
+              <div class="settings-custom-dll-warning-heading">
+                <span class="settings-custom-dll-warning-icon" aria-hidden="true">⚠</span>
+                <h3 id="settings-custom-dll-warning-title">${t("settings.customDll.warningTitle")}</h3>
+              </div>
+              <ul class="settings-custom-dll-warning-list">
+                <li>${t("settings.customDll.warningSecurity")}</li>
+                <li>${t("settings.customDll.warningGameClosed")}</li>
+                <li>${t("settings.customDll.warningUpdate")}</li>
+                <li>${t("settings.customDll.warningReinstall")}</li>
+                <li>${t("settings.customDll.warningSingleFile")}</li>
+              </ul>
+            </div>
+
+            <div id="settings-custom-dll-selection" class="settings-custom-dll-selection" hidden>
+              <div class="settings-custom-dll-path-block">
+                <span class="settings-custom-dll-path-label">${t("settings.customDll.selectedPath")}</span>
+                <p id="settings-custom-dll-selected-path" class="settings-custom-dll-selected-path"></p>
+              </div>
+              <button id="settings-custom-dll-reselect" type="button" class="ghost settings-custom-dll-reselect">${t("settings.customDll.reselect")}</button>
+              <label class="settings-custom-dll-checkbox" for="settings-custom-dll-disable-auto-update">
+                <input id="settings-custom-dll-disable-auto-update" type="checkbox" checked />
+                <span>${t("settings.customDll.disableAutoUpdate")}</span>
+              </label>
+            </div>
+
+            <div id="settings-custom-dll-error" class="status-line settings-custom-dll-error" role="alert" aria-live="assertive" hidden></div>
+            <footer class="settings-fullscreen-overlay-actions settings-custom-dll-actions">
+              <button id="settings-custom-dll-cancel" type="button" class="ghost">${t("settings.customDll.cancel")}</button>
+              <button id="settings-custom-dll-next" type="button">${t("settings.customDll.next")}</button>
+            </footer>
+          </section>
+
+          <section id="settings-custom-dll-step-processing" class="settings-custom-dll-step settings-custom-dll-processing" hidden>
+            <div class="settings-custom-dll-processing-indicator" aria-hidden="true"></div>
+            <p id="settings-custom-dll-processing-message" class="settings-custom-dll-processing-message" role="status" aria-live="polite">${t("settings.customDll.processing")}</p>
+          </section>
+
+          <section id="settings-custom-dll-step-result" class="settings-custom-dll-step" hidden>
+            <h3 id="settings-custom-dll-result-title" class="settings-custom-dll-result-title"></h3>
+            <p id="settings-custom-dll-result-message" class="settings-custom-dll-result-message" aria-live="polite"></p>
+            <footer class="settings-fullscreen-overlay-actions settings-custom-dll-actions">
+              <button id="settings-custom-dll-result-close" type="button">${t("settings.customDll.close")}</button>
+            </footer>
+          </section>
         </section>
       </div>
 

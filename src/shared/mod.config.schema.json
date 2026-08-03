@@ -175,6 +175,8 @@
         "saveDataRoot",
         "localLowRoot",
         "reportTokenRelativePath",
+        "modDllRelativePath",
+        "modAutoUpdateConfigRelativePath",
         "profileRequiredFiles"
       ],
       "properties": {
@@ -197,6 +199,16 @@
         "reportTokenRelativePath": {
           "type": "string",
           "minLength": 1
+        },
+        "modDllRelativePath": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![A-Za-z]:)(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+        },
+        "modAutoUpdateConfigRelativePath": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![A-Za-z]:)(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
         },
         "profileRequiredFiles": {
           "type": "array",

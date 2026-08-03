@@ -1,7 +1,7 @@
 import { OnboardingLayout } from "../OnboardingLayout";
 import type { OnboardingStepProps } from "../types";
 
-export function MigrationStep({ t, onNext, onBack, onSkip }: OnboardingStepProps) {
+export function MigrationStep({ t, onNext, onBack }: OnboardingStepProps) {
   // 移行機能の概要を案内する説明ステップ。
   return (
     <OnboardingLayout

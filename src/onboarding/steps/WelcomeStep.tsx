@@ -1,7 +1,7 @@
 import { OnboardingLayout } from "../OnboardingLayout";
 import type { OnboardingStepProps } from "../types";
 
-export function WelcomeStep({ t, onNext, onSkip }: OnboardingStepProps) {
+export function WelcomeStep({ t, onNext }: OnboardingStepProps) {
   // 導入開始時の歓迎メッセージを表示する。
   return (
     <OnboardingLayout
