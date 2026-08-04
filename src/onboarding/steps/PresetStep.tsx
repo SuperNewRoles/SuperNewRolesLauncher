@@ -1,3 +1,4 @@
+import { Twemoji } from "../../app/Twemoji";
 import { OnboardingLayout } from "../OnboardingLayout";
 import type { OnboardingStepProps } from "../types";
 
@@ -7,7 +8,11 @@ export function PresetStep({ t, onNext, onBack }: OnboardingStepProps) {
     <OnboardingLayout
       t={t}
       // 保存機能の文脈に合わせてストレージ系アイコンを表示する。
-      image={<div className="placeholder-icon">💾</div>}
+      image={
+        <div className="placeholder-icon">
+          <Twemoji emoji="💾" />
+        </div>
+      }
       onNext={onNext}
       onBack={onBack}
     >

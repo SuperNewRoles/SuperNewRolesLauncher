@@ -115,12 +115,12 @@ function ensureNonEmpty(value: string, name: string): string {
   return trimmed;
 }
 
-function ensureRelativePath(value: string, name: string): string {
+export function ensureRelativePath(value: string, name: string): string {
   const normalized = ensureNonEmpty(value, name).replace(/\\/gu, "/");
   const pathSegments = normalized.split("/");
-  const isAbsolute =
-    normalized.startsWith("/") || normalized.startsWith("//") || /^[A-Za-z]:\//u.test(normalized);
-  if (isAbsolute || pathSegments.includes("..")) {
+  const lastSegment = pathSegments[pathSegments.length - 1];
+  const isAbsolute = normalized.startsWith("/") || /^[A-Za-z]:/u.test(normalized);
+  if (isAbsolute || pathSegments.includes("..") || lastSegment === "" || lastSegment === ".") {
     throw new Error(`Invalid mod config: '${name}' must be a safe relative path.`);
   }
   return normalized;
@@ -211,7 +211,10 @@ function assertModConfig(input: ModConfig): ModConfig {
   ensureNonEmpty(input.paths.amongUsDataDir, "paths.amongUsDataDir");
   ensureNonEmpty(input.paths.saveDataRoot, "paths.saveDataRoot");
   ensureNonEmpty(input.paths.localLowRoot, "paths.localLowRoot");
-  ensureNonEmpty(input.paths.reportTokenRelativePath, "paths.reportTokenRelativePath");
+  input.paths.reportTokenRelativePath = ensureRelativePath(
+    input.paths.reportTokenRelativePath,
+    "paths.reportTokenRelativePath",
+  );
   input.paths.modDllRelativePath = ensureRelativePath(
     input.paths.modDllRelativePath,
     "paths.modDllRelativePath",
@@ -223,7 +226,10 @@ function assertModConfig(input: ModConfig): ModConfig {
   ensureNonEmpty(input.migration.extension, "migration.extension");
   ensureNonEmpty(input.migration.magic, "migration.magic");
   ensureNonEmpty(input.presets.extension, "presets.extension");
-  ensureNonEmpty(input.presets.optionsArchivePath, "presets.optionsArchivePath");
+  input.presets.optionsArchivePath = ensureRelativePath(
+    input.presets.optionsArchivePath,
+    "presets.optionsArchivePath",
+  );
   ensureNonEmpty(input.presets.saveDataRoot, "presets.saveDataRoot");
   input.theme.bodyAuraColors.colorLeft = ensureHexColor(
     input.theme.bodyAuraColors.colorLeft,

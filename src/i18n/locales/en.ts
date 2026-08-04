@@ -131,7 +131,7 @@ const en: Record<keyof typeof ja, string> = {
   "settings.general.shortcutDescription":
     "Create a desktop shortcut for launching the modded game.",
   "settings.customDll.title": "Custom DLL",
-  "settings.customDll.description": "Load a custom SuperNewRoles.dll into the current profile.",
+  "settings.customDll.description": "Load a custom {dllName} into the current profile.",
   "settings.customDll.open": "Load DLL",
   "settings.customDll.warningTitle": "Custom DLL loading warning",
   "settings.customDll.warningSecurity":
@@ -148,12 +148,12 @@ const en: Record<keyof typeof ja, string> = {
   "settings.customDll.disableAutoUpdate": "Disable automatic updates",
   "settings.customDll.cancel": "Cancel",
   "settings.customDll.next": "Next",
-  "settings.customDll.dialogTitle": "Select SuperNewRoles.dll",
+  "settings.customDll.dialogTitle": "Select {dllName}",
   "settings.customDll.processing": "Applying custom DLL...",
   "settings.customDll.successTitle": "Custom DLL applied",
   "settings.customDll.successMessage": "Release tag: {tag}\nInstalled at: {path}",
   "settings.customDll.failedWithError": "Failed to apply custom DLL: {error}",
-  "settings.customDll.invalidFileName": "Select a DLL named SuperNewRoles.dll.",
+  "settings.customDll.invalidFileName": "Select a DLL named {dllName}.",
   "settings.customDll.close": "Close",
   "settings.general.dangerTitle": "Uninstall",
   "settings.general.uninstallDescription": "Delete modded files from the current profile.",

@@ -1,5 +1,6 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useState } from "react";
+import { Twemoji } from "../../app/Twemoji";
 import { modConfig } from "../../app/modConfig";
 import { launchShortcutCreate } from "../../app/services/tauriClient";
 import { SOCIAL_ICON_SPECS } from "../../app/socialBrandIcons";
@@ -164,7 +165,12 @@ export function ConnectStep({ t, onNext, onBack }: OnboardingStepProps) {
             disabled={shortcutStatus === "creating" || shortcutStatus === "created"}
           >
             <span className="connect-card-icon" aria-hidden="true">
-              {shortcutStatus === "created" ? "✅" : shortcutStatus === "creating" ? "⏳" : "🖥️"}
+              <Twemoji
+                emoji={
+                  shortcutStatus === "created" ? "✅" : shortcutStatus === "creating" ? "⏳" : "🖥️"
+                }
+                className="connect-card-emoji"
+              />
             </span>
             <span className="connect-card-info">
               <span className="connect-card-name">

@@ -1,3 +1,4 @@
+import { Twemoji } from "../../app/Twemoji";
 import { OnboardingLayout } from "../OnboardingLayout";
 import type { OnboardingStepProps } from "../types";
 
@@ -7,7 +8,11 @@ export function CompleteStep({ t, onNext, onBack }: OnboardingStepProps) {
     <OnboardingLayout
       t={t}
       // 最終到達感を出すため、完了アイコンを表示する。
-      image={<div className="placeholder-icon">🎉</div>}
+      image={
+        <div className="placeholder-icon">
+          <Twemoji emoji="🎉" />
+        </div>
+      }
       onNext={onNext}
       onBack={onBack}
       isLastStep

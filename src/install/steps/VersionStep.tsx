@@ -1,3 +1,4 @@
+import { UiIcon } from "../../app/UiIcon";
 import { MOD_DISPLAY_NAME } from "../../app/modConfig";
 import { getPlatformLabelKey } from "../../app/platformSelection";
 import type { GamePlatform, SnrReleaseSummary } from "../../app/types";
@@ -53,7 +54,8 @@ export default function VersionStep({
   return (
     <div className="install-step install-step-version">
       <button type="button" className="btn-back" onClick={onBack}>
-        ← {t("installFlow.back")}
+        <UiIcon name="arrow-left" size={16} className="btn-back-icon" />
+        {t("installFlow.back")}
       </button>
       <div className="version-header">
         {platformIcon}

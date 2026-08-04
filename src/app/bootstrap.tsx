@@ -95,6 +95,7 @@ import type {
   PresetSummary,
   SocialIcon,
 } from "./types";
+import { uiIconHtml } from "./uiIcons";
 
 /**
  * フロントエンドの実行本体。
@@ -817,7 +818,9 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
     epicAuthStatusBox.classList.toggle("is-logged-in", state === "logged-in");
     epicAuthStatusBox.classList.toggle("is-error", state === "error");
-    epicAuthStatusIcon.textContent = state === "logged-in" ? "✓" : state === "error" ? "⚠" : "🔐";
+    const iconName =
+      state === "logged-in" ? "check" : state === "error" ? "alert-triangle" : "lock";
+    epicAuthStatusIcon.innerHTML = uiIconHtml(iconName, { size: 32 });
   }
 
   function renderEpicActionButtons(loggedIn: boolean): void {

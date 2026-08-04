@@ -10,12 +10,13 @@ use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
-use std::sync::{LazyLock, Mutex};
+use std::sync::{LazyLock, Mutex, MutexGuard};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Runtime};
 
 static GAME_PROCESS: LazyLock<Mutex<Option<Child>>> = LazyLock::new(|| Mutex::new(None));
 static LAST_AUTOLAUNCH_ERROR: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
+static GAME_FILE_OPERATION_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
 pub const AUTOLAUNCH_MODDED_ARGUMENT: &str = "--autolaunch-modded";
 pub const ELEVATED_LAUNCH_PAYLOAD_ARGUMENT: &str = "--elevated-launch-payload";
@@ -137,6 +138,13 @@ pub fn take_autolaunch_error() -> Option<String> {
         Ok(mut guard) => guard.take(),
         Err(_) => Some("Failed to access auto launch error state".to_string()),
     }
+}
+
+/// ゲーム起動と、起動中に変更してはいけないプロファイル操作を直列化する。
+pub(crate) fn lock_game_file_operation() -> Result<MutexGuard<'static, ()>, String> {
+    GAME_FILE_OPERATION_LOCK
+        .lock()
+        .map_err(|_| "Failed to acquire game file operation lock".to_string())
 }
 
 pub fn parse_elevated_launch_payload_argument<I, S>(args: I) -> Result<Option<String>, String>
@@ -813,6 +821,7 @@ pub async fn execute_elevated_launch_payload<R: Runtime>(
 }
 
 fn launch_process<R: Runtime>(app: AppHandle<R>, mut command: Command) -> Result<(), String> {
+    let _operation_guard = lock_game_file_operation()?;
     {
         let mut guard = GAME_PROCESS
             .lock()
@@ -1100,7 +1109,7 @@ pub fn cleanup_xbox_files(game_dir: String) -> Result<(), String> {
     Ok(())
 }
 
-pub fn launch_xbox(app_id: String) -> Result<(), String> {
+fn launch_xbox_unlocked(app_id: &str) -> Result<(), String> {
     let app_id = app_id.trim();
     if app_id.is_empty() {
         return Err("Xbox app id is required.".to_string());
@@ -1114,12 +1123,18 @@ pub fn launch_xbox(app_id: String) -> Result<(), String> {
     Ok(())
 }
 
+pub fn launch_xbox(app_id: String) -> Result<(), String> {
+    let _operation_guard = lock_game_file_operation()?;
+    launch_xbox_unlocked(&app_id)
+}
+
 fn launch_xbox_modded(game_dir: &Path, profile_path: &str) -> Result<(), String> {
+    let _operation_guard = lock_game_file_operation()?;
     let app_id = get_xbox_app_id()?;
     let game_dir_string = game_dir.to_string_lossy().to_string();
     prepare_xbox_modded(game_dir_string.clone(), profile_path.to_string())?;
 
-    match launch_xbox(app_id) {
+    match launch_xbox_unlocked(&app_id) {
         Ok(()) => Ok(()),
         Err(launch_error) => {
             if let Err(cleanup_error) = cleanup_xbox_files(game_dir_string) {

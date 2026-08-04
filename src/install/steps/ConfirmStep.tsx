@@ -1,4 +1,5 @@
 import { cloneElement } from "react";
+import { UiIcon } from "../../app/UiIcon";
 import { getPlatformLabelKey } from "../../app/platformSelection";
 import type { GamePlatform } from "../../app/types";
 import type { MessageKey } from "../../i18n";
@@ -68,7 +69,8 @@ export default function ConfirmStep({
   return (
     <div className="install-step install-step-confirm">
       <button type="button" className="btn-back" onClick={onBack} disabled={installing}>
-        ← {t("installFlow.back")}
+        <UiIcon name="arrow-left" size={16} className="btn-back-icon" />
+        {t("installFlow.back")}
       </button>
       <h2 className="step-title">{t("installFlow.confirmTitle")}</h2>
       <div className="confirm-content">

@@ -9,8 +9,10 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { UiIcon } from "../app/UiIcon";
 import { REPORTING_TERMS_URL } from "../app/modConfig";
 import type { ReportType } from "../app/types";
+import type { UiIconName } from "../app/uiIcons";
 import type { createTranslator } from "../i18n";
 import { type ReportModalStep, ReportStepTransition } from "./ReportStepTransition";
 
@@ -42,12 +44,12 @@ interface ReportingSendProgressPayload {
   totalBytes: number;
 }
 
-const REPORT_TYPES: { type: ReportType; icon: string; color: string }[] = [
-  { type: "Bug", icon: "🐛", color: "#e74c3c" },
-  { type: "Question", icon: "❓", color: "#3498db" },
-  { type: "Request", icon: "💡", color: "#f39c12" },
-  { type: "Thanks", icon: "🙏", color: "#27ae60" },
-  { type: "Other", icon: "📝", color: "#95a5a6" },
+const REPORT_TYPES: { type: ReportType; icon: UiIconName; color: string }[] = [
+  { type: "Bug", icon: "bug", color: "#e74c3c" },
+  { type: "Question", icon: "help-circle", color: "#3498db" },
+  { type: "Request", icon: "lightbulb", color: "#f39c12" },
+  { type: "Thanks", icon: "heart", color: "#27ae60" },
+  { type: "Other", icon: "file-text", color: "#95a5a6" },
 ];
 
 export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalProps) {
@@ -265,6 +267,9 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
   }, [step]);
 
   const isBug = reportType === "Bug";
+  const selectedReportType =
+    REPORT_TYPES.find((entry) => entry.type === reportType) ??
+    REPORT_TYPES[REPORT_TYPES.length - 1];
   const hasTitle = title.trim().length > 0;
   const hasDescription = description.trim().length > 0;
   const hasRequiredBugDetails =
@@ -439,7 +444,9 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
                       style={{ "--type-color": color } as React.CSSProperties}
                       disabled={isSubmitting}
                     >
-                      <span className="report-type-icon">{icon}</span>
+                      <span className="report-type-icon">
+                        <UiIcon name={icon} size={34} strokeWidth={2.1} />
+                      </span>
                       <span className="report-type-name">
                         {t(
                           `report.typeOption.${type.toLowerCase()}` as
@@ -533,8 +540,13 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
                   <div className="report-confirm-grid">
                     <div className="report-confirm-item is-type">
                       <span className="report-confirm-label">{t("report.type")}</span>
-                      <span className="report-confirm-value report-confirm-value-strong">
-                        {REPORT_TYPES.find((t) => t.type === reportType)?.icon}{" "}
+                      <span
+                        className="report-confirm-value report-confirm-value-strong"
+                        style={{ "--type-color": selectedReportType.color } as React.CSSProperties}
+                      >
+                        <span className="report-confirm-type-icon" aria-hidden="true">
+                          <UiIcon name={selectedReportType.icon} size={18} strokeWidth={2} />
+                        </span>{" "}
                         {t(
                           `report.typeOption.${reportType.toLowerCase()}` as
                             | "report.typeOption.bug"
@@ -667,7 +679,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
             {isSubmitSuccess ? (
               <>
                 <div className="report-submit-overlay-success-icon" aria-hidden="true">
-                  ✓
+                  <UiIcon name="check" size={22} strokeWidth={2.5} />
                 </div>
                 <span className="report-submit-overlay-label report-submit-overlay-label-success">
                   {t("report.sent")}
@@ -683,7 +695,7 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
             ) : isSubmitError ? (
               <>
                 <div className="report-submit-overlay-success-icon is-error" aria-hidden="true">
-                  !
+                  <UiIcon name="alert-circle" size={22} />
                 </div>
                 <span className="report-submit-overlay-label report-submit-overlay-label-success">
                   {t("report.sendFailedTitle")}
