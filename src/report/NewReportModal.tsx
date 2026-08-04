@@ -9,9 +9,9 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { UiIcon } from "../app/UiIcon";
 import { REPORTING_TERMS_URL } from "../app/modConfig";
 import type { ReportType } from "../app/types";
-import { UiIcon } from "../app/UiIcon";
 import type { UiIconName } from "../app/uiIcons";
 import type { createTranslator } from "../i18n";
 import { type ReportModalStep, ReportStepTransition } from "./ReportStepTransition";
@@ -268,7 +268,8 @@ export function NewReportModal({ t, isOpen, onClose, onSubmit }: NewReportModalP
 
   const isBug = reportType === "Bug";
   const selectedReportType =
-    REPORT_TYPES.find((entry) => entry.type === reportType) ?? REPORT_TYPES[REPORT_TYPES.length - 1];
+    REPORT_TYPES.find((entry) => entry.type === reportType) ??
+    REPORT_TYPES[REPORT_TYPES.length - 1];
   const hasTitle = title.trim().length > 0;
   const hasDescription = description.trim().length > 0;
   const hasRequiredBugDetails =

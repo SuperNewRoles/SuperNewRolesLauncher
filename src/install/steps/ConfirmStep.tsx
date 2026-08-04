@@ -1,7 +1,7 @@
 import { cloneElement } from "react";
+import { UiIcon } from "../../app/UiIcon";
 import { getPlatformLabelKey } from "../../app/platformSelection";
 import type { GamePlatform } from "../../app/types";
-import { UiIcon } from "../../app/UiIcon";
 import type { MessageKey } from "../../i18n";
 import { getPlatformSvg } from "./PlatformStep";
 

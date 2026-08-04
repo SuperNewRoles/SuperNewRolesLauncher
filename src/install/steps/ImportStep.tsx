@@ -1,7 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { useEffect, useState } from "react";
-import type { PresetSummary } from "../../app/types";
 import { UiIcon } from "../../app/UiIcon";
+import type { PresetSummary } from "../../app/types";
 import type { MessageKey } from "../../i18n";
 
 interface ImportStepProps {

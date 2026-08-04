@@ -1,5 +1,6 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { useState } from "react";
+import { UiIcon } from "../../app/UiIcon";
 import { EPIC_ICON_PATH, STEAM_ICON_PATH, XBOX_ICON_PATH } from "../../app/platformIconPaths";
 import {
   filterSelectablePlatformCandidates,
@@ -8,7 +9,6 @@ import {
 } from "../../app/platformSelection";
 import { finderDetectPlatform } from "../../app/services/tauriClient";
 import type { GamePlatform } from "../../app/types";
-import { UiIcon } from "../../app/UiIcon";
 import type { MessageKey } from "../../i18n";
 import type { DetectedPlatform } from "../types";
 

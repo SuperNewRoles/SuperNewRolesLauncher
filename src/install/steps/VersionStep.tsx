@@ -1,7 +1,7 @@
+import { UiIcon } from "../../app/UiIcon";
 import { MOD_DISPLAY_NAME } from "../../app/modConfig";
 import { getPlatformLabelKey } from "../../app/platformSelection";
 import type { GamePlatform, SnrReleaseSummary } from "../../app/types";
-import { UiIcon } from "../../app/UiIcon";
 import type { MessageKey } from "../../i18n";
 import { getPlatformSvg } from "./PlatformStep";
 

@@ -38,7 +38,6 @@ import {
   REPORTING_ENABLED,
   modConfig,
 } from "./modConfig";
-import { uiIconHtml } from "./uiIcons";
 import { createConfirmationController, createOverlayController } from "./overlayController";
 import {
   filterSelectablePlatformCandidates,
@@ -96,6 +95,7 @@ import type {
   PresetSummary,
   SocialIcon,
 } from "./types";
+import { uiIconHtml } from "./uiIcons";
 
 /**
  * フロントエンドの実行本体。

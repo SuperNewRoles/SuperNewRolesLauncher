@@ -5178,8 +5178,11 @@ body.settings-overlay-open .tab-settings-shell {
 
 .settings-general-custom-dll-section {
   border-color: color-mix(in srgb, var(--warning) 42%, var(--line) 58%);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--warning) 7%, transparent), transparent 58%),
-    var(--card);
+  background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--warning) 7%, transparent),
+      transparent 58%
+    ), var(--card);
 }
 
 .settings-general-custom-dll-description {
