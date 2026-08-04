@@ -258,6 +258,93 @@ describe("createConfirmationController", () => {
     await expect(request).resolves.toBe(false);
   });
 
+  it("honors an explicit null focus and traps tab navigation inside the overlay", async () => {
+    confirmation = createConfirmationController({
+      overlay,
+      overlayController,
+      initialFocus: acceptButton,
+    });
+
+    const request = confirmation.request({ initialFocus: null });
+
+    expect(document.activeElement).not.toBe(acceptButton);
+
+    cancelButton.focus();
+    const forwardTab = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Tab",
+    });
+    cancelButton.dispatchEvent(forwardTab);
+
+    expect(forwardTab.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(acceptButton);
+
+    const backwardTab = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Tab",
+      shiftKey: true,
+    });
+    acceptButton.dispatchEvent(backwardTab);
+
+    expect(backwardTab.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(cancelButton);
+
+    confirmation.cancel();
+    await expect(request).resolves.toBe(false);
+
+    const afterCloseTab = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Tab",
+    });
+    acceptButton.dispatchEvent(afterCloseTab);
+    expect(afterCloseTab.defaultPrevented).toBe(false);
+  });
+
+  it("preserves request errors and settles when overlay cleanup throws", async () => {
+    const openError = new Error("open failed");
+    const failingOverlayController = {
+      open: vi.fn(() => {
+        throw openError;
+      }),
+      close: vi.fn(() => {
+        throw new Error("close failed");
+      }),
+    } satisfies Pick<OverlayController<HTMLDivElement>, "open" | "close">;
+    const failingConfirmation = createConfirmationController({
+      overlay,
+      overlayController: failingOverlayController,
+    });
+
+    await expect(failingConfirmation.request()).rejects.toBe(openError);
+    expect(failingOverlayController.close).toHaveBeenCalledWith(overlay, true);
+
+    const closeThrowsController = {
+      open: vi.fn(),
+      close: vi.fn(() => {
+        throw new Error("close failed");
+      }),
+    } satisfies Pick<OverlayController<HTMLDivElement>, "open" | "close">;
+    const safeConfirmation = createConfirmationController({
+      overlay,
+      overlayController: closeThrowsController,
+    });
+
+    const accepted = safeConfirmation.request();
+    expect(() => safeConfirmation.accept()).not.toThrow();
+    await expect(accepted).resolves.toBe(true);
+
+    const closed = safeConfirmation.request();
+    expect(() => safeConfirmation.close(true)).not.toThrow();
+    await expect(closed).resolves.toBe(false);
+
+    const disposed = safeConfirmation.request();
+    expect(() => safeConfirmation.dispose()).not.toThrow();
+    await expect(disposed).resolves.toBe(false);
+  });
+
   it("dispose closes the overlay and settles a pending request as false", async () => {
     const request = confirmation.request({ initialFocus: acceptButton });
 

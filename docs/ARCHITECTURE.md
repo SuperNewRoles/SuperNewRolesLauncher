@@ -56,7 +56,7 @@
 - migration: `migration_export`, `migration_import`
 - presets: `presets_list_local`, `presets_export`, `presets_inspect_archive`, `presets_import_archive`
 - reporting: `reporting_prepare`, `reporting_threads_list`, `reporting_messages_list`, `reporting_message_send`, `reporting_report_send`, `reporting_notification_flag_get`, `reporting_log_source_get`
-- launch: `launch_modded`, `launch_vanilla`, `launch_shortcut_create`, `launch_autolaunch_error_take`, `launch_game_running_get`
+- launch: `launch_modded`, `launch_vanilla`, `launch_vanilla_cleanup_player_cosmetics`, `launch_vanilla_player_cosmetics_cleanup_required`, `launch_shortcut_create`, `launch_autolaunch_error_take`, `launch_game_running_get`
 - epic: `epic_auth_url_get`, `epic_login_webview`, `epic_login_code`, `epic_session_restore`, `epic_logged_in_get`, `epic_status_get`, `epic_logout`
 
 ## DTO ポリシー

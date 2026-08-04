@@ -105,6 +105,7 @@ const REPORT_HOME_NOTIFICATION_FETCH_GAP_MS = 30_000;
 const REPORT_HOME_NOTIFICATION_POLL_INTERVAL_MS = 180_000;
 const ANNOUNCE_BADGE_FETCH_GAP_MS = 30_000;
 const ANNOUNCE_BADGE_POLL_INTERVAL_MS = 300_000;
+const GAME_RUNNING_POLL_INTERVAL_MS = 2_000;
 const LAUNCHER_MINIMIZE_EFFECT_DURATION_MS = 260;
 const LAUNCHER_AUTO_MINIMIZE_WINDOW_MS = 30_000;
 const MODDED_FIRST_SETUP_POLL_INTERVAL_MS = 500;
@@ -925,7 +926,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     },
   });
   const gameRunningPoller = createAsyncPoller({
-    intervalMs: 2_000,
+    intervalMs: GAME_RUNNING_POLL_INTERVAL_MS,
     task: launchGameRunningGet,
     onValue: applyGameRunningState,
     onError: (error) => {
@@ -3497,11 +3498,8 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     try {
       cleanupRequired = await launchVanillaPlayerCosmeticsCleanupRequired();
     } catch (error) {
-      setLaunchStatusWithLock(
-        t("launch.vanillaCosmeticsCleanupFailed", { error: String(error) }),
-        LAUNCH_ERROR_DISPLAY_MS,
-      );
-      return;
+      // 判定に失敗しても補正なしで起動を継続する。
+      console.warn("Failed to check vanilla cosmetics cleanup requirement:", error);
     }
     if (cleanupRequired && !(await openVanillaCosmeticsConfirmOverlay())) {
       return;

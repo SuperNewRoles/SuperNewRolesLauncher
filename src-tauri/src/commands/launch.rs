@@ -108,14 +108,18 @@ pub async fn launch_vanilla<R: Runtime>(
 
 /// Vanilla起動前にplayer.amogusからModコスメティック情報を除去する。
 #[tauri::command]
-pub fn launch_vanilla_cleanup_player_cosmetics() -> Result<(), String> {
-    player_data_service::cleanup_default_player_data()
+pub async fn launch_vanilla_cleanup_player_cosmetics() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(player_data_service::cleanup_default_player_data)
+        .await
+        .map_err(|error| format!("Player data cleanup task failed: {error}"))?
 }
 
 /// Vanilla起動前にplayer.amogusのクリーンアップが必要かを返す。
 #[tauri::command]
-pub fn launch_vanilla_player_cosmetics_cleanup_required() -> Result<bool, String> {
-    player_data_service::default_player_data_requires_cleanup()
+pub async fn launch_vanilla_player_cosmetics_cleanup_required() -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(player_data_service::default_player_data_requires_cleanup)
+        .await
+        .map_err(|error| format!("Player data cleanup check task failed: {error}"))?
 }
 
 /// Vanilla起動を管理者権限で再実行する。

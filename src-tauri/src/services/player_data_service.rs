@@ -1,7 +1,12 @@
 use serde_json::Value;
 use std::env;
-use std::fs;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+#[cfg(windows)]
+use std::io;
 
 const PLAYER_DATA_RELATIVE_PATH: &[&str] = &[
     "AppData",
@@ -15,6 +20,7 @@ const VANILLA_COLOR_ID_MIN: i64 = 0;
 const VANILLA_COLOR_ID_MAX: i64 = 17;
 const DEFAULT_COLOR_ID: i64 = 0;
 const MODDED_COSMETIC_PREFIX: &str = "Modded_";
+static PLAYER_DATA_TEMP_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 const COSMETIC_DEFAULTS: &[(&str, &str)] = &[
     ("pet", "pet_EmptyPet"),
     ("hat", "hat_NoHat"),
@@ -63,7 +69,10 @@ fn cleanup_customization(root: &mut Value) -> bool {
             !(VANILLA_COLOR_ID_MIN..=VANILLA_COLOR_ID_MAX).contains(&color_id)
         }) || value
             .as_u64()
-            .is_some_and(|color_id| color_id > VANILLA_COLOR_ID_MAX as u64);
+            .is_some_and(|color_id| color_id > VANILLA_COLOR_ID_MAX as u64)
+            || value.as_f64().is_some_and(|color_id| {
+                !(VANILLA_COLOR_ID_MIN as f64..=VANILLA_COLOR_ID_MAX as f64).contains(&color_id)
+            });
         if is_outside_vanilla_range {
             *value = Value::from(DEFAULT_COLOR_ID);
             changed = true;
@@ -71,6 +80,116 @@ fn cleanup_customization(root: &mut Value) -> bool {
     }
 
     changed
+}
+
+fn create_player_data_temp_file(path: &Path) -> Result<(PathBuf, fs::File), String> {
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let file_name = path
+        .file_name()
+        .map(|name| name.to_string_lossy())
+        .unwrap_or_else(|| "player-data".into());
+
+    for _ in 0..1000 {
+        let sequence = PLAYER_DATA_TEMP_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+        let candidate = parent.join(format!(
+            ".{file_name}.{}.{}.tmp",
+            std::process::id(),
+            sequence
+        ));
+
+        match OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&candidate)
+        {
+            Ok(file) => return Ok((candidate, file)),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => {
+                return Err(format!(
+                    "Failed to create temporary player data file '{}' for '{}': {error}",
+                    candidate.display(),
+                    path.display()
+                ));
+            }
+        }
+    }
+
+    Err(format!(
+        "Failed to allocate a unique temporary player data file next to '{}' after 1000 attempts",
+        path.display()
+    ))
+}
+
+#[cfg(windows)]
+fn atomic_replace_player_data(source: &Path, destination: &Path) -> io::Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PCWSTR;
+    use windows::Win32::Storage::FileSystem::{
+        MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
+    };
+
+    let source_wide = source
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+    let destination_wide = destination
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+
+    // SAFETY: Both paths remain valid NUL-terminated UTF-16 buffers for the duration of the call.
+    unsafe {
+        MoveFileExW(
+            PCWSTR(source_wide.as_ptr()),
+            PCWSTR(destination_wide.as_ptr()),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
+    }
+    .map_err(|error| io::Error::other(error.to_string()))
+}
+
+#[cfg(not(windows))]
+fn atomic_replace_player_data(source: &Path, destination: &Path) -> std::io::Result<()> {
+    fs::rename(source, destination)
+}
+
+fn write_player_data_atomically(path: &Path, serialized: &[u8]) -> Result<(), String> {
+    let (temp_path, mut temp_file) = create_player_data_temp_file(path)?;
+    let result = (|| -> Result<(), String> {
+        temp_file.write_all(serialized).map_err(|error| {
+            format!(
+                "Failed to write temporary player data file '{}' for '{}': {error}",
+                temp_path.display(),
+                path.display()
+            )
+        })?;
+        temp_file.sync_all().map_err(|error| {
+            format!(
+                "Failed to synchronize temporary player data file '{}' for '{}': {error}",
+                temp_path.display(),
+                path.display()
+            )
+        })?;
+        drop(temp_file);
+
+        atomic_replace_player_data(&temp_path, path).map_err(|error| {
+            format!(
+                "Failed to atomically replace player data file '{}' using '{}': {error}",
+                path.display(),
+                temp_path.display()
+            )
+        })
+    })();
+
+    if result.is_err() {
+        let _ = fs::remove_file(&temp_path);
+    }
+    result
 }
 
 fn cleanup_player_data_at(path: &Path) -> Result<(), String> {
@@ -99,19 +218,7 @@ fn cleanup_player_data_at(path: &Path) -> Result<(), String> {
         )
     })?;
 
-    if let Err(write_error) = fs::write(path, serialized) {
-        let restore_result = fs::copy(&backup_path, path);
-        let restore_detail = restore_result
-            .err()
-            .map(|error| format!(" Backup restoration also failed: {error}"))
-            .unwrap_or_default();
-        return Err(format!(
-            "Failed to update '{}': {write_error}.{restore_detail}",
-            path.display()
-        ));
-    }
-
-    Ok(())
+    write_player_data_atomically(path, &serialized)
 }
 
 fn player_data_requires_cleanup_at(path: &Path) -> Result<bool, String> {
@@ -146,6 +253,7 @@ mod tests {
             "customization": {
                 "name": "Modded_PlayerNameMustRemain",
                 "colorID": 18,
+                "colorId": 18.0,
                 "pet": "Modded_CustomPet",
                 "hat": "Modded_CustomHat",
                 "skin": "skin_None",
@@ -158,6 +266,7 @@ mod tests {
         assert!(cleanup_customization(&mut data));
         assert_eq!(data["customization"]["name"], "Modded_PlayerNameMustRemain");
         assert_eq!(data["customization"]["colorID"], 0);
+        assert_eq!(data["customization"]["colorId"], 0);
         assert_eq!(data["customization"]["pet"], "pet_EmptyPet");
         assert_eq!(data["customization"]["hat"], "hat_NoHat");
         assert_eq!(data["customization"]["skin"], "skin_None");

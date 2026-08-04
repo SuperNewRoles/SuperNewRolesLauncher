@@ -1,4 +1,17 @@
 const BODY_LOCK_CLASS = "settings-overlay-open";
+const FOCUSABLE_ELEMENT_SELECTOR = [
+  "a[href]",
+  "area[href]",
+  "button:not([disabled])",
+  'input:not([disabled]):not([type="hidden"])',
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "iframe",
+  "object",
+  "embed",
+  '[contenteditable]:not([contenteditable="false"])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(", ");
 
 export interface OverlayTimers {
   setTimeout(callback: () => void, delay: number): number;
@@ -230,6 +243,79 @@ export function createConfirmationController<TOverlay extends HTMLElement = HTML
 }: CreateConfirmationControllerOptions<TOverlay>): ConfirmationController {
   let pendingResolve: ((accepted: boolean) => void) | null = null;
   let disposed = false;
+  let removeFocusTrap: (() => void) | null = null;
+
+  function getFocusableElements(): HTMLElement[] {
+    return [...overlay.querySelectorAll<HTMLElement>(FOCUSABLE_ELEMENT_SELECTOR)].filter(
+      (element) => {
+        if (
+          element.hidden ||
+          element.closest("[hidden]") ||
+          element.closest('[aria-hidden="true"]') ||
+          element.closest("[inert]") ||
+          element.matches(":disabled")
+        ) {
+          return false;
+        }
+        return element.tabIndex >= 0;
+      },
+    );
+  }
+
+  function handleFocusTrapKeydown(event: KeyboardEvent): void {
+    if (event.key !== "Tab") {
+      return;
+    }
+
+    const focusableElements = getFocusableElements();
+    if (focusableElements.length === 0) {
+      event.preventDefault();
+      return;
+    }
+
+    const activeElement = overlay.ownerDocument.activeElement;
+    const activeIndex =
+      activeElement instanceof HTMLElement ? focusableElements.indexOf(activeElement) : -1;
+    const targetIndex = event.shiftKey
+      ? activeIndex <= 0
+        ? focusableElements.length - 1
+        : activeIndex - 1
+      : activeIndex === -1 || activeIndex === focusableElements.length - 1
+        ? 0
+        : activeIndex + 1;
+
+    if (
+      activeIndex === -1 ||
+      (event.shiftKey && activeIndex === 0) ||
+      (!event.shiftKey && activeIndex === focusableElements.length - 1)
+    ) {
+      event.preventDefault();
+      focusableElements[targetIndex]?.focus();
+    }
+  }
+
+  function activateFocusTrap(): void {
+    if (removeFocusTrap) {
+      return;
+    }
+    overlay.ownerDocument.addEventListener("keydown", handleFocusTrapKeydown);
+    removeFocusTrap = () => {
+      overlay.ownerDocument.removeEventListener("keydown", handleFocusTrapKeydown);
+      removeFocusTrap = null;
+    };
+  }
+
+  function deactivateFocusTrap(): void {
+    removeFocusTrap?.();
+  }
+
+  function safeClose(immediate = false): void {
+    try {
+      overlayController.close(overlay, immediate);
+    } catch {
+      // The overlay controller may already have been disposed; preserve the request result.
+    }
+  }
 
   function takePendingResolve(): ((accepted: boolean) => void) | null {
     const resolve = pendingResolve;
@@ -238,6 +324,7 @@ export function createConfirmationController<TOverlay extends HTMLElement = HTML
   }
 
   function settlePending(accepted: boolean): void {
+    deactivateFocusTrap();
     takePendingResolve()?.(accepted);
   }
 
@@ -254,9 +341,14 @@ export function createConfirmationController<TOverlay extends HTMLElement = HTML
       beforeOpen?.();
       requestOptions.beforeOpen?.();
       overlayController.open(overlay);
-      resolveInitialFocus(requestOptions.initialFocus ?? initialFocus)?.focus();
+      activateFocusTrap();
+      const focusOverride = Object.prototype.hasOwnProperty.call(requestOptions, "initialFocus")
+        ? requestOptions.initialFocus
+        : initialFocus;
+      resolveInitialFocus(focusOverride)?.focus();
     } catch (error) {
-      overlayController.close(overlay, true);
+      deactivateFocusTrap();
+      safeClose(true);
       return Promise.reject(error);
     }
 
@@ -266,16 +358,14 @@ export function createConfirmationController<TOverlay extends HTMLElement = HTML
   }
 
   function complete(accepted: boolean): void {
+    deactivateFocusTrap();
     const resolve = takePendingResolve();
     if (!resolve) {
       return;
     }
 
-    try {
-      overlayController.close(overlay);
-    } finally {
-      resolve(accepted);
-    }
+    safeClose();
+    resolve(accepted);
   }
 
   function accept(): void {
@@ -288,11 +378,9 @@ export function createConfirmationController<TOverlay extends HTMLElement = HTML
 
   function close(immediate = false): void {
     const resolve = takePendingResolve();
-    try {
-      overlayController.close(overlay, immediate);
-    } finally {
-      resolve?.(false);
-    }
+    deactivateFocusTrap();
+    safeClose(immediate);
+    resolve?.(false);
   }
 
   function isPending(): boolean {
@@ -305,11 +393,9 @@ export function createConfirmationController<TOverlay extends HTMLElement = HTML
     }
     disposed = true;
     const resolve = takePendingResolve();
-    try {
-      overlayController.close(overlay, true);
-    } finally {
-      resolve?.(false);
-    }
+    deactivateFocusTrap();
+    safeClose(true);
+    resolve?.(false);
   }
 
   return { request, accept, cancel, close, isPending, dispose };
