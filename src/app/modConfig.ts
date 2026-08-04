@@ -115,11 +115,12 @@ function ensureNonEmpty(value: string, name: string): string {
   return trimmed;
 }
 
-function ensureRelativePath(value: string, name: string): string {
+export function ensureRelativePath(value: string, name: string): string {
   const normalized = ensureNonEmpty(value, name).replace(/\\/gu, "/");
   const pathSegments = normalized.split("/");
+  const lastSegment = pathSegments[pathSegments.length - 1];
   const isAbsolute = normalized.startsWith("/") || /^[A-Za-z]:/u.test(normalized);
-  if (isAbsolute || pathSegments.includes("..")) {
+  if (isAbsolute || pathSegments.includes("..") || lastSegment === "" || lastSegment === ".") {
     throw new Error(`Invalid mod config: '${name}' must be a safe relative path.`);
   }
   return normalized;

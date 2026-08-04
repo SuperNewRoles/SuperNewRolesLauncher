@@ -96,6 +96,8 @@ pub fn install_custom_dll<R: Runtime>(
     let _operation_guard = CUSTOM_DLL_INSTALL_LOCK
         .lock()
         .map_err(|_| "Failed to acquire the custom DLL install lock.".to_string())?;
+    let _game_file_guard = launch_service::lock_game_file_operation()?;
+    let _settings_guard = settings::lock_settings_operation()?;
 
     if launch_service::is_game_running(app.clone())? {
         return Err("Cannot replace the mod DLL while the game is running.".to_string());
@@ -133,7 +135,16 @@ pub fn install_custom_dll<R: Runtime>(
         disable_auto_update,
         &launcher_settings,
         |updated_settings| settings::save_settings(app, updated_settings),
-        |source, destination, _operation| atomic_replace_file(source, destination),
+        |source, destination, operation| {
+            if operation == ReplaceOperation::DllApply
+                && launch_service::is_game_running(app.clone()).map_err(io::Error::other)?
+            {
+                return Err(io::Error::other(
+                    "Cannot replace the mod DLL while the game is running.",
+                ));
+            }
+            atomic_replace_file(source, destination)
+        },
     )
 }
 

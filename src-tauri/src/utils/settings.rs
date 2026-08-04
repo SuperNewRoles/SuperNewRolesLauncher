@@ -5,13 +5,24 @@ use serde::{Deserialize, Serialize};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    LazyLock, Mutex, MutexGuard,
+};
 use tauri::{AppHandle, Manager, Runtime};
 
 use crate::utils::mod_profile;
 
 const SETTINGS_FILE_NAME: &str = "settings.json";
 static SETTINGS_TEMP_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+static SETTINGS_OPERATION_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+
+/// 複数段階の設定読み書きを、他の設定更新から保護する。
+pub(crate) fn lock_settings_operation() -> Result<MutexGuard<'static, ()>, String> {
+    SETTINGS_OPERATION_LOCK
+        .lock()
+        .map_err(|_| "Failed to acquire settings operation lock".to_string())
+}
 
 fn required_profile_files() -> &'static [String] {
     // プロファイル必須ファイル定義はmod設定から取得する。
@@ -671,6 +682,7 @@ pub fn apply_settings_input<R: Runtime>(
     app: &AppHandle<R>,
     input: LauncherSettingsInput,
 ) -> Result<LauncherSettings, String> {
+    let _operation_guard = lock_settings_operation()?;
     let mut settings = load_or_init_settings(app)?;
 
     if let Some(among_us_path) = input.among_us_path {
