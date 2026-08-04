@@ -303,6 +303,22 @@ describe("createConfirmationController", () => {
     expect(afterCloseTab.defaultPrevented).toBe(false);
   });
 
+  it("settles when initial focus cancels the request during setup", async () => {
+    confirmation = createConfirmationController({
+      overlay,
+      overlayController,
+      initialFocus: () => {
+        confirmation.cancel();
+        return null;
+      },
+    });
+
+    const request = confirmation.request();
+
+    await expect(request).resolves.toBe(false);
+    expect(confirmation.isPending()).toBe(false);
+  });
+
   it("preserves request errors and settles when overlay cleanup throws", async () => {
     const openError = new Error("open failed");
     const failingOverlayController = {

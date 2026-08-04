@@ -337,24 +337,45 @@ export function createConfirmationController<TOverlay extends HTMLElement = HTML
     // previous promise without closing the shared overlay underneath the new one.
     settlePending(false);
 
+    let resolveRequest!: (accepted: boolean) => void;
+    const requestPromise = new Promise<boolean>((resolve) => {
+      resolveRequest = resolve;
+    });
+    pendingResolve = resolveRequest;
+    const ownsRequest = () => !disposed && pendingResolve === resolveRequest;
+
     try {
       beforeOpen?.();
+      if (!ownsRequest()) {
+        return requestPromise;
+      }
       requestOptions.beforeOpen?.();
+      if (!ownsRequest()) {
+        return requestPromise;
+      }
       overlayController.open(overlay);
+      if (!ownsRequest()) {
+        return requestPromise;
+      }
       activateFocusTrap();
       const focusOverride = Object.prototype.hasOwnProperty.call(requestOptions, "initialFocus")
         ? requestOptions.initialFocus
         : initialFocus;
-      resolveInitialFocus(focusOverride)?.focus();
+      const focusTarget = resolveInitialFocus(focusOverride);
+      if (!ownsRequest()) {
+        return requestPromise;
+      }
+      focusTarget?.focus();
     } catch (error) {
-      deactivateFocusTrap();
-      safeClose(true);
+      if (ownsRequest()) {
+        takePendingResolve();
+        deactivateFocusTrap();
+        safeClose(true);
+      }
       return Promise.reject(error);
     }
 
-    return new Promise<boolean>((resolve) => {
-      pendingResolve = resolve;
-    });
+    return requestPromise;
   }
 
   function complete(accepted: boolean): void {
