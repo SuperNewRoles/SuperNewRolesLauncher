@@ -274,6 +274,14 @@ export function launchVanilla(input: {
   return invoke<void>("launch_vanilla", input);
 }
 
+export function launchVanillaCleanupPlayerCosmetics(): Promise<void> {
+  return invoke<void>("launch_vanilla_cleanup_player_cosmetics");
+}
+
+export function launchVanillaPlayerCosmeticsCleanupRequired(): Promise<boolean> {
+  return invoke<boolean>("launch_vanilla_player_cosmetics_cleanup_required");
+}
+
 export function launchVanillaElevated(input: {
   gameExe: string;
   platform: GamePlatform;

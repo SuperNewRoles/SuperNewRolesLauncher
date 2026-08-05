@@ -62,6 +62,11 @@ export interface AppDom {
   settingsElevationConfirmCloseButton: HTMLButtonElement;
   settingsElevationConfirmCancelButton: HTMLButtonElement;
   settingsElevationConfirmAcceptButton: HTMLButtonElement;
+  settingsVanillaCosmeticsConfirmOverlay: HTMLDivElement;
+  settingsVanillaCosmeticsConfirmOverlayBackdrop: HTMLDivElement;
+  settingsVanillaCosmeticsConfirmCloseButton: HTMLButtonElement;
+  settingsVanillaCosmeticsConfirmCancelButton: HTMLButtonElement;
+  settingsVanillaCosmeticsConfirmAcceptButton: HTMLButtonElement;
   settingsSteamWarningOverlay: HTMLDivElement;
   settingsSteamWarningOverlayBackdrop: HTMLDivElement;
   settingsSteamWarningCloseButton: HTMLButtonElement;
@@ -285,6 +290,21 @@ export function collectAppDom(): AppDom {
     ),
     settingsElevationConfirmAcceptButton: mustElement<HTMLButtonElement>(
       "#settings-elevation-confirm-accept",
+    ),
+    settingsVanillaCosmeticsConfirmOverlay: mustElement<HTMLDivElement>(
+      "#settings-vanilla-cosmetics-confirm-overlay",
+    ),
+    settingsVanillaCosmeticsConfirmOverlayBackdrop: mustElement<HTMLDivElement>(
+      "#settings-vanilla-cosmetics-confirm-overlay-backdrop",
+    ),
+    settingsVanillaCosmeticsConfirmCloseButton: mustElement<HTMLButtonElement>(
+      "#settings-vanilla-cosmetics-confirm-close",
+    ),
+    settingsVanillaCosmeticsConfirmCancelButton: mustElement<HTMLButtonElement>(
+      "#settings-vanilla-cosmetics-confirm-cancel",
+    ),
+    settingsVanillaCosmeticsConfirmAcceptButton: mustElement<HTMLButtonElement>(
+      "#settings-vanilla-cosmetics-confirm-accept",
     ),
     settingsSteamWarningOverlay: mustElement<HTMLDivElement>("#settings-steam-warning-overlay"),
     settingsSteamWarningOverlayBackdrop: mustElement<HTMLDivElement>(

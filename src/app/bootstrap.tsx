@@ -61,7 +61,9 @@ import {
   launchShortcutCreate,
   launchSteamRunningGet,
   launchVanilla,
+  launchVanillaCleanupPlayerCosmetics,
   launchVanillaElevated,
+  launchVanillaPlayerCosmeticsCleanupRequired,
   launchXbox,
   launchXboxAppIdGet,
   launchXboxCleanup,
@@ -106,6 +108,7 @@ const REPORT_HOME_NOTIFICATION_FETCH_GAP_MS = 30_000;
 const REPORT_HOME_NOTIFICATION_POLL_INTERVAL_MS = 180_000;
 const ANNOUNCE_BADGE_FETCH_GAP_MS = 30_000;
 const ANNOUNCE_BADGE_POLL_INTERVAL_MS = 300_000;
+const GAME_RUNNING_POLL_INTERVAL_MS = 2_000;
 const LAUNCHER_MINIMIZE_EFFECT_DURATION_MS = 260;
 const LAUNCHER_AUTO_MINIMIZE_WINDOW_MS = 30_000;
 const MODDED_FIRST_SETUP_POLL_INTERVAL_MS = 500;
@@ -451,6 +454,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     settingsElevationConfirmCloseButton,
     settingsElevationConfirmCancelButton,
     settingsElevationConfirmAcceptButton,
+    settingsVanillaCosmeticsConfirmOverlay,
+    settingsVanillaCosmeticsConfirmOverlayBackdrop,
+    settingsVanillaCosmeticsConfirmCloseButton,
+    settingsVanillaCosmeticsConfirmCancelButton,
+    settingsVanillaCosmeticsConfirmAcceptButton,
     settingsSteamWarningOverlay,
     settingsSteamWarningOverlayBackdrop,
     settingsSteamWarningCloseButton,
@@ -897,6 +905,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       settingsUninstallConfirmOverlay,
       settingsUpdateConfirmOverlay,
       settingsElevationConfirmOverlay,
+      settingsVanillaCosmeticsConfirmOverlay,
       settingsSteamWarningOverlay,
       settingsMigrationOverlay,
       presetOverlay,
@@ -913,6 +922,11 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     overlay: settingsElevationConfirmOverlay,
     overlayController,
     initialFocus: settingsElevationConfirmAcceptButton,
+  });
+  const vanillaCosmeticsConfirmation = createConfirmationController({
+    overlay: settingsVanillaCosmeticsConfirmOverlay,
+    overlayController,
+    initialFocus: settingsVanillaCosmeticsConfirmAcceptButton,
   });
   const steamWarningConfirmation = createConfirmationController({
     overlay: settingsSteamWarningOverlay,
@@ -941,7 +955,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     },
   });
   const gameRunningPoller = createAsyncPoller({
-    intervalMs: 2_000,
+    intervalMs: GAME_RUNNING_POLL_INTERVAL_MS,
     task: launchGameRunningGet,
     onValue: applyGameRunningState,
     onError: (error) => {
@@ -2595,6 +2609,35 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     resolveElevationConfirm(true);
   });
 
+  function closeVanillaCosmeticsConfirmOverlay(force = false): void {
+    vanillaCosmeticsConfirmation.close(force);
+  }
+
+  function resolveVanillaCosmeticsConfirm(accepted: boolean): void {
+    if (accepted) {
+      vanillaCosmeticsConfirmation.accept();
+    } else {
+      vanillaCosmeticsConfirmation.cancel();
+    }
+  }
+
+  function openVanillaCosmeticsConfirmOverlay(): Promise<boolean> {
+    return vanillaCosmeticsConfirmation.request();
+  }
+
+  settingsVanillaCosmeticsConfirmOverlayBackdrop.addEventListener("click", () => {
+    resolveVanillaCosmeticsConfirm(false);
+  });
+  settingsVanillaCosmeticsConfirmCloseButton.addEventListener("click", () => {
+    resolveVanillaCosmeticsConfirm(false);
+  });
+  settingsVanillaCosmeticsConfirmCancelButton.addEventListener("click", () => {
+    resolveVanillaCosmeticsConfirm(false);
+  });
+  settingsVanillaCosmeticsConfirmAcceptButton.addEventListener("click", () => {
+    resolveVanillaCosmeticsConfirm(true);
+  });
+
   function closeSteamWarningOverlay(force = false): void {
     steamWarningConfirmation.close(force);
   }
@@ -3179,6 +3222,7 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     closeUninstallConfirmOverlay(force);
     closeUpdateConfirmOverlay(force);
     closeElevationConfirmOverlay(force);
+    closeVanillaCosmeticsConfirmOverlay(force);
     closeSteamWarningOverlay(force);
     closeMigrationOverlay(force);
     closeAmongUsOverlay(force);
@@ -3333,6 +3377,10 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
     }
     if (!settingsElevationConfirmOverlay.hidden) {
       resolveElevationConfirm(false);
+      return;
+    }
+    if (!settingsVanillaCosmeticsConfirmOverlay.hidden) {
+      resolveVanillaCosmeticsConfirm(false);
       return;
     }
     if (!settingsSteamWarningOverlay.hidden) {
@@ -3656,8 +3704,31 @@ export async function runLauncher(container?: HTMLElement | null): Promise<void>
       setLaunchStatusWithLock(t("launch.errorEpicFeatureDisabled"), LAUNCH_ERROR_DISPLAY_MS);
       return;
     }
+
+    let cleanupRequired = false;
+    try {
+      cleanupRequired = await launchVanillaPlayerCosmeticsCleanupRequired();
+    } catch (error) {
+      // 判定に失敗しても補正なしで起動を継続する。
+      console.warn("Failed to check vanilla cosmetics cleanup requirement:", error);
+    }
+    if (cleanupRequired && !(await openVanillaCosmeticsConfirmOverlay())) {
+      return;
+    }
     if (!(await ensureSteamRunningOrWarn(settings, { allowContinueAnyway: true }))) {
       return;
+    }
+
+    if (cleanupRequired) {
+      try {
+        await launchVanillaCleanupPlayerCosmetics();
+      } catch (error) {
+        setLaunchStatusWithLock(
+          t("launch.vanillaCosmeticsCleanupFailed", { error: String(error) }),
+          LAUNCH_ERROR_DISPLAY_MS,
+        );
+        return;
+      }
     }
     launchInProgress = true;
     queueLauncherAutoMinimize();

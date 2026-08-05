@@ -463,6 +463,13 @@ const ja = {
   "launch.vanillaStarting": "Vanilla起動中...",
   "launch.vanillaSent": "Vanillaを起動しています...",
   "launch.vanillaFailed": "Vanilla起動失敗: {error}",
+  "launch.vanillaCosmeticsCleanupTitle": "Modコスメティックのクリーンアップ",
+  "launch.vanillaCosmeticsCleanupMessage":
+    "プレイヤー情報からModコスメティックの設定を削除して、Modなしで起動します。\n\n【クリーンアップする理由】\nAmong Usのバニラサーバーでプレイした際に、Modコスメティックの情報が原因でアンチチートに検出されるのを防ぐためです。\n\n【注意】\n次にModを起動したときは、ハットなどのコスメティックをもう一度設定する必要があります。",
+  "launch.vanillaCosmeticsCleanupAccept": "OK",
+  "launch.vanillaCosmeticsCleanupCancel": "キャンセル",
+  "launch.vanillaCosmeticsCleanupFailed":
+    "コスメティッククリーンアップエラー: ゲームの起動に失敗しました。{error}",
   "launch.shortcutCreating": "ショートカットを作成中...",
   "launch.shortcutCreated": "ショートカット作成完了: {path}",
   "launch.shortcutCreateFailed": "ショートカット作成失敗: {error}",
@@ -482,7 +489,7 @@ const ja = {
   "launch.errorElevationRequired":
     "ゲームの起動には管理者権限が必要です。管理者として再実行しますか？",
   "launch.errorElevationCancelled":
-    "管理者権限の要求がキャンセルされました。ゲームは起動していません。",
+    "管理者権限の要求がキャンセルされました。",
   "launch.errorElevatedLaunchFailed": "管理者権限での再実行に失敗しました。詳細: {error}",
   "launch.errorXboxAppNotFound":
     "Xbox/Microsoft Store版 Among Us が見つかりません。インストール済みか確認してください。",

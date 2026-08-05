@@ -470,6 +470,13 @@ const en: Record<keyof typeof ja, string> = {
   "launch.vanillaStarting": "Launching Vanilla...",
   "launch.vanillaSent": "Launching Vanilla...",
   "launch.vanillaFailed": "Vanilla launch failed: {error}",
+  "launch.vanillaCosmeticsCleanupTitle": "Clean up modded cosmetics",
+  "launch.vanillaCosmeticsCleanupMessage":
+    "Modded cosmetic selections will be removed from your player data before launching without mods.\n\nWHY THIS CLEANUP IS NEEDED\nThis helps prevent Among Us anti-cheat from detecting modded cosmetic data when you play on vanilla servers.\n\nPLEASE NOTE\nYou will need to select your hat and other cosmetics again the next time you launch with mods.",
+  "launch.vanillaCosmeticsCleanupAccept": "OK",
+  "launch.vanillaCosmeticsCleanupCancel": "Cancel",
+  "launch.vanillaCosmeticsCleanupFailed":
+    "Failed to clean up modded cosmetics. The game was not launched: {error}",
   "launch.shortcutCreating": "Creating shortcut...",
   "launch.shortcutCreated": "Shortcut created: {path}",
   "launch.shortcutCreateFailed": "Failed to create shortcut: {error}",

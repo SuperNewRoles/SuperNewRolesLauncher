@@ -570,6 +570,8 @@ pub fn run() {
             commands::launch::launch_modded,
             commands::launch::launch_modded_elevated,
             commands::launch::launch_vanilla,
+            commands::launch::launch_vanilla_cleanup_player_cosmetics,
+            commands::launch::launch_vanilla_player_cosmetics_cleanup_required,
             commands::launch::launch_vanilla_elevated,
             commands::launch::launch_shortcut_create,
             commands::launch::launch_modded_first_setup_pending,
