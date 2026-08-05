@@ -488,8 +488,7 @@ const ja = {
     "プロファイルが破損しています。設定からアンインストールして再インストールしてください。",
   "launch.errorElevationRequired":
     "ゲームの起動には管理者権限が必要です。管理者として再実行しますか？",
-  "launch.errorElevationCancelled":
-    "管理者権限の要求がキャンセルされました。",
+  "launch.errorElevationCancelled": "管理者権限の要求がキャンセルされました。",
   "launch.errorElevatedLaunchFailed": "管理者権限での再実行に失敗しました。詳細: {error}",
   "launch.errorXboxAppNotFound":
     "Xbox/Microsoft Store版 Among Us が見つかりません。インストール済みか確認してください。",
